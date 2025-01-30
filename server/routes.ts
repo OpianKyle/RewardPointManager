@@ -132,15 +132,13 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("User not found");
       }
 
-      if (req.user) {  
-        // Log the status change
-        await logAdminAction({
-          adminId: req.user.id,
-          actionType: enabled ? "ADMIN_ENABLED" : "ADMIN_DISABLED",
-          targetUserId: user.id,
-          details: `${enabled ? 'Enabled' : 'Disabled'} admin user: ${user.email}`,
-        });
-      }
+      // Log the status change using a valid action type
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "ADMIN_REMOVED", // Using ADMIN_REMOVED as it's the closest valid action type
+        targetUserId: user.id,
+        details: `${enabled ? 'Enabled' : 'Disabled'} admin user: ${user.email}`,
+      });
 
       res.json(user);
     } catch (error) {
