@@ -10,12 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const { login, register } = useUser();
+  const { login, register, user } = useUser();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [, navigate] = useLocation();
 
   const form = useForm({
     resolver: zodResolver(insertUserSchema),
@@ -28,10 +30,10 @@ export default function AuthPage() {
   const onSubmit = async (data: { username: string; password: string }) => {
     try {
       setIsLoading(true);
-      console.log("Attempting auth:", mode, data.username); // Debug log
+      console.log("Attempting auth:", mode, data.username);
       const result = await (mode === "login" ? login(data) : register(data));
       if (!result.ok) {
-        console.error("Auth error:", result.message); // Debug log
+        console.error("Auth error:", result.message);
         toast({
           variant: "destructive",
           title: "Error",
@@ -42,9 +44,15 @@ export default function AuthPage() {
           title: "Success",
           description: mode === "login" ? "Logged in successfully" : "Registration successful",
         });
+        // Redirect based on user role
+        if (user?.isAdmin) {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error) {
-      console.error("Auth error:", error); // Debug log
+      console.error("Auth error:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -54,6 +62,16 @@ export default function AuthPage() {
       setIsLoading(false);
     }
   };
+
+  // Redirect if already logged in
+  if (user) {
+    if (user.isAdmin) {
+      navigate("/admin");
+    } else {
+      navigate("/dashboard");
+    }
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
