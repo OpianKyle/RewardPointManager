@@ -122,7 +122,7 @@ export default function AdminManagement() {
                 <TableRow key={admin.id}>
                   <TableCell>{admin.username}</TableCell>
                   <TableCell>
-                    {admin.isSuperAdmin ? "Super Admin" : "Admin"}
+                    {admin.isSuperAdmin ? "Super Admin" : (admin.isAdmin ? "Admin" : "User")}
                   </TableCell>
                   <TableCell>
                     {new Date(admin.createdAt).toLocaleDateString()}
@@ -137,8 +137,17 @@ export default function AdminManagement() {
                           isAdmin: !admin.isAdmin,
                         })}
                       >
-                        <ShieldOff className="h-4 w-4 mr-2" />
-                        Remove Admin
+                        {admin.isAdmin ? (
+                          <>
+                            <ShieldOff className="h-4 w-4 mr-2" />
+                            Remove Admin
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="h-4 w-4 mr-2" />
+                            Make Admin
+                          </>
+                        )}
                       </Button>
                     )}
                   </TableCell>
