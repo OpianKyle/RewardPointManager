@@ -74,61 +74,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/admin/users/toggle-admin", async (req, res) => {
-    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can modify admin status");
-    const { userId, isAdmin } = req.body;
-
-    if (userId === req.user.id) {
-      return res.status(400).send("Cannot change your own admin status");
-    }
-
-    const [targetUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (targetUser?.isSuperAdmin) {
-      return res.status(400).send("Cannot modify super admin status");
-    }
-
-    try {
-      if (!isAdmin) {
-        // Log admin removal before deleting
-        await logAdminAction({
-          adminId: req.user.id,
-          actionType: "ADMIN_REMOVED",
-          targetUserId: userId,
-          details: `Removed admin user: ${targetUser.email}`,
-        });
-
-        // If removing admin status, delete the user
-        await db.delete(users).where(eq(users.id, userId));
-        res.json({ message: "Admin user removed successfully" });
-      } else {
-        // If adding admin status, update the user
-        const [updatedUser] = await db
-          .update(users)
-          .set({ isAdmin })
-          .where(eq(users.id, userId))
-          .returning();
-
-        // Log admin updated
-        await logAdminAction({
-          adminId: req.user.id,
-          actionType: isAdmin ? "ADMIN_ENABLED" : "ADMIN_DISABLED",
-          targetUserId: userId,
-          details: `${isAdmin ? 'Enabled' : 'Disabled'} admin user: ${targetUser.email}`,
-        });
-
-        res.json(updatedUser);
-      }
-    } catch (error) {
-      console.error('Error modifying admin status:', error);
-      res.status(500).send('Failed to modify admin status');
-    }
-  });
-
   app.put("/api/admin/users/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { id } = req.params;
@@ -159,7 +104,7 @@ export function registerRoutes(app: Express): Server {
       // Log the user update
       await logAdminAction({
         adminId: req.user.id,
-        actionType: "ADMIN_UPDATED",
+        actionType: "ADMIN_UPDATED", 
         targetUserId: user.id,
         details: `Updated admin user: ${user.email}`,
       });
@@ -187,13 +132,15 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("User not found");
       }
 
-      // Log the status change
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: enabled ? "ADMIN_ENABLED" : "ADMIN_DISABLED",
-        targetUserId: user.id,
-        details: `${enabled ? 'Enabled' : 'Disabled'} admin user: ${user.email}`,
-      });
+      if (req.user) {  
+        // Log the status change
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: enabled ? "ADMIN_ENABLED" : "ADMIN_DISABLED",
+          targetUserId: user.id,
+          details: `${enabled ? 'Enabled' : 'Disabled'} admin user: ${user.email}`,
+        });
+      }
 
       res.json(user);
     } catch (error) {
@@ -202,22 +149,70 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Admin Routes
-  app.get("/api/admin/customers", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const allUsers = await db.query.users.findMany({
-      where: eq(users.isAdmin, false),
-      with: {
-        transactions: {
-          limit: 5,
-          orderBy: desc(transactions.createdAt),
-        },
-      },
-    });
-    res.json(allUsers);
+  // Updated admin removal logic to handle foreign key constraints
+  app.post("/api/admin/users/toggle-admin", async (req, res) => {
+    if (!req.user?.isSuperAdmin) return res.status(403).send("Unauthorized");
+    const { userId, isAdmin } = req.body;
+
+    if (userId === req.user.id) {
+      return res.status(400).send("Cannot change your own admin status");
+    }
+
+    const [targetUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (targetUser?.isSuperAdmin) {
+      return res.status(400).send("Cannot modify super admin status");
+    }
+
+    try {
+      if (!isAdmin) {
+        // Instead of deleting, we'll update the user to remove admin status and disable the account
+        const [updatedUser] = await db
+          .update(users)
+          .set({ 
+            isAdmin: false, 
+            isEnabled: false 
+          })
+          .where(eq(users.id, userId))
+          .returning();
+
+        // Log admin removal
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: "ADMIN_REMOVED",
+          targetUserId: userId,
+          details: `Removed admin user: ${targetUser.email}`,
+        });
+
+        res.json({ message: "Admin user removed successfully" });
+      } else {
+        // If adding admin status, update the user
+        const [updatedUser] = await db
+          .update(users)
+          .set({ isAdmin })
+          .where(eq(users.id, userId))
+          .returning();
+
+        // Log admin updated
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: "ADMIN_ENABLED", 
+          targetUserId: userId,
+          details: `${isAdmin ? 'Enabled' : 'Disabled'} admin user: ${targetUser.email}`,
+        });
+
+        res.json(updatedUser);
+      }
+    } catch (error) {
+      console.error('Error modifying admin status:', error);
+      res.status(500).send('Failed to modify admin status');
+    }
   });
 
-  // Update existing admin routes to include logging
   app.post("/api/admin/points", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { userId, points, description } = req.body;
@@ -262,7 +257,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const allUsers = await db.query.users.findMany({
-      where: eq(users.isAdmin, true), // Only fetch admin users
+      where: eq(users.isAdmin, true), 
       orderBy: desc(users.createdAt),
     });
     res.json(allUsers);

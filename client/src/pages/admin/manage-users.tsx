@@ -84,7 +84,6 @@ export default function AdminManagement() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      refetch();
       toast({ 
         title: "Success", 
         description: data.message || "Admin status updated successfully" 
@@ -160,7 +159,7 @@ export default function AdminManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
       toast({ title: "Success", description: "Admin status updated successfully" });
     },
     onError: (error: Error) => {
