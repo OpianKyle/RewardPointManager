@@ -14,7 +14,7 @@ import { useLocation } from "wouter";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const { login, register, user } = useUser();
+  const { login, register: registerUser, user } = useUser();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [, navigate] = useLocation();
@@ -22,16 +22,19 @@ export default function AuthPage() {
   const form = useForm({
     resolver: zodResolver(insertUserSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
+      firstName: "",
+      lastName: "",
+      phoneNumber: "",
     },
   });
 
-  const onSubmit = async (data: { username: string; password: string }) => {
+  const onSubmit = async (data: any) => {
     try {
       setIsLoading(true);
-      console.log("Attempting auth:", mode, data.username);
-      const result = await (mode === "login" ? login(data) : register(data));
+      console.log("Attempting auth:", mode, data.email);
+      const result = await (mode === "login" ? login(data) : registerUser(data));
       if (!result.ok) {
         console.error("Auth error:", result.message);
         toast({
@@ -92,17 +95,60 @@ export default function AuthPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="username"
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Username</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} autoComplete="username" />
+                          <Input {...field} type="email" autoComplete="email" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  {mode === "register" && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="phoneNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone Number</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="tel" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
                   <FormField
                     control={form.control}
                     name="password"
@@ -110,7 +156,11 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+                          <Input 
+                            type="password" 
+                            {...field} 
+                            autoComplete={mode === 'login' ? 'current-password' : 'new-password'} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
