@@ -42,9 +42,13 @@ export const adminActionTypes = pgEnum("admin_action_type", [
   "POINT_ADJUSTMENT",
   "ADMIN_CREATED",
   "ADMIN_REMOVED",
+  "ADMIN_UPDATED",
+  "ADMIN_ENABLED",
+  "ADMIN_DISABLED",
   "REWARD_CREATED",
   "REWARD_UPDATED",
   "REWARD_DELETED",
+  "USER_CREATED",
   "USER_UPDATED",
   "USER_ENABLED",
   "USER_DISABLED"

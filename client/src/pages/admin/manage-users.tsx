@@ -6,8 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, ShieldOff, UserPlus } from "lucide-react";
+import { Shield, ShieldOff, UserPlus, Pencil, Power, PowerOff } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const adminSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+  password: z.string().optional(),
+});
+
+type AdminFormData = z.infer<typeof adminSchema>;
 
 export default function AdminManagement() {
   const { data: admins } = useQuery({
@@ -16,9 +28,13 @@ export default function AdminManagement() {
 
   const { toast } = useToast();
 
-  const form = useForm({
+  const form = useForm<AdminFormData>({
+    resolver: zodResolver(adminSchema),
     defaultValues: {
-      username: "",
+      email: "",
+      firstName: "",
+      lastName: "",
+      phoneNumber: "",
       password: "",
     },
   });
@@ -50,11 +66,11 @@ export default function AdminManagement() {
   });
 
   const createAdminMutation = useMutation({
-    mutationFn: async (data: { username: string; password: string }) => {
+    mutationFn: async (data: AdminFormData) => {
       const res = await fetch("/api/admin/users/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, isAdmin: true }),
+        body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -63,6 +79,52 @@ export default function AdminManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({ title: "Success", description: "Admin user created successfully" });
       form.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const updateAdminMutation = useMutation({
+    mutationFn: async ({ userId, data }: { userId: number, data: AdminFormData }) => {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Success", description: "Admin updated successfully" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ userId, enabled }: { userId: number; enabled: boolean }) => {
+      const res = await fetch(`/api/admin/users/${userId}/toggle-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Success", description: "Admin status updated successfully" });
     },
     onError: (error: Error) => {
       toast({
@@ -93,8 +155,20 @@ export default function AdminManagement() {
               className="space-y-4"
             >
               <div className="space-y-2">
-                <label>Username</label>
-                <Input {...form.register("username")} />
+                <label>Email</label>
+                <Input {...form.register("email")} type="email" />
+              </div>
+              <div className="space-y-2">
+                <label>First Name</label>
+                <Input {...form.register("firstName")} />
+              </div>
+              <div className="space-y-2">
+                <label>Last Name</label>
+                <Input {...form.register("lastName")} />
+              </div>
+              <div className="space-y-2">
+                <label>Phone Number</label>
+                <Input {...form.register("phoneNumber")} type="tel" />
               </div>
               <div className="space-y-2">
                 <label>Password</label>
@@ -114,40 +188,120 @@ export default function AdminManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Username</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Join Date</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {admins?.map((admin: any) => (
                 <TableRow key={admin.id}>
-                  <TableCell>{admin.username}</TableCell>
+                  <TableCell>{admin.firstName} {admin.lastName}</TableCell>
+                  <TableCell>{admin.email}</TableCell>
+                  <TableCell>{admin.phoneNumber}</TableCell>
                   <TableCell>
                     {admin.isSuperAdmin ? "Super Admin" : "Admin"}
                   </TableCell>
                   <TableCell>
-                    {new Date(admin.createdAt).toLocaleDateString()}
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      admin.isEnabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {admin.isEnabled ? 'Active' : 'Disabled'}
+                    </span>
                   </TableCell>
                   <TableCell>
-                    {!admin.isSuperAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (confirm("Are you sure? This will permanently remove this admin user.")) {
-                            toggleAdminMutation.mutate({
-                              userId: admin.id,
-                              isAdmin: false,
-                            });
-                          }
-                        }}
-                      >
-                        <ShieldOff className="h-4 w-4 mr-2" />
-                        Remove Admin
-                      </Button>
-                    )}
+                    <div className="flex space-x-2">
+                      {!admin.isSuperAdmin && (
+                        <>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit Admin</DialogTitle>
+                              </DialogHeader>
+                              <form 
+                                onSubmit={form.handleSubmit((data) => 
+                                  updateAdminMutation.mutate({ userId: admin.id, data })
+                                )} 
+                                className="space-y-4"
+                              >
+                                <div className="space-y-2">
+                                  <label>Email</label>
+                                  <Input {...form.register("email")} defaultValue={admin.email} />
+                                </div>
+                                <div className="space-y-2">
+                                  <label>First Name</label>
+                                  <Input {...form.register("firstName")} defaultValue={admin.firstName} />
+                                </div>
+                                <div className="space-y-2">
+                                  <label>Last Name</label>
+                                  <Input {...form.register("lastName")} defaultValue={admin.lastName} />
+                                </div>
+                                <div className="space-y-2">
+                                  <label>Phone Number</label>
+                                  <Input {...form.register("phoneNumber")} defaultValue={admin.phoneNumber} />
+                                </div>
+                                <div className="space-y-2">
+                                  <label>New Password (leave empty to keep current)</label>
+                                  <Input type="password" {...form.register("password")} />
+                                </div>
+                                <Button type="submit">Update Admin</Button>
+                              </form>
+                            </DialogContent>
+                          </Dialog>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(
+                                "Are you sure? This will permanently remove this admin user."
+                              )) {
+                                toggleAdminMutation.mutate({
+                                  userId: admin.id,
+                                  isAdmin: false,
+                                });
+                              }
+                            }}
+                          >
+                            <ShieldOff className="h-4 w-4 mr-2" />
+                            Remove Admin
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(
+                                admin.isEnabled
+                                  ? "Are you sure you want to disable this admin?"
+                                  : "Are you sure you want to enable this admin?"
+                              )) {
+                                toggleStatusMutation.mutate({
+                                  userId: admin.id,
+                                  enabled: !admin.isEnabled,
+                                });
+                              }
+                            }}
+                          >
+                            {admin.isEnabled ? (
+                              <PowerOff className="h-4 w-4 mr-2" />
+                            ) : (
+                              <Power className="h-4 w-4 mr-2" />
+                            )}
+                            {admin.isEnabled ? 'Disable' : 'Enable'}
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

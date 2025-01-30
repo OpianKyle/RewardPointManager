@@ -27,6 +27,181 @@ export function registerRoutes(app: Express): Server {
     res.json(logs);
   });
 
+  // Admin Management Routes
+  app.post("/api/admin/users/create", async (req, res) => {
+    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can create new admins");
+    const { email, password, firstName, lastName, phoneNumber } = req.body;
+
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (existingUser) {
+      return res.status(400).send("Email already exists");
+    }
+
+    try {
+      const hashedPassword = await crypto.hash(password);
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          email,
+          password: hashedPassword,
+          firstName,
+          lastName,
+          phoneNumber,
+          isAdmin: true,
+          isSuperAdmin: false,
+          isEnabled: true,
+          points: 0,
+        })
+        .returning();
+
+      // Log admin creation
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "ADMIN_CREATED",
+        targetUserId: newUser.id,
+        details: `Created new admin user: ${email}`,
+      });
+
+      res.json(newUser);
+    } catch (error) {
+      console.error('Error creating admin user:', error);
+      res.status(500).send('Failed to create admin user');
+    }
+  });
+
+  app.post("/api/admin/users/toggle-admin", async (req, res) => {
+    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can modify admin status");
+    const { userId, isAdmin } = req.body;
+
+    if (userId === req.user.id) {
+      return res.status(400).send("Cannot change your own admin status");
+    }
+
+    const [targetUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (targetUser?.isSuperAdmin) {
+      return res.status(400).send("Cannot modify super admin status");
+    }
+
+    try {
+      if (!isAdmin) {
+        // Log admin removal before deleting
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: "ADMIN_REMOVED",
+          targetUserId: userId,
+          details: `Removed admin user: ${targetUser.email}`,
+        });
+
+        // If removing admin status, delete the user
+        await db.delete(users).where(eq(users.id, userId));
+        res.json({ message: "Admin user removed successfully" });
+      } else {
+        // If adding admin status, update the user
+        const [updatedUser] = await db
+          .update(users)
+          .set({ isAdmin })
+          .where(eq(users.id, userId))
+          .returning();
+
+        // Log admin updated
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: isAdmin ? "ADMIN_ENABLED" : "ADMIN_DISABLED",
+          targetUserId: userId,
+          details: `${isAdmin ? 'Enabled' : 'Disabled'} admin user: ${targetUser.email}`,
+        });
+
+        res.json(updatedUser);
+      }
+    } catch (error) {
+      console.error('Error modifying admin status:', error);
+      res.status(500).send('Failed to modify admin status');
+    }
+  });
+
+  app.put("/api/admin/users/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { email, firstName, lastName, phoneNumber, password } = req.body;
+
+    try {
+      const updates: any = {
+        email,
+        firstName,
+        lastName,
+        phoneNumber,
+      };
+
+      if (password) {
+        updates.password = await crypto.hash(password);
+      }
+
+      const [user] = await db
+        .update(users)
+        .set(updates)
+        .where(eq(users.id, parseInt(id)))
+        .returning();
+
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      // Log the user update
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "ADMIN_UPDATED",
+        targetUserId: user.id,
+        details: `Updated admin user: ${user.email}`,
+      });
+
+      res.json(user);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).send('Failed to update user');
+    }
+  });
+
+  app.post("/api/admin/users/:id/toggle-status", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { enabled } = req.body;
+
+    try {
+      const [user] = await db
+        .update(users)
+        .set({ isEnabled: enabled })
+        .where(eq(users.id, parseInt(id)))
+        .returning();
+
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      // Log the status change
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: enabled ? "ADMIN_ENABLED" : "ADMIN_DISABLED",
+        targetUserId: user.id,
+        details: `${enabled ? 'Enabled' : 'Disabled'} admin user: ${user.email}`,
+      });
+
+      res.json(user);
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      res.status(500).send('Failed to toggle user status');
+    }
+  });
+
   // Admin Routes
   app.get("/api/admin/customers", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
@@ -84,7 +259,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Admin Management Routes
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const allUsers = await db.query.users.findMany({
@@ -94,167 +268,6 @@ export function registerRoutes(app: Express): Server {
     res.json(allUsers);
   });
 
-  app.post("/api/admin/users/create", async (req, res) => {
-    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can create new admins");
-    const { username, password } = req.body;
-
-    const [existingUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username))
-      .limit(1);
-
-    if (existingUser) {
-      return res.status(400).send("Username already exists");
-    }
-
-    try {
-      const hashedPassword = await crypto.hash(password);
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          username,
-          password: hashedPassword,
-          isAdmin: true,
-          isSuperAdmin: false,
-          points: 0,
-        })
-        .returning();
-
-      // Log admin creation
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "ADMIN_CREATED",
-        targetUserId: newUser.id,
-        details: `Created new admin user: ${username}`,
-      });
-
-      res.json(newUser);
-    } catch (error) {
-      console.error('Error creating admin user:', error);
-      res.status(500).send('Failed to create admin user');
-    }
-  });
-
-  app.post("/api/admin/users/toggle-admin", async (req, res) => {
-    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can modify admin status");
-    const { userId, isAdmin } = req.body;
-
-    if (userId === req.user.id) {
-      return res.status(400).send("Cannot change your own admin status");
-    }
-
-    const [targetUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (targetUser?.isSuperAdmin) {
-      return res.status(400).send("Cannot modify super admin status");
-    }
-
-    try {
-      if (!isAdmin) {
-        // Log admin removal before deleting
-        await logAdminAction({
-          adminId: req.user.id,
-          actionType: "ADMIN_REMOVED",
-          targetUserId: userId,
-          details: `Removed admin user: ${targetUser.username}`,
-        });
-
-        // If removing admin status, delete the user
-        await db.delete(users).where(eq(users.id, userId));
-        res.json({ message: "Admin user removed successfully" });
-      } else {
-        // If adding admin status, update the user
-        const [updatedUser] = await db
-          .update(users)
-          .set({ isAdmin })
-          .where(eq(users.id, userId))
-          .returning();
-        res.json(updatedUser);
-      }
-    } catch (error) {
-      console.error('Error modifying admin status:', error);
-      res.status(500).send('Failed to modify admin status');
-    }
-  });
-
-  // Add these new endpoints to the existing routes.ts file, before the customer routes
-  app.put("/api/admin/users/:id", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { id } = req.params;
-    const { email, firstName, lastName, phoneNumber, password } = req.body;
-
-    try {
-      const updates: any = {
-        email,
-        firstName,
-        lastName,
-        phoneNumber,
-      };
-
-      if (password) {
-        updates.password = await crypto.hash(password);
-      }
-
-      const [user] = await db
-        .update(users)
-        .set(updates)
-        .where(eq(users.id, parseInt(id)))
-        .returning();
-
-      if (!user) {
-        return res.status(404).send("User not found");
-      }
-
-      // Log the user update
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "USER_UPDATED",
-        targetUserId: user.id,
-        details: `Updated user: ${user.email}`,
-      });
-
-      res.json(user);
-    } catch (error) {
-      console.error('Error updating user:', error);
-      res.status(500).send('Failed to update user');
-    }
-  });
-
-  app.post("/api/admin/users/:id/toggle-status", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { id } = req.params;
-    const { enabled } = req.body;
-
-    try {
-      const [user] = await db
-        .update(users)
-        .set({ isEnabled: enabled })
-        .where(eq(users.id, parseInt(id)))
-        .returning();
-
-      if (!user) {
-        return res.status(404).send("User not found");
-      }
-
-      // Log the status change
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: enabled ? "USER_ENABLED" : "USER_DISABLED",
-        targetUserId: user.id,
-        details: `${enabled ? 'Enabled' : 'Disabled'} user: ${user.email}`,
-      });
-
-      res.json(user);
-    } catch (error) {
-      console.error('Error toggling user status:', error);
-      res.status(500).send('Failed to toggle user status');
-    }
-  });
 
   // Customer Routes
   app.get("/api/customer/points", async (req, res) => {
