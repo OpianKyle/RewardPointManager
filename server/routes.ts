@@ -59,6 +59,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const allUsers = await db.query.users.findMany({
+      where: eq(users.isAdmin, true), // Only fetch admin users
       orderBy: desc(users.createdAt),
     });
     res.json(allUsers);

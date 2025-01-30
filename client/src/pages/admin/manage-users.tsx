@@ -9,8 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Shield, ShieldOff, UserPlus } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-export default function ManageUsers() {
-  const { data: users } = useQuery({
+export default function AdminManagement() {
+  const { data: admins } = useQuery({
     queryKey: ["/api/admin/users"],
   });
 
@@ -35,7 +35,7 @@ export default function ManageUsers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({ title: "Success", description: "User role updated successfully" });
+      toast({ title: "Success", description: "Admin role updated successfully" });
     },
     onError: (error: Error) => {
       toast({
@@ -73,7 +73,7 @@ export default function ManageUsers() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Manage Users</h1>
+        <h1 className="text-3xl font-bold">Admin Management</h1>
         <Dialog>
           <DialogTrigger asChild>
             <Button>
@@ -105,7 +105,7 @@ export default function ManageUsers() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
+          <CardTitle>All Administrators</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -118,36 +118,27 @@ export default function ManageUsers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users?.map((user: any) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.username}</TableCell>
+              {admins?.map((admin: any) => (
+                <TableRow key={admin.id}>
+                  <TableCell>{admin.username}</TableCell>
                   <TableCell>
-                    {user.isSuperAdmin ? "Super Admin" : user.isAdmin ? "Admin" : "User"}
+                    {admin.isSuperAdmin ? "Super Admin" : "Admin"}
                   </TableCell>
                   <TableCell>
-                    {new Date(user.createdAt).toLocaleDateString()}
+                    {new Date(admin.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    {!user.isSuperAdmin && (
+                    {!admin.isSuperAdmin && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => toggleAdminMutation.mutate({
-                          userId: user.id,
-                          isAdmin: !user.isAdmin,
+                          userId: admin.id,
+                          isAdmin: !admin.isAdmin,
                         })}
                       >
-                        {user.isAdmin ? (
-                          <>
-                            <ShieldOff className="h-4 w-4 mr-2" />
-                            Remove Admin
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="h-4 w-4 mr-2" />
-                            Make Admin
-                          </>
-                        )}
+                        <ShieldOff className="h-4 w-4 mr-2" />
+                        Remove Admin
                       </Button>
                     )}
                   </TableCell>
