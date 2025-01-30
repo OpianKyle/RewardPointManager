@@ -248,22 +248,35 @@ export function registerRoutes(app: Express): Server {
       return res.status(400).send("Insufficient points");
     }
 
-    await db.transaction(async (tx) => {
-      await tx.insert(transactions).values({
-        userId: user.id,
-        points: -reward.pointsCost,
-        type: "REDEEMED",
-        description: `Redeemed ${reward.name}`,
-        rewardId,
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(transactions).values({
+          userId: user.id,
+          points: -reward.pointsCost,
+          type: "REDEEMED",
+          description: `Redeemed ${reward.name}`,
+          rewardId,
+        });
+
+        await tx
+          .update(users)
+          .set({ points: user.points - reward.pointsCost })
+          .where(eq(users.id, user.id));
+
+        // Log the point adjustment in admin logs
+        await logAdminAction({
+          adminId: user.id,
+          actionType: "POINT_ADJUSTMENT",
+          targetUserId: user.id,
+          details: `Points deducted (-${reward.pointsCost}) for redeeming reward: ${reward.name}`,
+        });
       });
 
-      await tx
-        .update(users)
-        .set({ points: user.points - reward.pointsCost })
-        .where(eq(users.id, user.id));
-    });
-
-    res.json({ success: true });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error processing reward redemption:', error);
+      res.status(500).send('Failed to process reward redemption');
+    }
   });
 
   const httpServer = createServer(app);
