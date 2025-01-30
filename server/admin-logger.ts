@@ -15,26 +15,33 @@ export async function logAdminAction({
   details,
 }: AdminAction) {
   try {
-    await db.insert(adminLogs).values({
+    console.log('Attempting to log admin action:', { adminId, actionType, targetUserId, details });
+    const [result] = await db.insert(adminLogs).values({
       adminId,
       actionType,
       targetUserId,
       details,
-    });
+    }).returning();
+
+    console.log('Admin action logged successfully:', result);
+    return result;
   } catch (error) {
     console.error("Failed to log admin action:", error);
+    throw error; // Re-throw to handle in the route
   }
 }
 
 export async function getAdminLogs() {
   try {
-    return await db.query.adminLogs.findMany({
+    const logs = await db.query.adminLogs.findMany({
       with: {
         admin: true,
         targetUser: true,
       },
       orderBy: (logs, { desc }) => [desc(logs.createdAt)],
     });
+    console.log('Retrieved admin logs:', logs.length);
+    return logs;
   } catch (error) {
     console.error("Failed to fetch admin logs:", error);
     return [];

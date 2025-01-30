@@ -77,7 +77,7 @@ export function registerRoutes(app: Express): Server {
         return updatedUser;
       });
 
-      res.json({ success: true, message: "Points adjusted successfully" });
+      res.json({ message: "Points adjusted successfully" });
     } catch (error) {
       console.error('Error adjusting points:', error);
       res.status(500).send('Failed to adjust points');
