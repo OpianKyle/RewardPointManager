@@ -4,10 +4,14 @@ import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").unique().notNull(),
+  email: text("email").unique().notNull(),
   password: text("password").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phoneNumber: text("phone_number").notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
   isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
   points: integer("points").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -34,14 +38,16 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// New admin logs table and enum
 export const adminActionTypes = pgEnum("admin_action_type", [
   "POINT_ADJUSTMENT",
   "ADMIN_CREATED",
   "ADMIN_REMOVED",
   "REWARD_CREATED",
   "REWARD_UPDATED",
-  "REWARD_DELETED"
+  "REWARD_DELETED",
+  "USER_UPDATED",
+  "USER_ENABLED",
+  "USER_DISABLED"
 ]);
 
 export const adminLogs = pgTable("admin_logs", {

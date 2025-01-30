@@ -182,6 +182,80 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add these new endpoints to the existing routes.ts file, before the customer routes
+  app.put("/api/admin/users/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { email, firstName, lastName, phoneNumber, password } = req.body;
+
+    try {
+      const updates: any = {
+        email,
+        firstName,
+        lastName,
+        phoneNumber,
+      };
+
+      if (password) {
+        updates.password = await crypto.hash(password);
+      }
+
+      const [user] = await db
+        .update(users)
+        .set(updates)
+        .where(eq(users.id, parseInt(id)))
+        .returning();
+
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      // Log the user update
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "USER_UPDATED",
+        targetUserId: user.id,
+        details: `Updated user: ${user.email}`,
+      });
+
+      res.json(user);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).send('Failed to update user');
+    }
+  });
+
+  app.post("/api/admin/users/:id/toggle-status", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { enabled } = req.body;
+
+    try {
+      const [user] = await db
+        .update(users)
+        .set({ isEnabled: enabled })
+        .where(eq(users.id, parseInt(id)))
+        .returning();
+
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      // Log the status change
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: enabled ? "USER_ENABLED" : "USER_DISABLED",
+        targetUserId: user.id,
+        details: `${enabled ? 'Enabled' : 'Disabled'} user: ${user.email}`,
+      });
+
+      res.json(user);
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      res.status(500).send('Failed to toggle user status');
+    }
+  });
+
   // Customer Routes
   app.get("/api/customer/points", async (req, res) => {
     if (!req.user) return res.status(401).send("Unauthorized");

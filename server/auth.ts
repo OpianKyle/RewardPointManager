@@ -35,9 +35,18 @@ declare global {
   }
 }
 
-// Define a simpler schema for authentication
-const authSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+// Define registration schema
+const registerSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+});
+
+// Define login schema
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -65,30 +74,41 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        console.log("Attempting login for user:", username);
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.username, username))
-          .limit(1);
+    new LocalStrategy(
+      {
+        usernameField: 'email',
+      },
+      async (email, password, done) => {
+        try {
+          console.log("Attempting login for user:", email);
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, email))
+            .limit(1);
 
-        if (!user) {
-          console.log("User not found:", username);
-          return done(null, false, { message: "Incorrect username." });
+          if (!user) {
+            console.log("User not found:", email);
+            return done(null, false, { message: "Incorrect email." });
+          }
+
+          if (!user.isEnabled) {
+            console.log("User is disabled:", email);
+            return done(null, false, { message: "Account is disabled." });
+          }
+
+          const isMatch = await crypto.compare(password, user.password);
+          console.log("Password match result:", isMatch);
+          if (!isMatch) {
+            return done(null, false, { message: "Incorrect password." });
+          }
+          return done(null, user);
+        } catch (err) {
+          console.error("Login error:", err);
+          return done(err);
         }
-        const isMatch = await crypto.compare(password, user.password);
-        console.log("Password match result:", isMatch);
-        if (!isMatch) {
-          return done(null, false, { message: "Incorrect password." });
-        }
-        return done(null, user);
-      } catch (err) {
-        console.error("Login error:", err);
-        return done(err);
       }
-    })
+    )
   );
 
   passport.serializeUser((user, done) => {
@@ -111,7 +131,7 @@ export function setupAuth(app: Express) {
   app.post("/api/register", async (req, res, next) => {
     try {
       console.log("Registration attempt:", req.body);
-      const result = authSchema.safeParse(req.body);
+      const result = registerSchema.safeParse(req.body);
       if (!result.success) {
         console.log("Invalid registration input:", result.error);
         return res
@@ -119,17 +139,17 @@ export function setupAuth(app: Express) {
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { username, password } = result.data;
+      const { email, password, firstName, lastName, phoneNumber } = result.data;
 
       const [existingUser] = await db
         .select()
         .from(users)
-        .where(eq(users.username, username))
+        .where(eq(users.email, email))
         .limit(1);
 
       if (existingUser) {
-        console.log("Username already exists:", username);
-        return res.status(400).send("Username already exists");
+        console.log("Email already exists:", email);
+        return res.status(400).send("Email already exists");
       }
 
       const hashedPassword = await crypto.hash(password);
@@ -137,14 +157,19 @@ export function setupAuth(app: Express) {
       const [newUser] = await db
         .insert(users)
         .values({
-          username,
+          email,
           password: hashedPassword,
+          firstName,
+          lastName,
+          phoneNumber,
           isAdmin: false,
+          isSuperAdmin: false,
+          isEnabled: true,
           points: 0,
         })
         .returning();
 
-      console.log("User registered successfully:", username);
+      console.log("User registered successfully:", email);
 
       req.login(newUser, (err) => {
         if (err) {
@@ -152,7 +177,12 @@ export function setupAuth(app: Express) {
         }
         return res.json({
           message: "Registration successful",
-          user: { id: newUser.id, username: newUser.username },
+          user: { 
+            id: newUser.id, 
+            email: newUser.email,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName 
+          },
         });
       });
     } catch (error) {
@@ -163,7 +193,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/login", (req, res, next) => {
     console.log("Login attempt:", req.body);
-    const result = authSchema.safeParse(req.body);
+    const result = loginSchema.safeParse(req.body);
     if (!result.success) {
       console.log("Invalid login input:", result.error);
       return res
@@ -187,10 +217,15 @@ export function setupAuth(app: Express) {
           return next(err);
         }
 
-        console.log("Login successful:", user.username);
+        console.log("Login successful:", user.email);
         return res.json({
           message: "Login successful",
-          user: { id: user.id, username: user.username },
+          user: { 
+            id: user.id, 
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName
+          },
         });
       });
     };
@@ -198,21 +233,22 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res) => {
-    const username = req.user?.username;
+    const email = req.user?.email;
     req.logout((err) => {
       if (err) {
         console.error("Logout error:", err);
         return res.status(500).send("Logout failed");
       }
 
-      console.log("Logout successful:", username);
+      console.log("Logout successful:", email);
       res.json({ message: "Logout successful" });
     });
   });
 
   app.get("/api/user", (req, res) => {
     if (req.isAuthenticated()) {
-      return res.json(req.user);
+      const { password, ...user } = req.user;
+      return res.json(user);
     }
 
     res.status(401).send("Not logged in");
