@@ -86,7 +86,7 @@ export function registerRoutes(app: Express): Server {
         .values({
           username,
           password: hashedPassword,
-          isAdmin,
+          isAdmin: true, // Always create as admin
           isSuperAdmin: false,
           points: 0,
         })
