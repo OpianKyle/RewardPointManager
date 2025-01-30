@@ -26,7 +26,7 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/admin/points", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { userId, points, description } = req.body;
-    
+
     await db.transaction(async (tx) => {
       await tx.insert(transactions).values({
         userId,
@@ -34,15 +34,43 @@ export function registerRoutes(app: Express): Server {
         type: "ADMIN_ADJUSTMENT",
         description,
       });
-      
+
       await tx
         .update(users)
         .set({ points: users.points + points })
         .where(eq(users.id, userId));
     });
-    
+
     res.json({ success: true });
   });
+
+  // New Admin Management Routes
+  app.get("/api/admin/users", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const allUsers = await db.query.users.findMany({
+      orderBy: desc(users.createdAt),
+    });
+    res.json(allUsers);
+  });
+
+  app.post("/api/admin/users/toggle-admin", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { userId, isAdmin } = req.body;
+
+    // Don't allow changing own admin status
+    if (userId === req.user.id) {
+      return res.status(400).send("Cannot change your own admin status");
+    }
+
+    const [updatedUser] = await db
+      .update(users)
+      .set({ isAdmin })
+      .where(eq(users.id, userId))
+      .returning();
+
+    res.json(updatedUser);
+  });
+
 
   // Customer Routes
   app.get("/api/customer/points", async (req, res) => {
@@ -82,21 +110,21 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/rewards/redeem", async (req, res) => {
     if (!req.user) return res.status(401).send("Unauthorized");
     const { rewardId } = req.body;
-    
+
     const reward = await db.query.rewards.findFirst({
       where: eq(rewards.id, rewardId),
     });
-    
+
     if (!reward) return res.status(404).send("Reward not found");
-    
+
     const user = await db.query.users.findFirst({
       where: eq(users.id, req.user.id),
     });
-    
+
     if (!user || user.points < reward.pointsCost) {
       return res.status(400).send("Insufficient points");
     }
-    
+
     await db.transaction(async (tx) => {
       await tx.insert(transactions).values({
         userId: user.id,
@@ -105,13 +133,13 @@ export function registerRoutes(app: Express): Server {
         description: `Redeemed ${reward.name}`,
         rewardId,
       });
-      
+
       await tx
         .update(users)
         .set({ points: user.points - reward.pointsCost })
         .where(eq(users.id, user.id));
     });
-    
+
     res.json({ success: true });
   });
 

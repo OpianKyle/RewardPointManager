@@ -15,6 +15,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: "Dashboard", href: "/admin" },
     { label: "Customers", href: "/admin/customers" },
     { label: "Rewards", href: "/admin/rewards" },
+    { label: "Manage Users", href: "/admin/manage-users" },
   ];
 
   return (
