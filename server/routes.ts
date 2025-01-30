@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { rewards, transactions, users } from "@db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
@@ -47,29 +47,41 @@ export function registerRoutes(app: Express): Server {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { userId, points, description } = req.body;
 
-    await db.transaction(async (tx) => {
-      await tx.insert(transactions).values({
-        userId,
-        points,
-        type: "ADMIN_ADJUSTMENT",
-        description,
+    try {
+      await db.transaction(async (tx) => {
+        // First create the transaction record
+        await tx.insert(transactions).values({
+          userId,
+          points,
+          type: "ADMIN_ADJUSTMENT",
+          description,
+        });
+
+        // Update user points with proper SQL calculation
+        const [updatedUser] = await tx
+          .update(users)
+          .set({
+            points: sql`${users.points} + ${points}`,
+          })
+          .where(eq(users.id, userId))
+          .returning();
+
+        // Log the point adjustment
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: "POINT_ADJUSTMENT",
+          targetUserId: userId,
+          details: `Adjusted points by ${points}. Reason: ${description}`,
+        });
+
+        return updatedUser;
       });
 
-      await tx
-        .update(users)
-        .set({ points: users.points + points })
-        .where(eq(users.id, userId));
-
-      // Log the point adjustment
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "POINT_ADJUSTMENT",
-        targetUserId: userId,
-        details: `Adjusted points by ${points}. Reason: ${description}`,
-      });
-    });
-
-    res.json({ success: true });
+      res.json({ success: true, message: "Points adjusted successfully" });
+    } catch (error) {
+      console.error('Error adjusting points:', error);
+      res.status(500).send('Failed to adjust points');
+    }
   });
 
   // Admin Management Routes
