@@ -28,8 +28,9 @@ type FilterState = {
 };
 
 export default function AdminManagement() {
-  const { data: admins } = useQuery({
+  const { data: admins, refetch } = useQuery({
     queryKey: ["/api/admin/users"],
+    staleTime: 0, // Always fetch fresh data
   });
 
   const [filters, setFilters] = useState<FilterState>({
@@ -83,6 +84,7 @@ export default function AdminManagement() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      refetch();
       toast({ 
         title: "Success", 
         description: data.message || "Admin status updated successfully" 
@@ -109,6 +111,7 @@ export default function AdminManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      refetch();
       toast({ title: "Success", description: "Admin user created successfully" });
       form.reset();
     },
@@ -133,8 +136,8 @@ export default function AdminManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      refetch();
       toast({ title: "Success", description: "Admin updated successfully" });
-      form.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -157,6 +160,7 @@ export default function AdminManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      refetch();
       toast({ title: "Success", description: "Admin status updated successfully" });
     },
     onError: (error: Error) => {
@@ -305,8 +309,7 @@ export default function AdminManagement() {
                                     password: e.currentTarget.password.value,
                                   };
                                   updateAdminMutation.mutate({ userId: admin.id, data: formData });
-                                  form.reset(); 
-                                }}
+                                }} 
                                 className="space-y-4"
                               >
                                 <div className="space-y-2">
