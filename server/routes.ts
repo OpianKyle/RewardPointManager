@@ -6,6 +6,7 @@ import { rewards, transactions, users } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { logAdminAction, getAdminLogs } from "./admin-logger";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -18,6 +19,13 @@ const crypto = {
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Add new endpoint to fetch admin logs
+  app.get("/api/admin/logs", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const logs = await getAdminLogs();
+    res.json(logs);
+  });
 
   // Admin Routes
   app.get("/api/admin/customers", async (req, res) => {
@@ -34,6 +42,7 @@ export function registerRoutes(app: Express): Server {
     res.json(allUsers);
   });
 
+  // Update existing admin routes to include logging
   app.post("/api/admin/points", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { userId, points, description } = req.body;
@@ -50,6 +59,14 @@ export function registerRoutes(app: Express): Server {
         .update(users)
         .set({ points: users.points + points })
         .where(eq(users.id, userId));
+
+      // Log the point adjustment
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "POINT_ADJUSTMENT",
+        targetUserId: userId,
+        details: `Adjusted points by ${points}. Reason: ${description}`,
+      });
     });
 
     res.json({ success: true });
@@ -86,11 +103,19 @@ export function registerRoutes(app: Express): Server {
         .values({
           username,
           password: hashedPassword,
-          isAdmin: true, // Always create as admin
+          isAdmin: true,
           isSuperAdmin: false,
           points: 0,
         })
         .returning();
+
+      // Log admin creation
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "ADMIN_CREATED",
+        targetUserId: newUser.id,
+        details: `Created new admin user: ${username}`,
+      });
 
       res.json(newUser);
     } catch (error) {
@@ -103,7 +128,6 @@ export function registerRoutes(app: Express): Server {
     if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can modify admin status");
     const { userId, isAdmin } = req.body;
 
-    // Don't allow changing own admin status
     if (userId === req.user.id) {
       return res.status(400).send("Cannot change your own admin status");
     }
@@ -120,6 +144,14 @@ export function registerRoutes(app: Express): Server {
 
     try {
       if (!isAdmin) {
+        // Log admin removal before deleting
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: "ADMIN_REMOVED",
+          targetUserId: userId,
+          details: `Removed admin user: ${targetUser.username}`,
+        });
+
         // If removing admin status, delete the user
         await db.delete(users).where(eq(users.id, userId));
         res.json({ message: "Admin user removed successfully" });

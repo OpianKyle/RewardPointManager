@@ -14,6 +14,7 @@ import AdminCustomers from "@/pages/admin/customers";
 import AdminRewards from "@/pages/admin/rewards";
 import AdminLayout from "@/components/layout/admin-layout";
 import ManageUsers from "@/pages/admin/manage-users"; // Added import
+import AdminLogs from "@/pages/admin/logs"; // Add this import
 
 // Customer pages
 import CustomerDashboard from "@/pages/customer/dashboard";
@@ -91,6 +92,13 @@ function Router() {
         <Route path="/admin/manage-users">
           <AdminLayout>
             <PrivateRoute component={ManageUsers} admin />
+          </AdminLayout>
+        </Route>
+
+        {/* Add new admin logs route */}
+        <Route path="/admin/logs">
+          <AdminLayout>
+            <PrivateRoute component={AdminLogs} admin />
           </AdminLayout>
         </Route>
 

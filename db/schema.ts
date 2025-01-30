@@ -34,8 +34,30 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// New admin logs table and enum
+export const adminActionTypes = pgEnum("admin_action_type", [
+  "POINT_ADJUSTMENT",
+  "ADMIN_CREATED",
+  "ADMIN_REMOVED",
+  "REWARD_CREATED",
+  "REWARD_UPDATED",
+  "REWARD_DELETED"
+]);
+
+export const adminLogs = pgTable("admin_logs", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id").references(() => users.id).notNull(),
+  targetUserId: integer("target_user_id").references(() => users.id),
+  actionType: adminActionTypes("action_type").notNull(),
+  details: text("details").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Relations
 export const userRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
+  adminLogsCreated: many(adminLogs, { relationName: "adminLogsCreated" }),
+  adminLogsTarget: many(adminLogs, { relationName: "adminLogsTarget" }),
 }));
 
 export const transactionRelations = relations(transactions, ({ one }) => ({
@@ -49,12 +71,28 @@ export const transactionRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
+export const adminLogRelations = relations(adminLogs, ({ one }) => ({
+  admin: one(users, {
+    fields: [adminLogs.adminId],
+    references: [users.id],
+    relationName: "adminLogsCreated"
+  }),
+  targetUser: one(users, {
+    fields: [adminLogs.targetUserId],
+    references: [users.id],
+    relationName: "adminLogsTarget"
+  }),
+}));
+
+// Schema types
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertRewardSchema = createInsertSchema(rewards);
 export const selectRewardSchema = createSelectSchema(rewards);
 export const insertTransactionSchema = createInsertSchema(transactions);
 export const selectTransactionSchema = createSelectSchema(transactions);
+export const insertAdminLogSchema = createInsertSchema(adminLogs);
+export const selectAdminLogSchema = createSelectSchema(adminLogs);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -62,3 +100,5 @@ export type Reward = typeof rewards.$inferSelect;
 export type InsertReward = typeof rewards.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
+export type AdminLog = typeof adminLogs.$inferSelect;
+export type InsertAdminLog = typeof adminLogs.$inferInsert;
