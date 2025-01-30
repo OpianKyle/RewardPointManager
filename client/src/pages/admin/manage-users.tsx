@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, ShieldOff, UserPlus, Pencil, Power, PowerOff } from "lucide-react";
+import { Shield, ShieldOff, UserPlus, Pencil, Power, PowerOff, Search } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, useMemo } from "react";
 
 const adminSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -21,10 +22,42 @@ const adminSchema = z.object({
 
 type AdminFormData = z.infer<typeof adminSchema>;
 
+type FilterState = {
+  search: string;
+  status: 'all' | 'active' | 'disabled';
+};
+
 export default function AdminManagement() {
   const { data: admins } = useQuery({
     queryKey: ["/api/admin/users"],
   });
+
+  const [filters, setFilters] = useState<FilterState>({
+    search: '',
+    status: 'all'
+  });
+
+  const filteredAdmins = useMemo(() => {
+    if (!admins) return [];
+
+    return admins.filter((admin: any) => {
+      // Search filter
+      const searchTerms = filters.search.toLowerCase();
+      const matchesSearch = 
+        admin.firstName?.toLowerCase().includes(searchTerms) ||
+        admin.lastName?.toLowerCase().includes(searchTerms) ||
+        admin.email?.toLowerCase().includes(searchTerms) ||
+        admin.phoneNumber?.includes(searchTerms);
+
+      // Status filter
+      const matchesStatus = 
+        filters.status === 'all' ||
+        (filters.status === 'active' && admin.isEnabled) ||
+        (filters.status === 'disabled' && !admin.isEnabled);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [admins, filters]);
 
   const { toast } = useToast();
   const form = useForm<AdminFormData>({
@@ -183,6 +216,40 @@ export default function AdminManagement() {
       <Card>
         <CardHeader>
           <CardTitle>All Administrators</CardTitle>
+          <div className="mt-4 space-y-4">
+            {/* Search and Filter Controls */}
+            <div className="flex gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by name, email, or phone..."
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={filters.status === 'all' ? 'secondary' : 'outline'}
+                  onClick={() => setFilters(prev => ({ ...prev, status: 'all' }))}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={filters.status === 'active' ? 'secondary' : 'outline'}
+                  onClick={() => setFilters(prev => ({ ...prev, status: 'active' }))}
+                >
+                  Active
+                </Button>
+                <Button
+                  variant={filters.status === 'disabled' ? 'secondary' : 'outline'}
+                  onClick={() => setFilters(prev => ({ ...prev, status: 'disabled' }))}
+                >
+                  Disabled
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -197,7 +264,7 @@ export default function AdminManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {admins?.map((admin: any) => (
+              {filteredAdmins?.map((admin: any) => (
                 <TableRow key={admin.id}>
                   <TableCell>{admin.firstName} {admin.lastName}</TableCell>
                   <TableCell>{admin.email}</TableCell>
@@ -238,7 +305,7 @@ export default function AdminManagement() {
                                     password: e.currentTarget.password.value,
                                   };
                                   updateAdminMutation.mutate({ userId: admin.id, data: formData });
-                                  form.reset(); //Added form reset here
+                                  form.reset(); 
                                 }}
                                 className="space-y-4"
                               >
