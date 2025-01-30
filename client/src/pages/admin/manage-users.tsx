@@ -27,7 +27,6 @@ export default function AdminManagement() {
   });
 
   const { toast } = useToast();
-
   const form = useForm<AdminFormData>({
     resolver: zodResolver(adminSchema),
     defaultValues: {
@@ -102,6 +101,7 @@ export default function AdminManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({ title: "Success", description: "Admin updated successfully" });
+      form.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -228,30 +228,39 @@ export default function AdminManagement() {
                                 <DialogTitle>Edit Admin</DialogTitle>
                               </DialogHeader>
                               <form 
-                                onSubmit={form.handleSubmit((data) => 
-                                  updateAdminMutation.mutate({ userId: admin.id, data })
-                                )} 
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  const formData = {
+                                    email: e.currentTarget.email.value,
+                                    firstName: e.currentTarget.firstName.value,
+                                    lastName: e.currentTarget.lastName.value,
+                                    phoneNumber: e.currentTarget.phoneNumber.value,
+                                    password: e.currentTarget.password.value,
+                                  };
+                                  updateAdminMutation.mutate({ userId: admin.id, data: formData });
+                                  form.reset(); //Added form reset here
+                                }}
                                 className="space-y-4"
                               >
                                 <div className="space-y-2">
                                   <label>Email</label>
-                                  <Input {...form.register("email")} defaultValue={admin.email} />
+                                  <Input name="email" defaultValue={admin.email} />
                                 </div>
                                 <div className="space-y-2">
                                   <label>First Name</label>
-                                  <Input {...form.register("firstName")} defaultValue={admin.firstName} />
+                                  <Input name="firstName" defaultValue={admin.firstName} />
                                 </div>
                                 <div className="space-y-2">
                                   <label>Last Name</label>
-                                  <Input {...form.register("lastName")} defaultValue={admin.lastName} />
+                                  <Input name="lastName" defaultValue={admin.lastName} />
                                 </div>
                                 <div className="space-y-2">
                                   <label>Phone Number</label>
-                                  <Input {...form.register("phoneNumber")} defaultValue={admin.phoneNumber} />
+                                  <Input name="phoneNumber" defaultValue={admin.phoneNumber} />
                                 </div>
                                 <div className="space-y-2">
                                   <label>New Password (leave empty to keep current)</label>
-                                  <Input type="password" {...form.register("password")} />
+                                  <Input type="password" name="password" />
                                 </div>
                                 <Button type="submit">Update Admin</Button>
                               </form>
