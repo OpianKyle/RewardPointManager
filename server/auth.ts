@@ -5,9 +5,10 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, insertUserSchema, type User as SelectUser } from "@db/schema";
+import { users, type User as SelectUser } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -33,6 +34,12 @@ declare global {
     interface User extends SelectUser { }
   }
 }
+
+// Define a simpler schema for authentication
+const authSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
 
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
@@ -60,7 +67,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        console.log("Attempting login for user:", username); // Debug log
+        console.log("Attempting login for user:", username);
         const [user] = await db
           .select()
           .from(users)
@@ -68,17 +75,17 @@ export function setupAuth(app: Express) {
           .limit(1);
 
         if (!user) {
-          console.log("User not found:", username); // Debug log
+          console.log("User not found:", username);
           return done(null, false, { message: "Incorrect username." });
         }
         const isMatch = await crypto.compare(password, user.password);
-        console.log("Password match result:", isMatch); // Debug log
+        console.log("Password match result:", isMatch);
         if (!isMatch) {
           return done(null, false, { message: "Incorrect password." });
         }
         return done(null, user);
       } catch (err) {
-        console.error("Login error:", err); // Debug log
+        console.error("Login error:", err);
         return done(err);
       }
     })
@@ -103,10 +110,10 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      console.log("Registration attempt:", req.body); // Debug log
-      const result = insertUserSchema.safeParse(req.body);
+      console.log("Registration attempt:", req.body);
+      const result = authSchema.safeParse(req.body);
       if (!result.success) {
-        console.log("Invalid registration input:", result.error); // Debug log
+        console.log("Invalid registration input:", result.error);
         return res
           .status(400)
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
@@ -121,7 +128,7 @@ export function setupAuth(app: Express) {
         .limit(1);
 
       if (existingUser) {
-        console.log("Username already exists:", username); // Debug log
+        console.log("Username already exists:", username);
         return res.status(400).send("Username already exists");
       }
 
@@ -132,12 +139,12 @@ export function setupAuth(app: Express) {
         .values({
           username,
           password: hashedPassword,
-          isAdmin: false, // Default to regular user
-          points: 0, // Start with 0 points
+          isAdmin: false,
+          points: 0,
         })
         .returning();
 
-      console.log("User registered successfully:", username); // Debug log
+      console.log("User registered successfully:", username);
 
       req.login(newUser, (err) => {
         if (err) {
@@ -149,16 +156,16 @@ export function setupAuth(app: Express) {
         });
       });
     } catch (error) {
-      console.error("Registration error:", error); // Debug log
+      console.error("Registration error:", error);
       next(error);
     }
   });
 
   app.post("/api/login", (req, res, next) => {
-    console.log("Login attempt:", req.body); // Debug log
-    const result = insertUserSchema.safeParse(req.body);
+    console.log("Login attempt:", req.body);
+    const result = authSchema.safeParse(req.body);
     if (!result.success) {
-      console.log("Invalid login input:", result.error); // Debug log
+      console.log("Invalid login input:", result.error);
       return res
         .status(400)
         .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
@@ -166,12 +173,12 @@ export function setupAuth(app: Express) {
 
     const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
       if (err) {
-        console.error("Login error:", err); // Debug log
+        console.error("Login error:", err);
         return next(err);
       }
 
       if (!user) {
-        console.log("Login failed:", info.message); // Debug log
+        console.log("Login failed:", info.message);
         return res.status(400).send(info.message ?? "Login failed");
       }
 
@@ -180,7 +187,7 @@ export function setupAuth(app: Express) {
           return next(err);
         }
 
-        console.log("Login successful:", user.username); // Debug log
+        console.log("Login successful:", user.username);
         return res.json({
           message: "Login successful",
           user: { id: user.id, username: user.username },
@@ -194,11 +201,11 @@ export function setupAuth(app: Express) {
     const username = req.user?.username;
     req.logout((err) => {
       if (err) {
-        console.error("Logout error:", err); // Debug log
+        console.error("Logout error:", err);
         return res.status(500).send("Logout failed");
       }
 
-      console.log("Logout successful:", username); // Debug log
+      console.log("Logout successful:", username);
       res.json({ message: "Logout successful" });
     });
   });
