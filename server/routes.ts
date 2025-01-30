@@ -67,7 +67,7 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/admin/users/create", async (req, res) => {
     if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can create new admins");
-    const { username, password, isAdmin } = req.body;
+    const { username, password } = req.body;
 
     const [existingUser] = await db
       .select()
@@ -118,13 +118,24 @@ export function registerRoutes(app: Express): Server {
       return res.status(400).send("Cannot modify super admin status");
     }
 
-    const [updatedUser] = await db
-      .update(users)
-      .set({ isAdmin })
-      .where(eq(users.id, userId))
-      .returning();
-
-    res.json(updatedUser);
+    try {
+      if (!isAdmin) {
+        // If removing admin status, delete the user
+        await db.delete(users).where(eq(users.id, userId));
+        res.json({ message: "Admin user removed successfully" });
+      } else {
+        // If adding admin status, update the user
+        const [updatedUser] = await db
+          .update(users)
+          .set({ isAdmin })
+          .where(eq(users.id, userId))
+          .returning();
+        res.json(updatedUser);
+      }
+    } catch (error) {
+      console.error('Error modifying admin status:', error);
+      res.status(500).send('Failed to modify admin status');
+    }
   });
 
   // Customer Routes

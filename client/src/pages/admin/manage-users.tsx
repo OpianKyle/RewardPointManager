@@ -33,9 +33,12 @@ export default function AdminManagement() {
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({ title: "Success", description: "Admin role updated successfully" });
+      toast({ 
+        title: "Success", 
+        description: data.message || "Admin status updated successfully" 
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -122,7 +125,7 @@ export default function AdminManagement() {
                 <TableRow key={admin.id}>
                   <TableCell>{admin.username}</TableCell>
                   <TableCell>
-                    {admin.isSuperAdmin ? "Super Admin" : (admin.isAdmin ? "Admin" : "User")}
+                    {admin.isSuperAdmin ? "Super Admin" : "Admin"}
                   </TableCell>
                   <TableCell>
                     {new Date(admin.createdAt).toLocaleDateString()}
@@ -132,22 +135,17 @@ export default function AdminManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => toggleAdminMutation.mutate({
-                          userId: admin.id,
-                          isAdmin: !admin.isAdmin,
-                        })}
+                        onClick={() => {
+                          if (confirm("Are you sure? This will permanently remove this admin user.")) {
+                            toggleAdminMutation.mutate({
+                              userId: admin.id,
+                              isAdmin: false,
+                            });
+                          }
+                        }}
                       >
-                        {admin.isAdmin ? (
-                          <>
-                            <ShieldOff className="h-4 w-4 mr-2" />
-                            Remove Admin
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="h-4 w-4 mr-2" />
-                            Make Admin
-                          </>
-                        )}
+                        <ShieldOff className="h-4 w-4 mr-2" />
+                        Remove Admin
                       </Button>
                     )}
                   </TableCell>
