@@ -32,7 +32,9 @@ export default function AdminCustomers() {
       return res.json();
     },
     onSuccess: () => {
+      // Invalidate both customers and logs queries
       queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
       toast({ title: "Success", description: "Points adjusted successfully" });
     },
     onError: (error: Error) => {

@@ -3,6 +3,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Shield, UserMinus, Coins, Gift } from "lucide-react";
 
+type AdminLog = {
+  id: number;
+  actionType: "POINT_ADJUSTMENT" | "ADMIN_CREATED" | "ADMIN_REMOVED" | "REWARD_CREATED" | "REWARD_UPDATED" | "REWARD_DELETED";
+  details: string;
+  createdAt: string;
+  admin: { username: string };
+  targetUser?: { username: string };
+};
+
 const getActionIcon = (actionType: string) => {
   switch (actionType) {
     case "POINT_ADJUSTMENT":
@@ -21,7 +30,7 @@ const getActionIcon = (actionType: string) => {
 };
 
 export default function AdminLogs() {
-  const { data: logs } = useQuery({
+  const { data: logs = [] } = useQuery<AdminLog[]>({
     queryKey: ["/api/admin/logs"],
   });
 
@@ -45,7 +54,7 @@ export default function AdminLogs() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs?.map((log: any) => (
+              {logs.map((log) => (
                 <TableRow key={log.id}>
                   <TableCell>
                     {new Date(log.createdAt).toLocaleString()}
