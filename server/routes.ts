@@ -230,6 +230,76 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.put("/api/rewards/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { name, description, pointsCost, imageUrl, available } = req.body;
+
+    try {
+      const [reward] = await db
+        .update(rewards)
+        .set({
+          name,
+          description,
+          pointsCost,
+          imageUrl,
+          available,
+        })
+        .where(eq(rewards.id, parseInt(id)))
+        .returning();
+
+      if (!reward) {
+        return res.status(404).send("Reward not found");
+      }
+
+      // Log the reward update
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "REWARD_UPDATED",
+        details: `Updated reward: ${reward.name} (New Cost: ${reward.pointsCost} points)`,
+      });
+
+      res.json(reward);
+    } catch (error) {
+      console.error('Error updating reward:', error);
+      res.status(500).send('Failed to update reward');
+    }
+  });
+
+  app.delete("/api/rewards/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+
+    try {
+      const [reward] = await db
+        .select()
+        .from(rewards)
+        .where(eq(rewards.id, parseInt(id)))
+        .limit(1);
+
+      if (!reward) {
+        return res.status(404).send("Reward not found");
+      }
+
+      await db
+        .update(rewards)
+        .set({ available: false })
+        .where(eq(rewards.id, parseInt(id)));
+
+      // Log the reward deletion
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "REWARD_DELETED",
+        details: `Deleted reward: ${reward.name}`,
+      });
+
+      res.json({ message: "Reward deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting reward:', error);
+      res.status(500).send('Failed to delete reward');
+    }
+  });
+
   app.post("/api/rewards/redeem", async (req, res) => {
     if (!req.user) return res.status(401).send("Unauthorized");
     const { rewardId } = req.body;
@@ -275,7 +345,7 @@ export function registerRoutes(app: Express): Server {
       });
 
       // Invalidate queries after successful transaction
-      res.json({ 
+      res.json({
         success: true,
         message: `Successfully redeemed ${reward.name} for ${reward.pointsCost} points`
       });
