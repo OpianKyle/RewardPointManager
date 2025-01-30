@@ -216,11 +216,11 @@ export function registerRoutes(app: Express): Server {
     try {
       const [reward] = await db.insert(rewards).values(req.body).returning();
 
-      // Log the reward creation
+      // Log both the reward creation and the points cost setting
       await logAdminAction({
         adminId: req.user.id,
         actionType: "REWARD_CREATED",
-        details: `Created new reward: ${reward.name}`,
+        details: `Created new reward: ${reward.name} (Cost: ${reward.pointsCost} points)`,
       });
 
       res.json(reward);
@@ -250,6 +250,7 @@ export function registerRoutes(app: Express): Server {
 
     try {
       await db.transaction(async (tx) => {
+        // Create the transaction record
         await tx.insert(transactions).values({
           userId: user.id,
           points: -reward.pointsCost,
@@ -258,12 +259,13 @@ export function registerRoutes(app: Express): Server {
           rewardId,
         });
 
+        // Update user points
         await tx
           .update(users)
           .set({ points: user.points - reward.pointsCost })
           .where(eq(users.id, user.id));
 
-        // Log the point adjustment in admin logs
+        // Log the point adjustment
         await logAdminAction({
           adminId: user.id,
           actionType: "POINT_ADJUSTMENT",
@@ -272,7 +274,11 @@ export function registerRoutes(app: Express): Server {
         });
       });
 
-      res.json({ success: true });
+      // Invalidate queries after successful transaction
+      res.json({ 
+        success: true,
+        message: `Successfully redeemed ${reward.name} for ${reward.pointsCost} points`
+      });
     } catch (error) {
       console.error('Error processing reward redemption:', error);
       res.status(500).send('Failed to process reward redemption');
