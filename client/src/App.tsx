@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
 import { Loader2 } from "lucide-react";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -46,45 +47,47 @@ function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/auth" component={AuthPage} />
-      
-      {/* Admin Routes */}
-      <Route path="/admin">
-        <AdminLayout>
-          <PrivateRoute component={AdminDashboard} admin />
-        </AdminLayout>
-      </Route>
-      <Route path="/admin/customers">
-        <AdminLayout>
-          <PrivateRoute component={AdminCustomers} admin />
-        </AdminLayout>
-      </Route>
-      <Route path="/admin/rewards">
-        <AdminLayout>
-          <PrivateRoute component={AdminRewards} admin />
-        </AdminLayout>
-      </Route>
+    <SidebarProvider>
+      <Switch>
+        <Route path="/auth" component={AuthPage} />
 
-      {/* Customer Routes */}
-      <Route path="/dashboard">
-        <CustomerLayout>
-          <PrivateRoute component={CustomerDashboard} />
-        </CustomerLayout>
-      </Route>
-      <Route path="/rewards">
-        <CustomerLayout>
-          <PrivateRoute component={CustomerRewards} />
-        </CustomerLayout>
-      </Route>
+        {/* Admin Routes */}
+        <Route path="/admin">
+          <AdminLayout>
+            <PrivateRoute component={AdminDashboard} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/customers">
+          <AdminLayout>
+            <PrivateRoute component={AdminCustomers} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/rewards">
+          <AdminLayout>
+            <PrivateRoute component={AdminRewards} admin />
+          </AdminLayout>
+        </Route>
 
-      {/* Redirect root to appropriate dashboard */}
-      <Route path="/">
-        <Redirect to="/dashboard" />
-      </Route>
+        {/* Customer Routes */}
+        <Route path="/dashboard">
+          <CustomerLayout>
+            <PrivateRoute component={CustomerDashboard} />
+          </CustomerLayout>
+        </Route>
+        <Route path="/rewards">
+          <CustomerLayout>
+            <PrivateRoute component={CustomerRewards} />
+          </CustomerLayout>
+        </Route>
 
-      <Route component={NotFound} />
-    </Switch>
+        {/* Redirect root to appropriate dashboard */}
+        <Route path="/">
+          <Redirect to="/dashboard" />
+        </Route>
+
+        <Route component={NotFound} />
+      </Switch>
+    </SidebarProvider>
   );
 }
 

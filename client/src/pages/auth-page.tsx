@@ -9,11 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const { login, register } = useUser();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(insertUserSchema),
@@ -25,20 +27,31 @@ export default function AuthPage() {
 
   const onSubmit = async (data: { username: string; password: string }) => {
     try {
+      setIsLoading(true);
+      console.log("Attempting auth:", mode, data.username); // Debug log
       const result = await (mode === "login" ? login(data) : register(data));
       if (!result.ok) {
+        console.error("Auth error:", result.message); // Debug log
         toast({
           variant: "destructive",
           title: "Error",
           description: result.message,
         });
+      } else {
+        toast({
+          title: "Success",
+          description: mode === "login" ? "Logged in successfully" : "Registration successful",
+        });
       }
     } catch (error) {
+      console.error("Auth error:", error); // Debug log
       toast({
         variant: "destructive",
         title: "Error",
-        description: "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -66,7 +79,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} autoComplete="username" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -79,13 +92,16 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <Input type="password" {...field} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
                     {mode === "login" ? "Login" : "Register"}
                   </Button>
                 </form>

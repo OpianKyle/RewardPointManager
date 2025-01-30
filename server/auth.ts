@@ -28,7 +28,6 @@ const crypto = {
   },
 };
 
-// extend express user object with our schema
 declare global {
   namespace Express {
     interface User extends SelectUser { }
@@ -43,7 +42,7 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     cookie: {},
     store: new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
+      checkPeriod: 86400000,
     }),
   };
 
@@ -61,6 +60,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        console.log("Attempting login for user:", username); // Debug log
         const [user] = await db
           .select()
           .from(users)
@@ -68,14 +68,17 @@ export function setupAuth(app: Express) {
           .limit(1);
 
         if (!user) {
+          console.log("User not found:", username); // Debug log
           return done(null, false, { message: "Incorrect username." });
         }
         const isMatch = await crypto.compare(password, user.password);
+        console.log("Password match result:", isMatch); // Debug log
         if (!isMatch) {
           return done(null, false, { message: "Incorrect password." });
         }
         return done(null, user);
       } catch (err) {
+        console.error("Login error:", err); // Debug log
         return done(err);
       }
     })
@@ -100,8 +103,10 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
+      console.log("Registration attempt:", req.body); // Debug log
       const result = insertUserSchema.safeParse(req.body);
       if (!result.success) {
+        console.log("Invalid registration input:", result.error); // Debug log
         return res
           .status(400)
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
@@ -109,7 +114,6 @@ export function setupAuth(app: Express) {
 
       const { username, password } = result.data;
 
-      // Check if user already exists
       const [existingUser] = await db
         .select()
         .from(users)
@@ -117,22 +121,24 @@ export function setupAuth(app: Express) {
         .limit(1);
 
       if (existingUser) {
+        console.log("Username already exists:", username); // Debug log
         return res.status(400).send("Username already exists");
       }
 
-      // Hash the password
       const hashedPassword = await crypto.hash(password);
 
-      // Create the new user
       const [newUser] = await db
         .insert(users)
         .values({
-          ...result.data,
+          username,
           password: hashedPassword,
+          isAdmin: false, // Default to regular user
+          points: 0, // Start with 0 points
         })
         .returning();
 
-      // Log the user in after registration
+      console.log("User registered successfully:", username); // Debug log
+
       req.login(newUser, (err) => {
         if (err) {
           return next(err);
@@ -143,13 +149,16 @@ export function setupAuth(app: Express) {
         });
       });
     } catch (error) {
+      console.error("Registration error:", error); // Debug log
       next(error);
     }
   });
 
   app.post("/api/login", (req, res, next) => {
+    console.log("Login attempt:", req.body); // Debug log
     const result = insertUserSchema.safeParse(req.body);
     if (!result.success) {
+      console.log("Invalid login input:", result.error); // Debug log
       return res
         .status(400)
         .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
@@ -157,10 +166,12 @@ export function setupAuth(app: Express) {
 
     const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
       if (err) {
+        console.error("Login error:", err); // Debug log
         return next(err);
       }
 
       if (!user) {
+        console.log("Login failed:", info.message); // Debug log
         return res.status(400).send(info.message ?? "Login failed");
       }
 
@@ -169,6 +180,7 @@ export function setupAuth(app: Express) {
           return next(err);
         }
 
+        console.log("Login successful:", user.username); // Debug log
         return res.json({
           message: "Login successful",
           user: { id: user.id, username: user.username },
@@ -179,11 +191,14 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res) => {
+    const username = req.user?.username;
     req.logout((err) => {
       if (err) {
+        console.error("Logout error:", err); // Debug log
         return res.status(500).send("Logout failed");
       }
 
+      console.log("Logout successful:", username); // Debug log
       res.json({ message: "Logout successful" });
     });
   });
