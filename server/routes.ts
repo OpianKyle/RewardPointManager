@@ -4,7 +4,17 @@ import { setupAuth } from "./auth";
 import { db } from "@db";
 import { rewards, transactions, users } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
-import * as crypto from 'crypto'; //Import for password hashing
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+const crypto = {
+  hash: async (password: string) => {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
+  }
+};
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -68,18 +78,24 @@ export function registerRoutes(app: Express): Server {
       return res.status(400).send("Username already exists");
     }
 
-    const hashedPassword = await crypto.hash(password);
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        username,
-        password: hashedPassword,
-        isAdmin,
-        isSuperAdmin: false,
-      })
-      .returning();
+    try {
+      const hashedPassword = await crypto.hash(password);
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          username,
+          password: hashedPassword,
+          isAdmin,
+          isSuperAdmin: false,
+          points: 0,
+        })
+        .returning();
 
-    res.json(newUser);
+      res.json(newUser);
+    } catch (error) {
+      console.error('Error creating admin user:', error);
+      res.status(500).send('Failed to create admin user');
+    }
   });
 
   app.post("/api/admin/users/toggle-admin", async (req, res) => {
