@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { rewards, transactions, users } from "@db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
+import * as crypto from 'crypto'; //Import for password hashing
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -44,7 +45,7 @@ export function registerRoutes(app: Express): Server {
     res.json({ success: true });
   });
 
-  // New Admin Management Routes
+  // Admin Management Routes
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const allUsers = await db.query.users.findMany({
@@ -53,13 +54,51 @@ export function registerRoutes(app: Express): Server {
     res.json(allUsers);
   });
 
+  app.post("/api/admin/users/create", async (req, res) => {
+    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can create new admins");
+    const { username, password, isAdmin } = req.body;
+
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+
+    if (existingUser) {
+      return res.status(400).send("Username already exists");
+    }
+
+    const hashedPassword = await crypto.hash(password);
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        username,
+        password: hashedPassword,
+        isAdmin,
+        isSuperAdmin: false,
+      })
+      .returning();
+
+    res.json(newUser);
+  });
+
   app.post("/api/admin/users/toggle-admin", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can modify admin status");
     const { userId, isAdmin } = req.body;
 
     // Don't allow changing own admin status
     if (userId === req.user.id) {
       return res.status(400).send("Cannot change your own admin status");
+    }
+
+    const [targetUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (targetUser?.isSuperAdmin) {
+      return res.status(400).send("Cannot modify super admin status");
     }
 
     const [updatedUser] = await db
@@ -70,7 +109,6 @@ export function registerRoutes(app: Express): Server {
 
     res.json(updatedUser);
   });
-
 
   // Customer Routes
   app.get("/api/customer/points", async (req, res) => {
