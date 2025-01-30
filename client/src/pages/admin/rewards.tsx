@@ -9,8 +9,18 @@ import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import RewardCard from "@/components/shared/reward-card";
 
+type Reward = {
+  id: number;
+  name: string;
+  description: string;
+  pointsCost: number;
+  imageUrl: string;
+  available: boolean;
+  createdAt: string;
+};
+
 export default function AdminRewards() {
-  const { data: rewards } = useQuery({
+  const { data: rewards = [] } = useQuery<Reward[]>({
     queryKey: ["/api/rewards"],
   });
 
@@ -25,7 +35,7 @@ export default function AdminRewards() {
   });
 
   const createRewardMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { name: string; description: string; pointsCost: number; imageUrl: string }) => {
       const res = await fetch("/api/rewards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -35,8 +45,11 @@ export default function AdminRewards() {
       return res.json();
     },
     onSuccess: () => {
+      // Invalidate both rewards and logs queries
       queryClient.invalidateQueries({ queryKey: ["/api/rewards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
       toast({ title: "Success", description: "Reward created successfully" });
+      form.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -90,7 +103,7 @@ export default function AdminRewards() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {rewards?.map((reward: any) => (
+        {rewards.map((reward) => (
           <RewardCard
             key={reward.id}
             reward={reward}

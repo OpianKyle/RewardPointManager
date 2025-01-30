@@ -213,8 +213,21 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/rewards", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const reward = await db.insert(rewards).values(req.body).returning();
-    res.json(reward[0]);
+    try {
+      const [reward] = await db.insert(rewards).values(req.body).returning();
+
+      // Log the reward creation
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "REWARD_CREATED",
+        details: `Created new reward: ${reward.name}`,
+      });
+
+      res.json(reward);
+    } catch (error) {
+      console.error('Error creating reward:', error);
+      res.status(500).send('Failed to create reward');
+    }
   });
 
   app.post("/api/rewards/redeem", async (req, res) => {
