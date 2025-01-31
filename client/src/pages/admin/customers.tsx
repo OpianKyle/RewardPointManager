@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, UserX, Power, PowerOff } from "lucide-react";
+import { Pencil, UserX, Power, PowerOff, TrendingUp } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -19,7 +19,13 @@ const userSchema = z.object({
   password: z.string().optional(),
 });
 
+const pointsSchema = z.object({
+  points: z.number().min(1, "Points must be greater than 0"),
+  description: z.string().min(1, "Description is required"),
+});
+
 type UserFormData = z.infer<typeof userSchema>;
+type PointsFormData = z.infer<typeof pointsSchema>;
 
 export default function AdminCustomers() {
   const { data: customers } = useQuery({
@@ -38,6 +44,14 @@ export default function AdminCustomers() {
     },
   });
 
+  const pointsForm = useForm<PointsFormData>({
+    resolver: zodResolver(pointsSchema),
+    defaultValues: {
+      points: 0,
+      description: "",
+    },
+  });
+
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, data }: { userId: number, data: UserFormData }) => {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -53,6 +67,35 @@ export default function AdminCustomers() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
       toast({ title: "Success", description: "User updated successfully" });
       form.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const assignPointsMutation = useMutation({
+    mutationFn: async ({ userId, data }: { userId: number, data: PointsFormData }) => {
+      const res = await fetch("/api/admin/points", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          points: data.points,
+          description: data.description,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
+      toast({ title: "Success", description: "Points assigned successfully" });
+      pointsForm.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -123,6 +166,39 @@ export default function AdminCustomers() {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <TrendingUp className="h-4 w-4 mr-2" />
+                            Assign Points
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
+                          </DialogHeader>
+                          <form 
+                            onSubmit={pointsForm.handleSubmit((data) => 
+                              assignPointsMutation.mutate({ userId: customer.id, data })
+                            )} 
+                            className="space-y-4"
+                          >
+                            <div className="space-y-2">
+                              <label>Points</label>
+                              <Input 
+                                type="number" 
+                                {...pointsForm.register("points", { valueAsNumber: true })} 
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label>Description</label>
+                              <Input {...pointsForm.register("description")} />
+                            </div>
+                            <Button type="submit">Assign Points</Button>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
