@@ -7,7 +7,59 @@ import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
-import { setupWebSocket } from "./websocket";
+
+// Global notifications queue with timestamp-based cleanup
+const notificationsQueue = new Map<number, Array<{
+  type: string;
+  userId: number;
+  points: number;
+  description: string;
+  timestamp: string;
+}>>(); 
+
+// Configuration for polling
+const POLLING_CONFIG = {
+  maxQueueSize: 100, // Maximum notifications per user
+  retentionPeriod: 5 * 60 * 1000, // 5 minutes retention for notifications
+  cleanupInterval: 60 * 1000 // Cleanup every minute
+};
+
+// Cleanup old notifications periodically
+setInterval(() => {
+  const cutoffTime = new Date(Date.now() - POLLING_CONFIG.retentionPeriod);
+  for (const [userId, notifications] of notificationsQueue.entries()) {
+    const validNotifications = notifications.filter(
+      n => new Date(n.timestamp) > cutoffTime
+    );
+    if (validNotifications.length === 0) {
+      notificationsQueue.delete(userId);
+    } else {
+      notificationsQueue.set(userId, validNotifications);
+    }
+  }
+}, POLLING_CONFIG.cleanupInterval);
+
+// Helper function to add notification
+function addNotification(notification: {
+  type: string;
+  userId: number;
+  points: number;
+  description: string;
+}) {
+  const userNotifications = notificationsQueue.get(notification.userId) || [];
+  const newNotification = {
+    ...notification,
+    timestamp: new Date().toISOString()
+  };
+
+  // Add to queue, maintain max size
+  userNotifications.push(newNotification);
+  if (userNotifications.length > POLLING_CONFIG.maxQueueSize) {
+    userNotifications.shift(); // Remove oldest
+  }
+
+  notificationsQueue.set(notification.userId, userNotifications);
+}
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -21,13 +73,70 @@ const crypto = {
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
   const httpServer = createServer(app);
-  const { notifyPointsAllocation } = setupWebSocket(httpServer, app);
+
+  // New endpoint for polling notifications
+  app.get("/api/notifications/poll", async (req, res) => {
+    if (!req.user) return res.status(401).send("Unauthorized");
+
+    const userNotifications = notificationsQueue.get(req.user.id) || [];
+    // Clear notifications after sending
+    notificationsQueue.set(req.user.id, []);
+
+    res.json(userNotifications);
+  });
 
   // Add new endpoint to fetch admin logs
   app.get("/api/admin/logs", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const logs = await getAdminLogs();
     res.json(logs);
+  });
+
+  // Modify points allocation to use new notification system
+  app.post("/api/admin/points", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { userId, points, description } = req.body;
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(transactions).values({
+          userId,
+          points,
+          type: "ADMIN_ADJUSTMENT",
+          description,
+        });
+
+        const [updatedUser] = await tx
+          .update(users)
+          .set({
+            points: sql`${users.points} + ${points}`,
+          })
+          .where(eq(users.id, userId))
+          .returning();
+
+        await logAdminAction({
+          adminId: req.user!.id,
+          actionType: "POINT_ADJUSTMENT",
+          targetUserId: userId,
+          details: `Adjusted points by ${points}. Reason: ${description}`,
+        });
+
+        // Add notification using new system
+        addNotification({
+          type: "POINTS_ALLOCATION",
+          userId,
+          points,
+          description,
+        });
+
+        return updatedUser;
+      });
+
+      res.json({ message: "Points adjusted successfully" });
+    } catch (error) {
+      console.error('Error adjusting points:', error);
+      res.status(500).send('Failed to adjust points');
+    }
   });
 
   // Admin Management Routes
@@ -211,57 +320,6 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error modifying admin status:', error);
       res.status(500).send('Failed to modify admin status');
-    }
-  });
-
-  // Update the points allocation endpoint
-  app.post("/api/admin/points", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { userId, points, description } = req.body;
-
-    try {
-      await db.transaction(async (tx) => {
-        // First create the transaction record
-        await tx.insert(transactions).values({
-          userId,
-          points,
-          type: "ADMIN_ADJUSTMENT",
-          description,
-        });
-
-        // Update user points with proper SQL calculation
-        const [updatedUser] = await tx
-          .update(users)
-          .set({
-            points: sql`${users.points} + ${points}`,
-          })
-          .where(eq(users.id, userId))
-          .returning();
-
-        // Log the point adjustment
-        await logAdminAction({
-          adminId: req.user!.id,
-          actionType: "POINT_ADJUSTMENT",
-          targetUserId: userId,
-          details: `Adjusted points by ${points}. Reason: ${description}`,
-        });
-
-        // Send real-time notification
-        notifyPointsAllocation({
-          type: "POINTS_ALLOCATION",
-          userId,
-          points,
-          description,
-          timestamp: new Date().toISOString(),
-        });
-
-        return updatedUser;
-      });
-
-      res.json({ message: "Points adjusted successfully" });
-    } catch (error) {
-      console.error('Error adjusting points:', error);
-      res.status(500).send('Failed to adjust points');
     }
   });
 
