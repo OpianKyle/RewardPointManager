@@ -261,8 +261,32 @@ export function registerRoutes(app: Express): Server {
     res.json(allUsers);
   });
 
+  // Add the customers endpoint right after the admin users endpoint
+  app.get("/api/admin/customers", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const customers = await db.query.users.findMany({
+      where: eq(users.isAdmin, false),
+      orderBy: desc(users.createdAt),
+      with: {
+        transactions: true,
+      },
+    });
+    res.json(customers);
+  });
 
   // Product Management Routes
+  app.get("/api/products", async (req, res) => {
+    try {
+      const allProducts = await db.query.products.findMany({
+        orderBy: desc(products.createdAt),
+      });
+      res.json(allProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).send('Failed to fetch products');
+    }
+  });
+
   app.post("/api/products", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
 
@@ -280,7 +304,7 @@ export function registerRoutes(app: Express): Server {
 
       // Log the product creation
       await logAdminAction({
-        adminId: req.user.id,
+        adminId: req.user?.id,
         actionType: "PRODUCT_CREATED",
         details: `Created new product: ${product.name}`,
       });
