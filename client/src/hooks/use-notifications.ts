@@ -28,7 +28,7 @@ export function useNotifications() {
             title: "Points Update",
             description: `${notification.points > 0 ? '+' : ''}${notification.points} points - ${notification.description}`,
             duration: 5000,
-            className: "bg-background border-border",
+            variant: notification.points > 0 ? "default" : "destructive",
           });
         }
       });
