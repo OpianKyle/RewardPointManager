@@ -75,7 +75,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <img 
-            src="/opian-rewards-logo.png" 
+            src="/Assets/opian-rewards-logo (R).png" 
             alt="OPIAN Rewards"
             className="h-12 w-auto object-contain"
             onError={(e) => {
