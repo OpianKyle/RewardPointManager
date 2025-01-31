@@ -76,7 +76,13 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-8">
       <div className="w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-8">Reward Points System</h1>
+        <div className="flex justify-center mb-8">
+          <img 
+            src="/opian-rewards-logo.png" 
+            alt="OPIAN Rewards"
+            className="h-16 w-auto"
+          />
+        </div>
         <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "register")} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="login" className="text-base py-2 px-4">Login</TabsTrigger>
