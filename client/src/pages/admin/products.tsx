@@ -141,17 +141,29 @@ export default function ProductManagement() {
   const assignCustomerMutation = useMutation({
     mutationFn: async ({ productId, userId }: { productId: number; userId: number }) => {
       console.log('Assigning customer:', { productId, userId });
-      const res = await fetch(`/api/products/${productId}/assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Assignment failed:', errorText);
-        throw new Error(errorText);
+      try {
+        const res = await fetch(`/api/products/${productId}/assign`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({ userId }),
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('Assignment failed:', errorText);
+          throw new Error(errorText);
+        }
+
+        const data = await res.json();
+        console.log('Assignment response:', data);
+        return data;
+      } catch (error) {
+        console.error('Assignment error:', error);
+        throw error;
       }
-      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });

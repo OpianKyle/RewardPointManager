@@ -452,33 +452,34 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/products/assign", async (req, res) => {
+  app.post("/api/products/:id/assign", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { userId, productId } = req.body;
+    const { id } = req.params;
+    const { userId } = req.body;
 
     try {
       const [assignment] = await db
         .insert(productAssignments)
         .values({
           userId,
-          productId,
+          productId: parseInt(id),
         })
         .returning();
 
-      // Log the product assignment
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "PRODUCT_ASSIGNED",
-        targetUserId: userId,
-        details: `Assigned product ID ${productId} to user ID ${userId}`,
-      });
+    // Log the product assignment
+    await logAdminAction({
+      adminId: req.user.id,
+      actionType: "PRODUCT_ASSIGNED",
+      targetUserId: userId,
+      details: `Assigned product ID ${id} to user ID ${userId}`,
+    });
 
-      res.json(assignment);
-    } catch (error) {
-      console.error('Error assigning product:', error);
-      res.status(500).send('Failed to assign product');
-    }
-  });
+    res.json(assignment);
+  } catch (error) {
+    console.error('Error assigning product:', error);
+    res.status(500).send('Failed to assign product');
+  }
+});
 
   app.delete("/api/products/assignments/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
