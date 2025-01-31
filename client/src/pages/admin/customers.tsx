@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, UserX, Power, PowerOff, TrendingUp } from "lucide-react";
+import { Pencil, UserX, Power, PowerOff, TrendingUp, Plus } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 const userSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -190,29 +191,84 @@ export default function AdminCustomers() {
                             Assign Points
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-w-xl">
                           <DialogHeader>
                             <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
                           </DialogHeader>
-                          <form
-                            onSubmit={pointsForm.handleSubmit((data) =>
-                              assignPointsMutation.mutate({ userId: customer.id, data })
-                            )}
-                            className="space-y-4"
-                          >
-                            <div className="space-y-2">
-                              <label>Points</label>
-                              <Input
-                                type="number"
-                                {...pointsForm.register("points", { valueAsNumber: true })}
-                              />
+                          <div className="space-y-6">
+                            <div>
+                              <h3 className="text-lg font-semibold mb-4">Assigned Products</h3>
+                              <div className="space-y-4">
+                                {customer.productAssignments?.map((assignment: any) => (
+                                  <div key={assignment.id} className="flex justify-between items-center p-3 bg-accent/50 rounded-lg">
+                                    <div>
+                                      <p className="font-medium">{assignment.product.name}</p>
+                                      <p className="text-sm text-muted-foreground">{assignment.product.description}</p>
+                                    </div>
+                                    <p className="font-semibold">{assignment.product.pointsAllocation} points</p>
+                                  </div>
+                                ))}
+                                {(!customer.productAssignments || customer.productAssignments.length === 0) && (
+                                  <p className="text-sm text-muted-foreground">No products assigned</p>
+                                )}
+                              </div>
+                              {customer.productAssignments && customer.productAssignments.length > 0 && (
+                                <>
+                                  <Separator className="my-4" />
+                                  <div className="flex justify-between items-center">
+                                    <p className="font-medium">Total Points from Products:</p>
+                                    <p className="text-xl font-bold">
+                                      {customer.productAssignments.reduce((total: number, assignment: any) => 
+                                        total + assignment.product.pointsAllocation, 0
+                                      )} points
+                                    </p>
+                                  </div>
+                                  <Button 
+                                    className="w-full mt-4"
+                                    onClick={() => {
+                                      const totalPoints = customer.productAssignments.reduce(
+                                        (total: number, assignment: any) => total + assignment.product.pointsAllocation, 
+                                        0
+                                      );
+                                      assignPointsMutation.mutate({
+                                        userId: customer.id,
+                                        data: {
+                                          points: totalPoints,
+                                          description: "Points allocated from assigned products"
+                                        }
+                                      });
+                                    }}
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Product Points
+                                  </Button>
+                                </>
+                              )}
                             </div>
-                            <div className="space-y-2">
-                              <label>Description</label>
-                              <Input {...pointsForm.register("description")} />
+                            <Separator />
+                            <div>
+                              <h3 className="text-lg font-semibold mb-4">Custom Points Allocation</h3>
+                              <form
+                                onSubmit={pointsForm.handleSubmit((data) =>
+                                  assignPointsMutation.mutate({ userId: customer.id, data })
+                                )}
+                                className="space-y-4"
+                              >
+                                <div className="space-y-2">
+                                  <label>Points</label>
+                                  <Input
+                                    type="number"
+                                    {...pointsForm.register("points", { valueAsNumber: true })}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label>Description</label>
+                                  <Input {...pointsForm.register("description")} />
+                                </div>
+                                <Button type="submit">Assign Custom Points</Button>
+                              </form>
                             </div>
-                            <Button type="submit">Assign Points</Button>
-                          </form>
+                          </div>
                         </DialogContent>
                       </Dialog>
 
