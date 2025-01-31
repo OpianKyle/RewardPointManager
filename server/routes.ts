@@ -7,6 +7,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
+import { setupWebSocket } from "./websocket";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -19,6 +20,8 @@ const crypto = {
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+  const httpServer = createServer(app);
+  const { notifyPointsAllocation } = setupWebSocket(httpServer, app);
 
   // Add new endpoint to fetch admin logs
   app.get("/api/admin/logs", async (req, res) => {
@@ -211,6 +214,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Update the points allocation endpoint
   app.post("/api/admin/points", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { userId, points, description } = req.body;
@@ -236,10 +240,19 @@ export function registerRoutes(app: Express): Server {
 
         // Log the point adjustment
         await logAdminAction({
-          adminId: req.user.id,
+          adminId: req.user!.id,
           actionType: "POINT_ADJUSTMENT",
           targetUserId: userId,
           details: `Adjusted points by ${points}. Reason: ${description}`,
+        });
+
+        // Send real-time notification
+        notifyPointsAllocation({
+          type: "POINTS_ALLOCATION",
+          userId,
+          points,
+          description,
+          timestamp: new Date().toISOString(),
         });
 
         return updatedUser;
@@ -611,6 +624,5 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  const httpServer = createServer(app);
   return httpServer;
 }

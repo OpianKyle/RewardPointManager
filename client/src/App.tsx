@@ -7,6 +7,7 @@ import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
 import { Loader2 } from "lucide-react";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { useNotifications } from "@/hooks/use-notifications"; // Added import
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -15,7 +16,7 @@ import AdminRewards from "@/pages/admin/rewards";
 import AdminLayout from "@/components/layout/admin-layout";
 import ManageUsers from "@/pages/admin/manage-users";
 import AdminLogs from "@/pages/admin/logs";
-import AdminProducts from "@/pages/admin/products"; // Add this import
+import AdminProducts from "@/pages/admin/products";
 
 // Customer pages
 import CustomerDashboard from "@/pages/customer/dashboard";
@@ -54,6 +55,8 @@ function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
 
 function Router() {
   const { isLoading, user } = useUser();
+  // Add the notifications hook
+  useNotifications();
 
   if (isLoading) {
     return (
