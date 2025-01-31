@@ -77,30 +77,30 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <Card className="w-full max-w-2xl">
+        <CardHeader className="space-y-4 pb-8">
+          <CardTitle className="text-3xl font-bold text-center">
             Reward Points System
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "register")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
+        <CardContent className="px-8">
+          <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "register")} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+              <TabsTrigger value="login" className="text-lg py-3">Login</TabsTrigger>
+              <TabsTrigger value="register" className="text-lg py-3">Register</TabsTrigger>
             </TabsList>
             <TabsContent value={mode}>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
                     control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel className="text-base">Email</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" autoComplete="email" />
+                          <Input {...field} type="email" autoComplete="email" className="h-12 text-lg" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -113,9 +113,9 @@ export default function AuthPage() {
                         name="firstName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>First Name</FormLabel>
+                            <FormLabel className="text-base">First Name</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} className="h-12 text-lg" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -126,9 +126,9 @@ export default function AuthPage() {
                         name="lastName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Last Name</FormLabel>
+                            <FormLabel className="text-base">Last Name</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} className="h-12 text-lg" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -139,9 +139,9 @@ export default function AuthPage() {
                         name="phoneNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Phone Number</FormLabel>
+                            <FormLabel className="text-base">Phone Number</FormLabel>
                             <FormControl>
-                              <Input {...field} type="tel" />
+                              <Input {...field} type="tel" className="h-12 text-lg" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -154,11 +154,12 @@ export default function AuthPage() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Password</FormLabel>
+                        <FormLabel className="text-base">Password</FormLabel>
                         <FormControl>
                           <Input 
                             type="password" 
                             {...field} 
+                            className="h-12 text-lg"
                             autoComplete={mode === 'login' ? 'current-password' : 'new-password'} 
                           />
                         </FormControl>
@@ -166,9 +167,13 @@ export default function AuthPage() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 text-lg font-semibold mt-8" 
+                    disabled={isLoading}
+                  >
                     {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
                     ) : null}
                     {mode === "login" ? "Login" : "Register"}
                   </Button>
