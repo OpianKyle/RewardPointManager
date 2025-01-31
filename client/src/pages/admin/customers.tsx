@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Pencil, UserX, Power, PowerOff, TrendingUp } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 const userSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -147,6 +149,7 @@ export default function AdminCustomers() {
                 <TableHead>Phone</TableHead>
                 <TableHead>Points</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Assigned Products</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -165,6 +168,20 @@ export default function AdminCustomers() {
                     </span>
                   </TableCell>
                   <TableCell>
+                    <ScrollArea className="h-[100px]">
+                      <div className="space-x-1">
+                        {customer.productAssignments?.map((assignment: any) => (
+                          <Badge key={assignment.id} variant="secondary">
+                            {assignment.product.name}
+                          </Badge>
+                        ))}
+                        {(!customer.productAssignments || customer.productAssignments.length === 0) && (
+                          <span className="text-sm text-muted-foreground">No products assigned</span>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex space-x-2">
                       <Dialog>
                         <DialogTrigger asChild>
@@ -177,17 +194,17 @@ export default function AdminCustomers() {
                           <DialogHeader>
                             <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
                           </DialogHeader>
-                          <form 
-                            onSubmit={pointsForm.handleSubmit((data) => 
+                          <form
+                            onSubmit={pointsForm.handleSubmit((data) =>
                               assignPointsMutation.mutate({ userId: customer.id, data })
-                            )} 
+                            )}
                             className="space-y-4"
                           >
                             <div className="space-y-2">
                               <label>Points</label>
-                              <Input 
-                                type="number" 
-                                {...pointsForm.register("points", { valueAsNumber: true })} 
+                              <Input
+                                type="number"
+                                {...pointsForm.register("points", { valueAsNumber: true })}
                               />
                             </div>
                             <div className="space-y-2">
@@ -210,10 +227,10 @@ export default function AdminCustomers() {
                           <DialogHeader>
                             <DialogTitle>Edit Customer</DialogTitle>
                           </DialogHeader>
-                          <form 
-                            onSubmit={form.handleSubmit((data) => 
+                          <form
+                            onSubmit={form.handleSubmit((data) =>
                               updateUserMutation.mutate({ userId: customer.id, data })
-                            )} 
+                            )}
                             className="space-y-4"
                           >
                             <div className="space-y-2">

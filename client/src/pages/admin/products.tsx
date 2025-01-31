@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Plus, Pencil, Power, PowerOff } from "lucide-react";
+import { Plus, Pencil, Power, PowerOff, UserPlus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -128,6 +129,34 @@ export default function ProductManagement() {
     },
   });
 
+  const assignCustomerMutation = useMutation({
+    mutationFn: async ({ productId, userId }: { productId: number; userId: number }) => {
+      const res = await fetch(`/api/products/${productId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      toast({ title: "Success", description: "Customer assigned successfully" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const { data: customers } = useQuery({
+    queryKey: ["/api/admin/customers"],
+  });
+
   const onEdit = (product: any) => {
     setEditingProduct(product);
     editForm.reset({
@@ -153,8 +182,8 @@ export default function ProductManagement() {
             <DialogHeader>
               <DialogTitle>Create New Product</DialogTitle>
             </DialogHeader>
-            <form 
-              onSubmit={form.handleSubmit((data) => createProductMutation.mutate(data))} 
+            <form
+              onSubmit={form.handleSubmit((data) => createProductMutation.mutate(data))}
               className="space-y-4"
             >
               <div className="space-y-2">
@@ -167,9 +196,9 @@ export default function ProductManagement() {
               </div>
               <div className="space-y-2">
                 <label>Points Allocation</label>
-                <Input 
-                  type="number" 
-                  {...form.register("pointsAllocation", { valueAsNumber: true })} 
+                <Input
+                  type="number"
+                  {...form.register("pointsAllocation", { valueAsNumber: true })}
                 />
               </div>
               <Button type="submit">Create Product</Button>
@@ -183,10 +212,10 @@ export default function ProductManagement() {
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
           </DialogHeader>
-          <form 
-            onSubmit={editForm.handleSubmit((data) => 
+          <form
+            onSubmit={editForm.handleSubmit((data) =>
               editingProduct && updateProductMutation.mutate({ id: editingProduct.id, ...data })
-            )} 
+            )}
             className="space-y-4"
           >
             <div className="space-y-2">
@@ -199,9 +228,9 @@ export default function ProductManagement() {
             </div>
             <div className="space-y-2">
               <label>Points Allocation</label>
-              <Input 
-                type="number" 
-                {...editForm.register("pointsAllocation", { valueAsNumber: true })} 
+              <Input
+                type="number"
+                {...editForm.register("pointsAllocation", { valueAsNumber: true })}
               />
             </div>
             <Button type="submit">Update Product</Button>
@@ -270,6 +299,44 @@ export default function ProductManagement() {
                         )}
                         {product.isEnabled ? 'Disable' : 'Enable'}
                       </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Assign Customers
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Assign Customers to {product.name}</DialogTitle>
+                            <DialogDescription>
+                              Select customers to assign to this product. They will receive points based on the product's allocation.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <ScrollArea className="h-[300px]">
+                            <div className="space-y-4">
+                              {customers?.map((customer: any) => (
+                                <div key={customer.id} className="flex items-center justify-between p-2 hover:bg-accent rounded-lg">
+                                  <div>
+                                    <p className="font-medium">{customer.firstName} {customer.lastName}</p>
+                                    <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => assignCustomerMutation.mutate({
+                                      productId: product.id,
+                                      userId: customer.id,
+                                    })}
+                                  >
+                                    Assign
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </TableCell>
                 </TableRow>
