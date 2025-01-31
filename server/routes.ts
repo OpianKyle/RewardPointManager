@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { rewards, transactions, users } from "@db/schema";
+import { rewards, transactions, users, products, productAssignments } from "@db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -104,7 +104,7 @@ export function registerRoutes(app: Express): Server {
       // Log the user update
       await logAdminAction({
         adminId: req.user.id,
-        actionType: "ADMIN_UPDATED", 
+        actionType: "ADMIN_UPDATED",
         targetUserId: user.id,
         details: `Updated admin user: ${user.email}`,
       });
@@ -171,9 +171,9 @@ export function registerRoutes(app: Express): Server {
         // Instead of deleting, we'll update the user to remove admin status and disable the account
         const [updatedUser] = await db
           .update(users)
-          .set({ 
-            isAdmin: false, 
-            isEnabled: false 
+          .set({
+            isAdmin: false,
+            isEnabled: false
           })
           .where(eq(users.id, userId))
           .returning();
@@ -198,7 +198,7 @@ export function registerRoutes(app: Express): Server {
         // Log admin updated
         await logAdminAction({
           adminId: req.user.id,
-          actionType: "ADMIN_ENABLED", 
+          actionType: "ADMIN_ENABLED",
           targetUserId: userId,
           details: `${isAdmin ? 'Enabled' : 'Disabled'} admin user: ${targetUser.email}`,
         });
@@ -255,12 +255,164 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const allUsers = await db.query.users.findMany({
-      where: eq(users.isAdmin, true), 
+      where: eq(users.isAdmin, true),
       orderBy: desc(users.createdAt),
     });
     res.json(allUsers);
   });
 
+
+  // Product Management Routes
+  app.post("/api/products", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+
+    try {
+      const { name, description, pointsAllocation } = req.body;
+      const [product] = await db
+        .insert(products)
+        .values({
+          name,
+          description,
+          pointsAllocation,
+          isEnabled: true,
+        })
+        .returning();
+
+      // Log the product creation
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_CREATED",
+        details: `Created new product: ${product.name}`,
+      });
+
+      res.json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).send('Failed to create product');
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { name, description, pointsAllocation, isEnabled } = req.body;
+
+    try {
+      const [product] = await db
+        .update(products)
+        .set({
+          name,
+          description,
+          pointsAllocation,
+          isEnabled,
+        })
+        .where(eq(products.id, parseInt(id)))
+        .returning();
+
+      if (!product) {
+        return res.status(404).send("Product not found");
+      }
+
+      // Log the product update
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_UPDATED",
+        details: `Updated product: ${product.name}`,
+      });
+
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).send('Failed to update product');
+    }
+  });
+
+  app.post("/api/products/:id/toggle-status", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { enabled } = req.body;
+
+    try {
+      const [product] = await db
+        .update(products)
+        .set({ isEnabled: enabled })
+        .where(eq(products.id, parseInt(id)))
+        .returning();
+
+      if (!product) {
+        return res.status(404).send("Product not found");
+      }
+
+      // Log the status change
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: enabled ? "PRODUCT_CREATED" : "PRODUCT_DELETED",
+        details: `${enabled ? 'Enabled' : 'Disabled'} product: ${product.name}`,
+      });
+
+      res.json(product);
+    } catch (error) {
+      console.error('Error toggling product status:', error);
+      res.status(500).send('Failed to toggle product status');
+    }
+  });
+
+  app.post("/api/products/assign", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { userId, productId } = req.body;
+
+    try {
+      const [assignment] = await db
+        .insert(productAssignments)
+        .values({
+          userId,
+          productId,
+        })
+        .returning();
+
+      // Log the product assignment
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_ASSIGNED",
+        targetUserId: userId,
+        details: `Assigned product ID ${productId} to user ID ${userId}`,
+      });
+
+      res.json(assignment);
+    } catch (error) {
+      console.error('Error assigning product:', error);
+      res.status(500).send('Failed to assign product');
+    }
+  });
+
+  app.delete("/api/products/assignments/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+
+    try {
+      const [assignment] = await db
+        .delete(productAssignments)
+        .where(eq(productAssignments.id, parseInt(id)))
+        .returning();
+
+      if (!assignment) {
+        return res.status(404).send("Assignment not found");
+      }
+
+      // Log the product unassignment
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_UNASSIGNED",
+        targetUserId: assignment.userId,
+        details: `Unassigned product ID ${assignment.productId} from user ID ${assignment.userId}`,
+      });
+
+      res.json({ message: "Product assignment removed successfully" });
+    } catch (error) {
+      console.error('Error removing product assignment:', error);
+      res.status(500).send('Failed to remove product assignment');
+    }
+  });
 
   // Customer Routes
   app.get("/api/customer/points", async (req, res) => {

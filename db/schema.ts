@@ -16,6 +16,23 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  pointsAllocation: integer("points_allocation").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const productAssignments = pgTable("product_assignments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  productId: integer("product_id").references(() => products.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const rewards = pgTable("rewards", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -50,7 +67,12 @@ export const adminActionTypes = pgEnum("admin_action_type", [
   "USER_UPDATED",
   "REWARD_CREATED",
   "REWARD_UPDATED",
-  "REWARD_DELETED"
+  "REWARD_DELETED",
+  "PRODUCT_CREATED",
+  "PRODUCT_UPDATED",
+  "PRODUCT_DELETED",
+  "PRODUCT_ASSIGNED",
+  "PRODUCT_UNASSIGNED"
 ]);
 
 export const adminLogs = pgTable("admin_logs", {
@@ -62,11 +84,26 @@ export const adminLogs = pgTable("admin_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Relations
 export const userRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
   adminLogsCreated: many(adminLogs, { relationName: "adminLogsCreated" }),
   adminLogsTarget: many(adminLogs, { relationName: "adminLogsTarget" }),
+  productAssignments: many(productAssignments),
+}));
+
+export const productRelations = relations(products, ({ many }) => ({
+  assignments: many(productAssignments),
+}));
+
+export const productAssignmentRelations = relations(productAssignments, ({ one }) => ({
+  user: one(users, {
+    fields: [productAssignments.userId],
+    references: [users.id],
+  }),
+  product: one(products, {
+    fields: [productAssignments.productId],
+    references: [products.id],
+  }),
 }));
 
 export const transactionRelations = relations(transactions, ({ one }) => ({
@@ -93,7 +130,6 @@ export const adminLogRelations = relations(adminLogs, ({ one }) => ({
   }),
 }));
 
-// Schema types
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertRewardSchema = createInsertSchema(rewards);
@@ -102,6 +138,10 @@ export const insertTransactionSchema = createInsertSchema(transactions);
 export const selectTransactionSchema = createSelectSchema(transactions);
 export const insertAdminLogSchema = createInsertSchema(adminLogs);
 export const selectAdminLogSchema = createSelectSchema(adminLogs);
+export const insertProductSchema = createInsertSchema(products);
+export const selectProductSchema = createSelectSchema(products);
+export const insertProductAssignmentSchema = createInsertSchema(productAssignments);
+export const selectProductAssignmentSchema = createSelectSchema(productAssignments);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -111,3 +151,7 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 export type AdminLog = typeof adminLogs.$inferSelect;
 export type InsertAdminLog = typeof adminLogs.$inferInsert;
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = typeof products.$inferInsert;
+export type ProductAssignment = typeof productAssignments.$inferSelect;
+export type InsertProductAssignment = typeof productAssignments.$inferInsert;
