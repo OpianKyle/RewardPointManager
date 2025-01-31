@@ -13,8 +13,9 @@ import AdminDashboard from "@/pages/admin/dashboard";
 import AdminCustomers from "@/pages/admin/customers";
 import AdminRewards from "@/pages/admin/rewards";
 import AdminLayout from "@/components/layout/admin-layout";
-import ManageUsers from "@/pages/admin/manage-users"; // Added import
-import AdminLogs from "@/pages/admin/logs"; // Add this import
+import ManageUsers from "@/pages/admin/manage-users";
+import AdminLogs from "@/pages/admin/logs";
+import AdminProducts from "@/pages/admin/products"; // Add this import
 
 // Customer pages
 import CustomerDashboard from "@/pages/customer/dashboard";
@@ -84,6 +85,11 @@ function Router() {
             <PrivateRoute component={AdminCustomers} admin />
           </AdminLayout>
         </Route>
+        <Route path="/admin/products">
+          <AdminLayout>
+            <PrivateRoute component={AdminProducts} admin />
+          </AdminLayout>
+        </Route>
         <Route path="/admin/rewards">
           <AdminLayout>
             <PrivateRoute component={AdminRewards} admin />
@@ -94,8 +100,6 @@ function Router() {
             <PrivateRoute component={ManageUsers} admin />
           </AdminLayout>
         </Route>
-
-        {/* Add new admin logs route */}
         <Route path="/admin/logs">
           <AdminLayout>
             <PrivateRoute component={AdminLogs} admin />
