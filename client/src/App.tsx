@@ -7,7 +7,7 @@ import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
 import { Loader2 } from "lucide-react";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { useNotifications } from "@/hooks/use-notifications"; // Added import
+import { useNotifications } from "@/hooks/use-notifications";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -55,7 +55,6 @@ function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
 
 function Router() {
   const { isLoading, user } = useUser();
-  // Add the notifications hook
   useNotifications();
 
   if (isLoading) {
@@ -140,7 +139,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
-      <Toaster />
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          duration: 5000,
+          className: "rounded-lg shadow-lg",
+        }}
+      />
     </QueryClientProvider>
   );
 }
