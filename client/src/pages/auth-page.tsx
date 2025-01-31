@@ -32,10 +32,8 @@ export default function AuthPage() {
   const onSubmit = async (data: any) => {
     try {
       setIsLoading(true);
-      console.log("Attempting auth:", mode, data.email);
       const result = await (mode === "login" ? login(data) : registerUser(data));
       if (!result.ok) {
-        console.error("Auth error:", result.message);
         toast({
           variant: "destructive",
           title: "Error",
@@ -53,7 +51,6 @@ export default function AuthPage() {
         }
       }
     } catch (error) {
-      console.error("Auth error:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -80,7 +77,12 @@ export default function AuthPage() {
           <img 
             src="/opian-rewards-logo.png" 
             alt="OPIAN Rewards"
-            className="h-16 w-auto"
+            className="h-12 w-auto object-contain"
+            onError={(e) => {
+              const img = e.target as HTMLImageElement;
+              img.onerror = null;
+              img.src = '/logo-fallback.png';
+            }}
           />
         </div>
         <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "register")} className="w-full">
