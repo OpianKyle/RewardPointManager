@@ -23,11 +23,20 @@ const productSchema = z.object({
 type ProductFormData = z.infer<typeof productSchema>;
 
 export default function ProductManagement() {
-  const { data: products, refetch } = useQuery({
+  const { data: products = [], refetch } = useQuery({
     queryKey: ["/api/products"],
     queryFn: async () => {
       const response = await fetch("/api/products");
       if (!response.ok) throw new Error("Failed to fetch products");
+      return response.json();
+    },
+  });
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["/api/admin/customers"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/customers");
+      if (!response.ok) throw new Error("Failed to fetch customers");
       return response.json();
     },
   });
@@ -131,12 +140,17 @@ export default function ProductManagement() {
 
   const assignCustomerMutation = useMutation({
     mutationFn: async ({ productId, userId }: { productId: number; userId: number }) => {
+      console.log('Assigning customer:', { productId, userId });
       const res = await fetch(`/api/products/${productId}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Assignment failed:', errorText);
+        throw new Error(errorText);
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -145,16 +159,13 @@ export default function ProductManagement() {
       toast({ title: "Success", description: "Customer assigned successfully" });
     },
     onError: (error: Error) => {
+      console.error('Assignment error:', error);
       toast({
         variant: "destructive",
         title: "Error",
         description: error.message,
       });
     },
-  });
-
-  const { data: customers } = useQuery({
-    queryKey: ["/api/admin/customers"],
   });
 
   const onEdit = (product: any) => {
@@ -254,7 +265,7 @@ export default function ProductManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products?.map((product: any) => (
+              {products.map((product: any) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>{product.description}</TableCell>
@@ -315,7 +326,7 @@ export default function ProductManagement() {
                           </DialogHeader>
                           <ScrollArea className="h-[300px]">
                             <div className="space-y-4">
-                              {customers?.map((customer: any) => (
+                              {customers.map((customer: any) => (
                                 <div key={customer.id} className="flex items-center justify-between p-2 hover:bg-accent rounded-lg">
                                   <div>
                                     <p className="font-medium">{customer.firstName} {customer.lastName}</p>
