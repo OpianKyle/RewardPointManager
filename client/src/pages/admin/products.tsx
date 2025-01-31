@@ -8,11 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Plus, Pencil, Power, PowerOff, UserPlus } from "lucide-react";
+import { Plus, Pencil, Power, PowerOff, UserPlus, UserX } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -180,6 +181,53 @@ export default function ProductManagement() {
     },
   });
 
+  const unassignCustomerMutation = useMutation({
+    mutationFn: async ({ productId, userId }: { productId: number; userId: number }) => {
+      try {
+        const res = await fetch(`/api/products/${productId}/unassign`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({ userId }),
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('Unassignment failed:', errorText);
+          throw new Error(errorText);
+        }
+
+        const data = await res.json();
+        console.log('Unassignment response:', data);
+        return data;
+      } catch (error) {
+        console.error('Unassignment error:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      toast({ title: "Success", description: "Customer unassigned successfully" });
+    },
+    onError: (error: Error) => {
+      console.error('Unassignment error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const isCustomerAssigned = (customer: any, productId: number) => {
+    return customer.productAssignments?.some(
+      (assignment: any) => assignment.productId === productId
+    );
+  };
+
   const onEdit = (product: any) => {
     setEditingProduct(product);
     editForm.reset({
@@ -326,36 +374,63 @@ export default function ProductManagement() {
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
                             <UserPlus className="h-4 w-4 mr-2" />
-                            Assign Customers
+                            Manage Assignments
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Assign Customers to {product.name}</DialogTitle>
+                            <DialogTitle>Manage Customer Assignments for {product.name}</DialogTitle>
                             <DialogDescription>
-                              Select customers to assign to this product. They will receive points based on the product's allocation.
+                              Assign or unassign customers to this product. Assigned customers will receive points based on the product's allocation.
                             </DialogDescription>
                           </DialogHeader>
                           <ScrollArea className="h-[300px]">
                             <div className="space-y-4">
-                              {customers.map((customer: any) => (
-                                <div key={customer.id} className="flex items-center justify-between p-2 hover:bg-accent rounded-lg">
-                                  <div>
-                                    <p className="font-medium">{customer.firstName} {customer.lastName}</p>
-                                    <p className="text-sm text-muted-foreground">{customer.email}</p>
+                              {customers.map((customer: any) => {
+                                const assigned = isCustomerAssigned(customer, product.id);
+                                return (
+                                  <div key={customer.id} className="flex items-center justify-between p-2 hover:bg-accent rounded-lg">
+                                    <div>
+                                      <p className="font-medium">{customer.firstName} {customer.lastName}</p>
+                                      <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                      {assigned && (
+                                        <Badge variant="secondary" className="mt-1">
+                                          Assigned
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <Button
+                                      variant={assigned ? "destructive" : "outline"}
+                                      size="sm"
+                                      onClick={() => {
+                                        if (assigned) {
+                                          unassignCustomerMutation.mutate({
+                                            productId: product.id,
+                                            userId: customer.id,
+                                          });
+                                        } else {
+                                          assignCustomerMutation.mutate({
+                                            productId: product.id,
+                                            userId: customer.id,
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      {assigned ? (
+                                        <>
+                                          <UserX className="h-4 w-4 mr-2" />
+                                          Unassign
+                                        </>
+                                      ) : (
+                                        <>
+                                          <UserPlus className="h-4 w-4 mr-2" />
+                                          Assign
+                                        </>
+                                      )}
+                                    </Button>
                                   </div>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => assignCustomerMutation.mutate({
-                                      productId: product.id,
-                                      userId: customer.id,
-                                    })}
-                                  >
-                                    Assign
-                                  </Button>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </ScrollArea>
                         </DialogContent>

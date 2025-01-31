@@ -340,6 +340,11 @@ export function registerRoutes(app: Express): Server {
       orderBy: desc(users.createdAt),
       with: {
         transactions: true,
+        productAssignments: {
+          with: {
+            product: true,
+          },
+        },
       },
     });
     res.json(customers);
@@ -458,6 +463,15 @@ export function registerRoutes(app: Express): Server {
     const { userId } = req.body;
 
     try {
+      // Check if assignment already exists
+      const existingAssignment = await db.query.productAssignments.findFirst({
+        where: sql`${productAssignments.userId} = ${userId} AND ${productAssignments.productId} = ${parseInt(id)}`,
+      });
+
+      if (existingAssignment) {
+        return res.status(400).json({ error: "Customer is already assigned to this product" });
+      }
+
       const [assignment] = await db
         .insert(productAssignments)
         .values({
@@ -466,20 +480,91 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
-    // Log the product assignment
-    await logAdminAction({
-      adminId: req.user.id,
-      actionType: "PRODUCT_ASSIGNED",
-      targetUserId: userId,
-      details: `Assigned product ID ${id} to user ID ${userId}`,
-    });
+      // Log the product assignment
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_ASSIGNED",
+        targetUserId: userId,
+        details: `Assigned product ID ${id} to user ID ${userId}`,
+      });
 
-    res.json(assignment);
-  } catch (error) {
-    console.error('Error assigning product:', error);
-    res.status(500).send('Failed to assign product');
-  }
-});
+      res.json(assignment);
+    } catch (error) {
+      console.error('Error assigning product:', error);
+      res.status(500).send('Failed to assign product');
+    }
+  });
+
+  app.post("/api/products/:id/unassign", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    try {
+      const [deletedAssignment] = await db
+        .delete(productAssignments)
+        .where(sql`${productAssignments.userId} = ${userId} AND ${productAssignments.productId} = ${parseInt(id)}`)
+        .returning();
+
+      if (!deletedAssignment) {
+        return res.status(404).json({ error: "Assignment not found" });
+      }
+
+      // Log the product unassignment
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_UNASSIGNED",
+        targetUserId: userId,
+        details: `Unassigned product ID ${id} from user ID ${userId}`,
+      });
+
+      res.json({ message: "Product unassigned successfully" });
+    } catch (error) {
+      console.error('Error unassigning product:', error);
+      res.status(500).send('Failed to unassign product');
+    }
+  });
+
+  // Update the customer endpoint to include product assignments
+  app.get("/api/admin/customers", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const customers = await db.query.users.findMany({
+      where: eq(users.isAdmin, false),
+      orderBy: desc(users.createdAt),
+      with: {
+        transactions: true,
+        productAssignments: {
+          with: {
+            product: true,
+          },
+        },
+      },
+    });
+    res.json(customers);
+  });
+
+  app.get("/api/products/assignments/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized")
+    const { id } = req.params;
+
+    try {
+      const assignment = await db.query.productAssignments.findFirst({
+        where: eq(productAssignments.id, parseInt(id)),
+        with: {
+          product: true,
+          user: true,
+        }
+      })
+      if (!assignment) {
+        return res.status(404).send("Assignment not found")
+      }
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error fetching assignment:", error);
+      res.status(500).send("Failed to fetch assignment");
+    }
+  })
+
 
   app.delete("/api/products/assignments/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
