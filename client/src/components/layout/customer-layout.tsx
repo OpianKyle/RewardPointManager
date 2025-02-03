@@ -17,8 +17,8 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
   ];
 
   return (
-    <div className="min-h-screen flex">
-      <Sidebar>
+    <div className="flex h-screen w-full overflow-hidden">
+      <Sidebar className="border-r">
         <div className="flex flex-col h-full">
           <div className="p-4 border-b">
             <img 
@@ -32,7 +32,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
               }}
             />
           </div>
-          <div className="px-3 py-4 flex-1">
+          <div className="px-3 py-4 flex-1 overflow-y-auto">
             <h2 className="mb-2 px-4 text-lg font-semibold">Rewards Portal</h2>
             <div className="space-y-1">
               {menuItems.map((item) => (
@@ -47,14 +47,14 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
               ))}
             </div>
           </div>
-          <div className="p-4 border-t">
+          <div className="p-4 border-t mt-auto">
             <Button variant="outline" className="w-full" onClick={handleLogout}>
               Logout
             </Button>
           </div>
         </div>
       </Sidebar>
-      <main className="flex-1 p-8">{children}</main>
+      <main className="flex-1 p-8 overflow-y-auto">{children}</main>
     </div>
   );
 }
