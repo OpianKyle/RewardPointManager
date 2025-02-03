@@ -2,20 +2,6 @@ import { pgTable, text, serial, integer, boolean, timestamp, pgEnum } from "driz
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  email: text("email").unique().notNull(),
-  password: text("password").notNull(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  phoneNumber: text("phone_number").notNull(),
-  isAdmin: boolean("is_admin").default(false).notNull(),
-  isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
-  isEnabled: boolean("is_enabled").default(true).notNull(),
-  points: integer("points").default(0).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
 export const activityTypes = pgEnum("activity_type", [
   "ACTIVATE",
   "TIMELINE",
@@ -40,6 +26,20 @@ export const product_activities = pgTable("product_activities", {
   pointsValue: integer("points_value").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: text("email").unique().notNull(),
+  password: text("password").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  isAdmin: boolean("is_admin").default(false).notNull(),
+  isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  points: integer("points").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const productAssignments = pgTable("product_assignments", {

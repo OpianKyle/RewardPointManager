@@ -355,7 +355,14 @@ export function registerRoutes(app: Express): Server {
     try {
       const allProducts = await db.query.products.findMany({
         with: {
-          activities: true,
+          activities: {
+            columns: {
+              id: true,
+              productId: true,
+              type: true,
+              pointsValue: true
+            }
+          }
         },
         orderBy: desc(products.createdAt),
       });
@@ -385,15 +392,15 @@ export function registerRoutes(app: Express): Server {
 
         // Then create all activities for this product
         if (activities && Array.isArray(activities)) {
-          const activityPromises = activities.map((activity) => 
-            tx.insert(product_activities).values({
-              productId: product.id,
-              type: activity.type,
-              pointsValue: activity.pointsValue,
-            })
+          await Promise.all(
+            activities.map((activity) =>
+              tx.insert(product_activities).values({
+                productId: product.id,
+                type: activity.type,
+                pointsValue: activity.pointsValue,
+              })
+            )
           );
-
-          await Promise.all(activityPromises);
         }
 
         return product;
@@ -410,7 +417,14 @@ export function registerRoutes(app: Express): Server {
       const completeProduct = await db.query.products.findFirst({
         where: eq(products.id, result.id),
         with: {
-          activities: true,
+          activities: {
+            columns: {
+              id: true,
+              productId: true,
+              type: true,
+              pointsValue: true
+            }
+          }
         },
       });
 
