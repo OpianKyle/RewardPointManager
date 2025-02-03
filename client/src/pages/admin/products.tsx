@@ -302,7 +302,10 @@ export default function ProductManagement() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products", selectedProduct?.id, "activities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/products", selectedProduct?.id, "activities"] 
+      });
       toast({ title: "Success", description: "Activity updated successfully" });
       setIsActivityEditOpen(false);
       setSelectedActivity(null);

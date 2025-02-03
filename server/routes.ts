@@ -323,6 +323,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Update /api/admin/users endpoint to ensure it's working
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const allUsers = await db.query.users.findMany({
@@ -332,7 +333,7 @@ export function registerRoutes(app: Express): Server {
     res.json(allUsers);
   });
 
-  // Add the customers endpoint right after the admin users endpoint
+    // Update the customers endpoint to include product assignments
   app.get("/api/admin/customers", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const customers = await db.query.users.findMany({
@@ -349,6 +350,7 @@ export function registerRoutes(app: Express): Server {
     });
     res.json(customers);
   });
+
 
   // Product Management Routes
   app.get("/api/products", async (req, res) => {
@@ -523,24 +525,6 @@ export function registerRoutes(app: Express): Server {
       console.error('Error unassigning product:', error);
       res.status(500).send('Failed to unassign product');
     }
-  });
-
-  // Update the customer endpoint to include product assignments
-  app.get("/api/admin/customers", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const customers = await db.query.users.findMany({
-      where: eq(users.isAdmin, false),
-      orderBy: desc(users.createdAt),
-      with: {
-        transactions: true,
-        productAssignments: {
-          with: {
-            product: true,
-          },
-        },
-      },
-    });
-    res.json(customers);
   });
 
   app.get("/api/products/assignments/:id", async (req, res) => {
@@ -763,12 +747,18 @@ export function registerRoutes(app: Express): Server {
     res.json(userTransactions);
   });
 
-  // Shared Routes
+  // Ensure rewards endpoints are properly exposed
   app.get("/api/rewards", async (req, res) => {
-    const allRewards = await db.query.rewards.findMany({
-      where: eq(rewards.available, true),
-    });
-    res.json(allRewards);
+    try {
+      const allRewards = await db.query.rewards.findMany({
+        where: eq(rewards.available, true),
+        orderBy: desc(rewards.createdAt),
+      });
+      res.json(allRewards);
+    } catch (error) {
+      console.error('Error fetching rewards:', error);
+      res.status(500).send('Failed to fetch rewards');
+    }
   });
 
   app.post("/api/rewards", async (req, res) => {
