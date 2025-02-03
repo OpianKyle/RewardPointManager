@@ -98,6 +98,7 @@ export default function ProductManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
       toast({ title: "Success", description: "Product updated successfully" });
       editForm.reset();
       setIsEditOpen(false);
@@ -140,7 +141,13 @@ export default function ProductManagement() {
     editForm.reset({
       name: product.name,
       description: product.description,
-      activities: product.activities,
+      activities: activityTypes.map(type => {
+        const activity = product.activities.find((a: any) => a.type === type);
+        return {
+          type,
+          pointsValue: activity ? activity.pointsValue : 0,
+        };
+      }),
     });
     setIsEditOpen(true);
   };
