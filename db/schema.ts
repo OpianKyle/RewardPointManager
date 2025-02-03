@@ -6,8 +6,7 @@ export const activityTypes = pgEnum("activity_type", [
   "ACTIVATE",
   "TIMELINE",
   "RENEWAL",
-  "UPGRADE",
-  "POS"
+  "UPGRADE"
 ]);
 
 export const products = pgTable("products", {
