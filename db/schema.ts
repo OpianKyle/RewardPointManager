@@ -21,9 +21,9 @@ export const products = pgTable("products", {
 
 export const product_activities = pgTable("product_activities", {
   id: serial("id").primaryKey(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   type: activityTypes("type").notNull(),
-  pointsValue: integer("points_value").notNull(),
+  pointsValue: integer("points_value").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -44,8 +44,8 @@ export const users = pgTable("users", {
 
 export const productAssignments = pgTable("product_assignments", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -100,16 +100,9 @@ export const adminLogs = pgTable("admin_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const userRelations = relations(users, ({ many }) => ({
-  transactions: many(transactions),
-  adminLogsCreated: many(adminLogs, { relationName: "adminLogsCreated" }),
-  adminLogsTarget: many(adminLogs, { relationName: "adminLogsTarget" }),
-  productAssignments: many(productAssignments),
-}));
-
 export const productRelations = relations(products, ({ many }) => ({
-  assignments: many(productAssignments),
-  activities: many(product_activities),
+    activities: many(product_activities),
+    assignments: many(productAssignments),
 }));
 
 export const productActivityRelations = relations(product_activities, ({ one }) => ({
@@ -119,16 +112,25 @@ export const productActivityRelations = relations(product_activities, ({ one }) 
   }),
 }));
 
-export const productAssignmentRelations = relations(productAssignments, ({ one }) => ({
-  user: one(users, {
-    fields: [productAssignments.userId],
-    references: [users.id],
-  }),
-  product: one(products, {
-    fields: [productAssignments.productId],
-    references: [products.id],
-  }),
+
+export const userRelations = relations(users, ({ many }) => ({
+  transactions: many(transactions),
+  adminLogsCreated: many(adminLogs, { relationName: "adminLogsCreated" }),
+  adminLogsTarget: many(adminLogs, { relationName: "adminLogsTarget" }),
+  productAssignments: many(productAssignments),
 }));
+
+export const productAssignmentRelations = relations(productAssignments, ({ one }) => ({
+    user: one(users, {
+        fields: [productAssignments.userId],
+        references: [users.id],
+    }),
+    product: one(products, {
+        fields: [productAssignments.productId],
+        references: [products.id],
+    }),
+}));
+
 
 export const transactionRelations = relations(transactions, ({ one }) => ({
   user: one(users, {
@@ -142,18 +144,22 @@ export const transactionRelations = relations(transactions, ({ one }) => ({
 }));
 
 export const adminLogRelations = relations(adminLogs, ({ one }) => ({
-  admin: one(users, {
-    fields: [adminLogs.adminId],
-    references: [users.id],
-    relationName: "adminLogsCreated"
-  }),
-  targetUser: one(users, {
-    fields: [adminLogs.targetUserId],
-    references: [users.id],
-    relationName: "adminLogsTarget"
-  }),
-}));
+    admin: one(users, {
+      fields: [adminLogs.adminId],
+      references: [users.id],
+      relationName: "adminLogsCreated"
+    }),
+    targetUser: one(users, {
+      fields: [adminLogs.targetUserId],
+      references: [users.id],
+      relationName: "adminLogsTarget"
+    }),
+  }));
 
+export const insertProductSchema = createInsertSchema(products);
+export const selectProductSchema = createSelectSchema(products);
+export const insertProductActivitySchema = createInsertSchema(product_activities);
+export const selectProductActivitySchema = createSelectSchema(product_activities);
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertRewardSchema = createInsertSchema(rewards);
@@ -162,13 +168,13 @@ export const insertTransactionSchema = createInsertSchema(transactions);
 export const selectTransactionSchema = createSelectSchema(transactions);
 export const insertAdminLogSchema = createInsertSchema(adminLogs);
 export const selectAdminLogSchema = createSelectSchema(adminLogs);
-export const insertProductSchema = createInsertSchema(products);
-export const selectProductSchema = createSelectSchema(products);
 export const insertProductAssignmentSchema = createInsertSchema(productAssignments);
 export const selectProductAssignmentSchema = createSelectSchema(productAssignments);
-export const insertProductActivitySchema = createInsertSchema(product_activities);
-export const selectProductActivitySchema = createSelectSchema(product_activities);
 
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = typeof products.$inferInsert;
+export type ProductActivity = typeof product_activities.$inferSelect;
+export type InsertProductActivity = typeof product_activities.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Reward = typeof rewards.$inferSelect;
@@ -177,9 +183,5 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 export type AdminLog = typeof adminLogs.$inferSelect;
 export type InsertAdminLog = typeof adminLogs.$inferInsert;
-export type Product = typeof products.$inferSelect;
-export type InsertProduct = typeof products.$inferInsert;
 export type ProductAssignment = typeof productAssignments.$inferSelect;
 export type InsertProductAssignment = typeof productAssignments.$inferInsert;
-export type ProductActivity = typeof product_activities.$inferSelect;
-export type InsertProductActivity = typeof product_activities.$inferInsert;
