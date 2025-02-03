@@ -417,6 +417,51 @@ export default function AdminCustomers() {
                                 </Button>
                               </div>
                             </div>
+
+                            <Separator />
+
+                            <div>
+                              <h3 className="text-lg font-semibold mb-4">Custom Points Allocation</h3>
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <label>Custom Points</label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    placeholder="Enter points amount"
+                                    onChange={(e) => {
+                                      const customPoints = parseInt(e.target.value) || 0;
+                                      pointsForm.setValue("points", customPoints);
+                                    }}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label>Description</label>
+                                  <Input 
+                                    placeholder="Enter reason for points allocation"
+                                    {...pointsForm.register("description")} 
+                                  />
+                                </div>
+                                <Button 
+                                  type="submit" 
+                                  className="w-full"
+                                  disabled={!pointsForm.watch("points")}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    assignPointsMutation.mutate({ 
+                                      userId: customer.id, 
+                                      data: {
+                                        points: pointsForm.getValues("points"),
+                                        description: pointsForm.getValues("description"),
+                                        selectedActivities: []
+                                      }
+                                    });
+                                  }}
+                                >
+                                  Assign Custom Points
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         </DialogContent>
                       </Dialog>
