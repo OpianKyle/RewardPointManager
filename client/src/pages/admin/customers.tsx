@@ -375,19 +375,15 @@ export default function AdminCustomers() {
                                                       onChange={(e) => {
                                                         const currentSelected = pointsForm.getValues("selectedActivities") || [];
                                                         const currentPoints = pointsForm.getValues("points") || 0;
-                        
+
                                                         if (e.target.checked) {
-                                                          // Add the activity ID to selected activities
                                                           pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
-                                                          // Add the points value
                                                           pointsForm.setValue("points", currentPoints + activity.pointsValue);
                                                         } else {
-                                                          // Remove the activity ID from selected activities
                                                           pointsForm.setValue(
                                                             "selectedActivities",
                                                             currentSelected.filter(id => id !== activity.id)
                                                           );
-                                                          // Subtract the points value
                                                           pointsForm.setValue("points", currentPoints - activity.pointsValue);
                                                         }
                                                       }}

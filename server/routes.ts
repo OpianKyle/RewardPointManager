@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { rewards, transactions, users, products, productAssignments, product_activities } from "@db/schema";
-import { eq, desc, sql, and, inArray } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
@@ -99,7 +99,6 @@ export function registerRoutes(app: Express): Server {
 
     try {
       await db.transaction(async (tx) => {
-        // First create the transaction record
         await tx.insert(transactions).values({
           userId,
           points,
@@ -107,7 +106,6 @@ export function registerRoutes(app: Express): Server {
           description,
         });
 
-        // Update user's points
         const [updatedUser] = await tx
           .update(users)
           .set({
@@ -119,25 +117,19 @@ export function registerRoutes(app: Express): Server {
         // Fetch activity details if there are selected activities
         let activityDetails = "";
         if (selectedActivities?.length > 0) {
-          // Convert the array to integers and filter out any invalid values
-          const activityIds = selectedActivities.map(Number).filter(id => !isNaN(id));
+          const activities = await tx
+            .select({
+              type: product_activities.type,
+              pointsValue: product_activities.pointsValue,
+            })
+            .from(product_activities)
+            .where(sql`${product_activities.id} IN (${selectedActivities.join(',')})`);
 
-          if (activityIds.length > 0) {
-            const activities = await tx
-              .select({
-                type: product_activities.type,
-                pointsValue: product_activities.pointsValue,
-              })
-              .from(product_activities)
-              .where(inArray(product_activities.id, activityIds));
-
-            activityDetails = activities
-              .map(activity => `${activity.type} (${activity.pointsValue} points)`)
-              .join(', ');
-          }
+          activityDetails = activities
+            .map(activity => `${activity.type} (${activity.pointsValue} points)`)
+            .join(', ');
         }
 
-        // Log the action
         await logAdminAction({
           adminId: req.user!.id,
           actionType: "POINT_ADJUSTMENT",
@@ -147,13 +139,13 @@ export function registerRoutes(app: Express): Server {
           }Reason: ${description}`,
         });
 
-        // Add notification
-        addNotification({
-          type: "POINTS_ALLOCATION",
-          userId,
-          points,
-          description,
-        });
+          // Add notification using new system
+         addNotification({
+           type: "POINTS_ALLOCATION",
+           userId,
+           points,
+           description,
+          });
 
         return updatedUser;
       });
