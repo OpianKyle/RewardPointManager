@@ -32,6 +32,41 @@ const pointsSchema = z.object({
 type UserFormData = z.infer<typeof userSchema>;
 type PointsFormData = z.infer<typeof pointsSchema>;
 
+const getTierInfo = (points: number): { name: string; color: string; nextTier?: { name: string; pointsNeeded: number } } => {
+  if (points >= 150000) {
+    return { 
+      name: 'Platinum',
+      color: 'bg-gradient-to-r from-purple-400 to-gray-300 text-white'
+    };
+  }
+  if (points >= 100000) {
+    return { 
+      name: 'Gold',
+      color: 'bg-yellow-500 text-white',
+      nextTier: { name: 'Platinum', pointsNeeded: 150000 - points }
+    };
+  }
+  if (points >= 50000) {
+    return { 
+      name: 'Purple',
+      color: 'bg-purple-500 text-white',
+      nextTier: { name: 'Gold', pointsNeeded: 100000 - points }
+    };
+  }
+  if (points >= 10000) {
+    return { 
+      name: 'Silver',
+      color: 'bg-gray-400 text-white',
+      nextTier: { name: 'Purple', pointsNeeded: 50000 - points }
+    };
+  }
+  return { 
+    name: 'Bronze',
+    color: 'bg-amber-600 text-white',
+    nextTier: { name: 'Silver', pointsNeeded: 10000 - points }
+  };
+};
+
 export default function AdminCustomers() {
   const { data: customers } = useQuery({
     queryKey: ["/api/admin/customers"],
@@ -210,6 +245,7 @@ export default function AdminCustomers() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead>Tier</TableHead>
                 <TableHead>Points</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Assigned Products</TableHead>
@@ -217,47 +253,61 @@ export default function AdminCustomers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers?.map((customer: any) => (
-                <TableRow key={customer.id}>
-                  <TableCell>{customer.firstName} {customer.lastName}</TableCell>
-                  <TableCell>{customer.email}</TableCell>
-                  <TableCell>{customer.phoneNumber}</TableCell>
-                  <TableCell>{customer.points}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      customer.isEnabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {customer.isEnabled ? 'Active' : 'Disabled'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <ScrollArea className="h-[100px]">
-                      <div className="space-x-1">
-                        {customer.productAssignments?.map((assignment: any) => (
-                          <Badge 
-                            key={assignment.id} 
-                            variant="secondary"
-                            className="cursor-pointer hover:bg-destructive/20"
-                            onClick={() => {
-                              if (confirm('Are you sure you want to unassign this product?')) {
-                                unassignProductMutation.mutate({
-                                  productId: assignment.product.id,
-                                  userId: customer.id
-                                });
-                              }
-                            }}
-                          >
-                            {assignment.product.name} ×
-                          </Badge>
-                        ))}
-                        {(!customer.productAssignments || customer.productAssignments.length === 0) && (
-                          <span className="text-sm text-muted-foreground">No products assigned</span>
+              {customers?.map((customer: any) => {
+                const tierInfo = getTierInfo(customer.points);
+                return (
+                  <TableRow key={customer.id}>
+                    <TableCell>{customer.firstName} {customer.lastName}</TableCell>
+                    <TableCell>{customer.email}</TableCell>
+                    <TableCell>{customer.phoneNumber}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <Badge className={`${tierInfo.color}`}>
+                          {tierInfo.name}
+                        </Badge>
+                        {tierInfo.nextTier && (
+                          <p className="text-xs text-muted-foreground">
+                            {tierInfo.nextTier.pointsNeeded.toLocaleString()} points to {tierInfo.nextTier.name}
+                          </p>
                         )}
                       </div>
-                    </ScrollArea>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
+                    </TableCell>
+                    <TableCell>{customer.points.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        customer.isEnabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {customer.isEnabled ? 'Active' : 'Disabled'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <ScrollArea className="h-[100px]">
+                        <div className="space-x-1">
+                          {customer.productAssignments?.map((assignment: any) => (
+                            <Badge 
+                              key={assignment.id} 
+                              variant="secondary"
+                              className="cursor-pointer hover:bg-destructive/20"
+                              onClick={() => {
+                                if (confirm('Are you sure you want to unassign this product?')) {
+                                  unassignProductMutation.mutate({
+                                    productId: assignment.product.id,
+                                    userId: customer.id
+                                  });
+                                }
+                              }}
+                            >
+                              {assignment.product.name} ×
+                            </Badge>
+                          ))}
+                          {(!customer.productAssignments || customer.productAssignments.length === 0) && (
+                            <span className="text-sm text-muted-foreground">No products assigned</span>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
@@ -558,9 +608,10 @@ export default function AdminCustomers() {
                         {customer.isEnabled ? 'Disable' : 'Enable'}
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
