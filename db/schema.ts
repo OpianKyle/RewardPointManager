@@ -2,6 +2,39 @@ import { pgTable, text, serial, integer, boolean, timestamp, pgEnum } from "driz
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
+// Existing enums
+export const transactionTypes = pgEnum("transaction_type", ["EARNED", "REDEEMED", "ADMIN_ADJUSTMENT"]);
+export const adminActionTypes = pgEnum("admin_action_type", [
+  "POINT_ADJUSTMENT",
+  "ADMIN_CREATED",
+  "ADMIN_REMOVED",
+  "ADMIN_UPDATED",
+  "ADMIN_ENABLED",
+  "ADMIN_DISABLED",
+  "USER_ENABLED",
+  "USER_DISABLED",
+  "USER_UPDATED",
+  "REWARD_CREATED",
+  "REWARD_UPDATED",
+  "REWARD_DELETED",
+  "PRODUCT_CREATED",
+  "PRODUCT_UPDATED",
+  "PRODUCT_DELETED",
+  "PRODUCT_ASSIGNED",
+  "PRODUCT_UNASSIGNED",
+  "ACTIVITY_COMPLETED"
+]);
+
+// New activity type enum
+export const activityTypes = pgEnum("activity_type", [
+  "ACTIVATE",
+  "TIMELINE",
+  "RENEWAL",
+  "UPGRADE",
+  "POS"
+]);
+
+// Existing tables
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").unique().notNull(),
@@ -26,6 +59,27 @@ export const products = pgTable("products", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// New table for product activities
+export const productActivities = pgTable("product_activities", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").references(() => products.id).notNull(),
+  activityType: activityTypes("activity_type").notNull(),
+  pointsAllocation: integer("points_allocation").notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// New table for tracking completed activities
+export const completedActivities = pgTable("completed_activities", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  productActivityId: integer("product_activity_id").references(() => productActivities.id).notNull(),
+  pointsEarned: integer("points_earned").notNull(),
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+});
+
+// Rest of existing tables
 export const productAssignments = pgTable("product_assignments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
@@ -43,8 +97,6 @@ export const rewards = pgTable("rewards", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const transactionTypes = pgEnum("transaction_type", ["EARNED", "REDEEMED", "ADMIN_ADJUSTMENT"]);
-
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
@@ -55,26 +107,6 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const adminActionTypes = pgEnum("admin_action_type", [
-  "POINT_ADJUSTMENT",
-  "ADMIN_CREATED",
-  "ADMIN_REMOVED",
-  "ADMIN_UPDATED",
-  "ADMIN_ENABLED",
-  "ADMIN_DISABLED",
-  "USER_ENABLED",
-  "USER_DISABLED",
-  "USER_UPDATED",
-  "REWARD_CREATED",
-  "REWARD_UPDATED",
-  "REWARD_DELETED",
-  "PRODUCT_CREATED",
-  "PRODUCT_UPDATED",
-  "PRODUCT_DELETED",
-  "PRODUCT_ASSIGNED",
-  "PRODUCT_UNASSIGNED"
-]);
-
 export const adminLogs = pgTable("admin_logs", {
   id: serial("id").primaryKey(),
   adminId: integer("admin_id").references(() => users.id).notNull(),
@@ -84,15 +116,37 @@ export const adminLogs = pgTable("admin_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Relations
 export const userRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
   adminLogsCreated: many(adminLogs, { relationName: "adminLogsCreated" }),
   adminLogsTarget: many(adminLogs, { relationName: "adminLogsTarget" }),
   productAssignments: many(productAssignments),
+  completedActivities: many(completedActivities),
 }));
 
 export const productRelations = relations(products, ({ many }) => ({
   assignments: many(productAssignments),
+  activities: many(productActivities),
+}));
+
+export const productActivityRelations = relations(productActivities, ({ one, many }) => ({
+  product: one(products, {
+    fields: [productActivities.productId],
+    references: [products.id],
+  }),
+  completions: many(completedActivities),
+}));
+
+export const completedActivityRelations = relations(completedActivities, ({ one }) => ({
+  user: one(users, {
+    fields: [completedActivities.userId],
+    references: [users.id],
+  }),
+  productActivity: one(productActivities, {
+    fields: [completedActivities.productActivityId],
+    references: [productActivities.id],
+  }),
 }));
 
 export const productAssignmentRelations = relations(productAssignments, ({ one }) => ({
@@ -130,6 +184,7 @@ export const adminLogRelations = relations(adminLogs, ({ one }) => ({
   }),
 }));
 
+// Schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertRewardSchema = createInsertSchema(rewards);
@@ -142,7 +197,12 @@ export const insertProductSchema = createInsertSchema(products);
 export const selectProductSchema = createSelectSchema(products);
 export const insertProductAssignmentSchema = createInsertSchema(productAssignments);
 export const selectProductAssignmentSchema = createSelectSchema(productAssignments);
+export const insertProductActivitySchema = createInsertSchema(productActivities);
+export const selectProductActivitySchema = createSelectSchema(productActivities);
+export const insertCompletedActivitySchema = createInsertSchema(completedActivities);
+export const selectCompletedActivitySchema = createSelectSchema(completedActivities);
 
+// Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Reward = typeof rewards.$inferSelect;
@@ -155,3 +215,7 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
 export type ProductAssignment = typeof productAssignments.$inferSelect;
 export type InsertProductAssignment = typeof productAssignments.$inferInsert;
+export type ProductActivity = typeof productActivities.$inferSelect;
+export type InsertProductActivity = typeof productActivities.$inferInsert;
+export type CompletedActivity = typeof completedActivities.$inferSelect;
+export type InsertCompletedActivity = typeof completedActivities.$inferInsert;

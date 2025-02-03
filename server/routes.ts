@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { rewards, transactions, users, products, productAssignments } from "@db/schema";
+import { rewards, transactions, users, products, productAssignments, productActivities, completedActivities } from "@db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -592,6 +592,153 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error removing product assignment:', error);
       res.status(500).send('Failed to remove product assignment');
+    }
+  });
+
+  // Add new routes for product activities
+  app.get("/api/products/:id/activities", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+
+    try {
+      const activities = await db.query.productActivities.findMany({
+        where: eq(productActivities.productId, parseInt(id)),
+        orderBy: desc(productActivities.createdAt),
+      });
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching product activities:', error);
+      res.status(500).send('Failed to fetch product activities');
+    }
+  });
+
+  app.post("/api/products/:id/activities", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { activityType, pointsAllocation } = req.body;
+
+    try {
+      const [activity] = await db
+        .insert(productActivities)
+        .values({
+          productId: parseInt(id),
+          activityType,
+          pointsAllocation,
+          isEnabled: true,
+        })
+        .returning();
+
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_UPDATED",
+        details: `Added ${activityType} activity to product ID ${id} with ${pointsAllocation} points`,
+      });
+
+      res.json(activity);
+    } catch (error) {
+      console.error('Error creating product activity:', error);
+      res.status(500).send('Failed to create product activity');
+    }
+  });
+
+  app.put("/api/products/activities/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { pointsAllocation, isEnabled } = req.body;
+
+    try {
+      const [activity] = await db
+        .update(productActivities)
+        .set({
+          pointsAllocation,
+          isEnabled,
+          updatedAt: new Date(),
+        })
+        .where(eq(productActivities.id, parseInt(id)))
+        .returning();
+
+      if (!activity) {
+        return res.status(404).send("Activity not found");
+      }
+
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_UPDATED",
+        details: `Updated activity ID ${id} with points: ${pointsAllocation}`,
+      });
+
+      res.json(activity);
+    } catch (error) {
+      console.error('Error updating product activity:', error);
+      res.status(500).send('Failed to update product activity');
+    }
+  });
+
+  // Add new route for completing activities and assigning points
+  app.post("/api/products/activities/:id/complete", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { userId, customPoints } = req.body;
+
+    try {
+      const activity = await db.query.productActivities.findFirst({
+        where: eq(productActivities.id, parseInt(id)),
+      });
+
+      if (!activity) {
+        return res.status(404).send("Activity not found");
+      }
+
+      const pointsToAward = customPoints || activity.pointsAllocation;
+
+      await db.transaction(async (tx) => {
+        // Record the completed activity
+        const [completedActivity] = await tx
+          .insert(completedActivities)
+          .values({
+            userId,
+            productActivityId: activity.id,
+            pointsEarned: pointsToAward,
+          })
+          .returning();
+
+        // Create a transaction record
+        await tx.insert(transactions).values({
+          userId,
+          points: pointsToAward,
+          type: "EARNED",
+          description: `Completed ${activity.activityType} activity`,
+        });
+
+        // Update user points
+        await tx
+          .update(users)
+          .set({
+            points: sql`${users.points} + ${pointsToAward}`,
+          })
+          .where(eq(users.id, userId));
+
+        // Add notification
+        addNotification({
+          type: "POINTS_ALLOCATION",
+          userId,
+          points: pointsToAward,
+          description: `Earned ${pointsToAward} points for completing ${activity.activityType}`,
+        });
+
+        // Log the activity completion
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: "ACTIVITY_COMPLETED",
+          targetUserId: userId,
+          details: `Completed ${activity.activityType} activity, awarded ${pointsToAward} points`,
+        });
+      });
+
+      res.json({ message: "Activity completed and points awarded successfully" });
+    } catch (error) {
+      console.error('Error completing activity:', error);
+      res.status(500).send('Failed to complete activity');
     }
   });
 
