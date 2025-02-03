@@ -28,10 +28,10 @@ type ProductFormData = z.infer<typeof productSchema>;
 const activitySchema = z.object({
   activityType: z.enum(["ACTIVATE", "TIMELINE", "RENEWAL", "UPGRADE", "POS"]),
   pointsAllocation: z.number().min(0, "Points allocation must be positive"),
+  isEnabled: z.boolean().default(true),
 });
 
 type ActivityFormData = z.infer<typeof activitySchema>;
-
 
 export default function ProductManagement() {
   const { data: products = [], refetch } = useQuery({
@@ -78,12 +78,23 @@ export default function ProductManagement() {
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
+  const [isActivityEditOpen, setIsActivityEditOpen] = useState(false);
 
   const activityForm = useForm<ActivityFormData>({
     resolver: zodResolver(activitySchema),
     defaultValues: {
       activityType: "ACTIVATE",
       pointsAllocation: 0,
+      isEnabled: true,
+    },
+  });
+
+  const editActivityForm = useForm<ActivityFormData>({
+    resolver: zodResolver(activitySchema),
+    defaultValues: {
+      activityType: "ACTIVATE",
+      pointsAllocation: 0,
+      isEnabled: true,
     },
   });
 
@@ -280,6 +291,31 @@ export default function ProductManagement() {
     },
   });
 
+  const updateActivityMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: number } & Partial<ActivityFormData>) => {
+      const res = await fetch(`/api/products/activities/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products", selectedProduct?.id, "activities"] });
+      toast({ title: "Success", description: "Activity updated successfully" });
+      setIsActivityEditOpen(false);
+      setSelectedActivity(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
   const completeActivityMutation = useMutation({
     mutationFn: async ({ activityId, userId, customPoints }: { activityId: number; userId: number; customPoints?: number }) => {
       const res = await fetch(`/api/products/activities/${activityId}/complete`, {
@@ -317,6 +353,16 @@ export default function ProductManagement() {
       pointsAllocation: product.pointsAllocation,
     });
     setIsEditOpen(true);
+  };
+
+  const onEditActivity = (activity: any) => {
+    setSelectedActivity(activity);
+    editActivityForm.reset({
+      activityType: activity.activityType,
+      pointsAllocation: activity.pointsAllocation,
+      isEnabled: activity.isEnabled,
+    });
+    setIsActivityEditOpen(true);
   };
 
   return (
@@ -598,10 +644,7 @@ export default function ProductManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setSelectedActivity(activity);
-                        // Add edit functionality here
-                      }}
+                      onClick={() => onEditActivity(activity)}
                     >
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
@@ -613,7 +656,42 @@ export default function ProductManagement() {
           </div>
         </DialogContent>
       </Dialog>
-       <Dialog>
+
+      <Dialog open={isActivityEditOpen} onOpenChange={setIsActivityEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Activity</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={editActivityForm.handleSubmit((data) =>
+              selectedActivity && updateActivityMutation.mutate({ id: selectedActivity.id, ...data })
+            )}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <label>Activity Type</label>
+              <Input disabled value={selectedActivity?.activityType || ''} />
+            </div>
+            <div className="space-y-2">
+              <label>Points Allocation</label>
+              <Input
+                type="number"
+                {...editActivityForm.register("pointsAllocation", { valueAsNumber: true })}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="isEnabled"
+                checked={editActivityForm.watch("isEnabled")}
+                onCheckedChange={(checked) => editActivityForm.setValue("isEnabled", !!checked)}
+              />
+              <label htmlFor="isEnabled">Enabled</label>
+            </div>
+            <Button type="submit">Update Activity</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Manage Activities for {selectedProduct?.name}</DialogTitle>
