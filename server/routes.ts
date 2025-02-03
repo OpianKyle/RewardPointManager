@@ -95,7 +95,7 @@ export function registerRoutes(app: Express): Server {
   // Modify points allocation to use new notification system
   app.post("/api/admin/points", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { userId, points, description, selectedActivities } = req.body;
+    const { userId, points, description } = req.body;
 
     try {
       await db.transaction(async (tx) => {
@@ -114,38 +114,20 @@ export function registerRoutes(app: Express): Server {
           .where(eq(users.id, userId))
           .returning();
 
-        // Fetch activity details if there are selected activities
-        let activityDetails = "";
-        if (selectedActivities?.length > 0) {
-          const activities = await tx
-            .select({
-              type: product_activities.type,
-              pointsValue: product_activities.pointsValue,
-            })
-            .from(product_activities)
-            .where(sql`${product_activities.id} IN (${selectedActivities.join(',')})`);
-
-          activityDetails = activities
-            .map(activity => `${activity.type} (${activity.pointsValue} points)`)
-            .join(', ');
-        }
-
         await logAdminAction({
           adminId: req.user!.id,
           actionType: "POINT_ADJUSTMENT",
           targetUserId: userId,
-          details: `Adjusted points by ${points}. ${
-            activityDetails ? `Activities: ${activityDetails}. ` : ''
-          }Reason: ${description}`,
+          details: `Adjusted points by ${points}. Reason: ${description}`,
         });
 
-          // Add notification using new system
-         addNotification({
-           type: "POINTS_ALLOCATION",
-           userId,
-           points,
-           description,
-          });
+        // Add notification using new system
+        addNotification({
+          type: "POINTS_ALLOCATION",
+          userId,
+          points,
+          description,
+        });
 
         return updatedUser;
       });

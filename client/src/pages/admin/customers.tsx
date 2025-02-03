@@ -103,7 +103,6 @@ export default function AdminCustomers() {
           userId,
           points: data.points,
           description: data.description,
-          selectedActivities: data.selectedActivities
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -312,196 +311,183 @@ export default function AdminCustomers() {
                           </div>
                         </DialogContent>
                       </Dialog>
-                      <Dialog onOpenChange={(open) => {
-                          if (!open) {
-                            pointsForm.reset({
-                              points: 0,
-                              description: "",
-                              selectedActivities: [],
-                            });
-                          }
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <TrendingUp className="h-4 w-4 mr-2" />
-                              Assign Points
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-5xl">
-                            <DialogHeader>
-                              <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
-                            </DialogHeader>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              {/* Left Column - Product Activities */}
-                              <div className="space-y-4">
-                                <h3 className="text-lg font-semibold">Product Activities</h3>
-                                <ScrollArea className="h-[600px] pr-4">
-                                  <div className="space-y-4">
-                                    {customer.productAssignments?.map((assignment: any) => (
-                                      <Accordion type="single" collapsible key={assignment.id}>
-                                        <AccordionItem value="activities">
-                                          <AccordionTrigger className="p-3 bg-accent/50 rounded-lg hover:no-underline">
-                                            <div className="flex justify-between items-center w-full pr-4">
-                                              <div className="text-left">
-                                                <p className="font-medium">{assignment.product.name}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                  {assignment.product.description}
-                                                </p>
-                                              </div>
-                                              {pointsForm.watch("selectedActivities")?.some(id => 
-                                                assignment.product.activities?.some((a: any) => a.id === id)
-                                              ) && (
-                                                <Badge variant="secondary" className="ml-2">
-                                                  {assignment.product.activities?.filter((a: any) => 
-                                                    pointsForm.watch("selectedActivities")?.includes(a.id)
-                                                  ).length} selected
-                                                </Badge>
-                                              )}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <TrendingUp className="h-4 w-4 mr-2" />
+                            Assign Points
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-5xl">
+                          <DialogHeader>
+                            <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
+                          </DialogHeader>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Left Column - Product Activities */}
+                            <div className="space-y-4">
+                              <h3 className="text-lg font-semibold">Product Activities</h3>
+                              <ScrollArea className="h-[600px] pr-4">
+                                <div className="space-y-4">
+                                  {customer.productAssignments?.map((assignment: any) => (
+                                    <Accordion type="single" collapsible key={assignment.id}>
+                                      <AccordionItem value="activities">
+                                        <AccordionTrigger className="p-3 bg-accent/50 rounded-lg hover:no-underline">
+                                          <div className="flex justify-between items-center w-full pr-4">
+                                            <div className="text-left">
+                                              <p className="font-medium">{assignment.product.name}</p>
+                                              <p className="text-sm text-muted-foreground">
+                                                {assignment.product.description}
+                                              </p>
                                             </div>
-                                          </AccordionTrigger>
-                                          <AccordionContent>
-                                            <div className="space-y-2 pt-2">
-                                              {assignment.product.activities?.map((activity: any) => (
-                                                <div
-                                                  key={activity.id}
-                                                  className="flex items-center justify-between p-2 pl-6 border rounded-lg"
-                                                >
-                                                  <div className="flex items-center space-x-2">
-                                                    <input
-                                                      type="checkbox"
-                                                      id={`activity-${activity.id}`}
-                                                      className="w-4 h-4 rounded border-gray-300"
-                                                      checked={pointsForm.watch("selectedActivities")?.includes(activity.id)}
-                                                      onChange={(e) => {
-                                                        const currentSelected = pointsForm.getValues("selectedActivities") || [];
-                                                        const currentPoints = pointsForm.getValues("points") || 0;
+                                            {pointsForm.watch("selectedActivities")?.some(id => 
+                                              assignment.product.activities?.some((a: any) => a.id === id)
+                                            ) && (
+                                              <Badge variant="secondary" className="ml-2">
+                                                {assignment.product.activities?.filter((a: any) => 
+                                                  pointsForm.watch("selectedActivities")?.includes(a.id)
+                                                ).length} selected
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                          <div className="space-y-2 pt-2">
+                                            {assignment.product.activities?.map((activity: any) => (
+                                              <div
+                                                key={activity.id}
+                                                className="flex items-center justify-between p-2 pl-6 border rounded-lg"
+                                              >
+                                                <div className="flex items-center space-x-2">
+                                                  <input
+                                                    type="checkbox"
+                                                    id={`activity-${activity.id}`}
+                                                    className="w-4 h-4 rounded border-gray-300"
+                                                    checked={pointsForm.watch("selectedActivities")?.includes(activity.id)}
+                                                    onChange={(e) => {
+                                                      const currentSelected = pointsForm.getValues("selectedActivities") || [];
+                                                      const currentPoints = pointsForm.getValues("points") || 0;
 
-                                                        if (e.target.checked) {
-                                                          pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
-                                                          pointsForm.setValue("points", currentPoints + activity.pointsValue);
-                                                        } else {
-                                                          pointsForm.setValue(
-                                                            "selectedActivities",
-                                                            currentSelected.filter(id => id !== activity.id)
-                                                          );
-                                                          pointsForm.setValue("points", currentPoints - activity.pointsValue);
-                                                        }
-                                                      }}
-                                                    />
-                                                    <label
-                                                      htmlFor={`activity-${activity.id}`}
-                                                      className="text-sm font-medium"
-                                                    >
-                                                      {activity.type}
-                                                    </label>
-                                                  </div>
-                                                  <span className="text-sm font-semibold">
-                                                    {activity.pointsValue} points
-                                                  </span>
+                                                      if (e.target.checked) {
+                                                        pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
+                                                        pointsForm.setValue("points", currentPoints + activity.pointsValue);
+                                                      } else {
+                                                        pointsForm.setValue(
+                                                          "selectedActivities",
+                                                          currentSelected.filter(id => id !== activity.id)
+                                                        );
+                                                        pointsForm.setValue("points", currentPoints - activity.pointsValue);
+                                                      }
+                                                    }}
+                                                  />
+                                                  <label
+                                                    htmlFor={`activity-${activity.id}`}
+                                                    className="text-sm font-medium"
+                                                  >
+                                                    {activity.type}
+                                                  </label>
                                                 </div>
-                                              ))}
-                                              {(!assignment.product.activities || assignment.product.activities.length === 0) && (
-                                                <p className="text-sm text-muted-foreground pl-6">
-                                                  No activities defined
-                                                </p>
-                                              )}
-                                            </div>
-                                          </AccordionContent>
-                                        </AccordionItem>
-                                      </Accordion>
-                                    ))}
-                                    {(!customer.productAssignments || customer.productAssignments.length === 0) && (
-                                      <p className="text-sm text-muted-foreground">No products assigned</p>
-                                    )}
+                                                <span className="text-sm font-semibold">
+                                                  {activity.pointsValue} points
+                                                </span>
+                                              </div>
+                                            ))}
+                                            {(!assignment.product.activities || assignment.product.activities.length === 0) && (
+                                              <p className="text-sm text-muted-foreground pl-6">
+                                                No activities defined
+                                              </p>
+                                            )}
+                                          </div>
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    </Accordion>
+                                  ))}
+                                  {(!customer.productAssignments || customer.productAssignments.length === 0) && (
+                                    <p className="text-sm text-muted-foreground">No products assigned</p>
+                                  )}
+                                </div>
+                              </ScrollArea>
+                            </div>
+
+                            {/* Right Column - Points Summary and Custom Allocation */}
+                            <div className="space-y-6">
+                              <div>
+                                <h3 className="text-lg font-semibold mb-4">Points Summary</h3>
+                                <div className="space-y-4">
+                                  <div className="flex justify-between items-center p-4 bg-accent rounded-lg">
+                                    <span className="font-medium">Total Selected Points:</span>
+                                    <span className="text-2xl font-bold">
+                                      {pointsForm.watch("points")}
+                                    </span>
                                   </div>
-                                </ScrollArea>
+                                  <div className="space-y-2">
+                                    <label>Description</label>
+                                    <Input {...pointsForm.register("description")} />
+                                  </div>
+                                  <Button 
+                                    type="submit" 
+                                    className="w-full"
+                                    disabled={!pointsForm.watch("points")}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      assignPointsMutation.mutate({ 
+                                        userId: customer.id, 
+                                        data: pointsForm.getValues() 
+                                      });
+                                    }}
+                                  >
+                                    Assign Selected Points
+                                  </Button>
+                                </div>
                               </div>
 
-                              {/* Right Column - Points Summary and Custom Allocation */}
-                              <div className="space-y-6">
-                                <div>
-                                  <h3 className="text-lg font-semibold mb-4">Points Summary</h3>
-                                  <div className="space-y-4">
-                                    <div className="flex justify-between items-center p-4 bg-accent rounded-lg">
-                                      <span className="font-medium">Total Selected Points:</span>
-                                      <span className="text-2xl font-bold">
-                                        {pointsForm.watch("points")}
-                                      </span>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <label>Description</label>
-                                      <Input {...pointsForm.register("description")} />
-                                    </div>
-                                    <Button 
-                                      type="submit" 
-                                      className="w-full"
-                                      disabled={!pointsForm.watch("points")}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        const formData = pointsForm.getValues();
-                                        assignPointsMutation.mutate({ 
-                                          userId: customer.id, 
-                                          data: {
-                                            points: formData.points,
-                                            description: formData.description,
-                                            selectedActivities: formData.selectedActivities || []
-                                          }
-                                        });
-                                      }}
-                                    >
-                                      Assign Selected Points
-                                    </Button>
-                                  </div>
-                                </div>
+                              <Separator />
 
-                                <Separator />
-
-                                <div>
-                                  <h3 className="text-lg font-semibold mb-4">Custom Points Allocation</h3>
-                                  <div className="space-y-4">
-                                    <div className="space-y-2">
-                                      <label>Custom Points</label>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        placeholder="Enter points amount"
-                                        onChange={(e) => {
-                                          const customPoints = parseInt(e.target.value) || 0;
-                                          pointsForm.setValue("points", customPoints);
-                                        }}
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <label>Description</label>
-                                      <Input 
-                                        placeholder="Enter reason for points allocation"
-                                        {...pointsForm.register("description")} 
-                                      />
-                                    </div>
-                                    <Button 
-                                      type="submit" 
-                                      className="w-full"
-                                      disabled={!pointsForm.watch("points")}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        assignPointsMutation.mutate({ 
-                                          userId: customer.id, 
-                                          data: {
-                                            points: pointsForm.getValues("points"),
-                                            description: pointsForm.getValues("description"),
-                                            selectedActivities: []
-                                          }
-                                        });
+                              <div>
+                                <h3 className="text-lg font-semibold mb-4">Custom Points Allocation</h3>
+                                <div className="space-y-4">
+                                  <div className="space-y-2">
+                                    <label>Custom Points</label>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      placeholder="Enter points amount"
+                                      onChange={(e) => {
+                                        const customPoints = parseInt(e.target.value) || 0;
+                                        pointsForm.setValue("points", customPoints);
                                       }}
-                                    >
-                                      Assign Custom Points
-                                    </Button>
+                                    />
                                   </div>
+                                  <div className="space-y-2">
+                                    <label>Description</label>
+                                    <Input 
+                                      placeholder="Enter reason for points allocation"
+                                      {...pointsForm.register("description")} 
+                                    />
+                                  </div>
+                                  <Button 
+                                    type="submit" 
+                                    className="w-full"
+                                    disabled={!pointsForm.watch("points")}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      assignPointsMutation.mutate({ 
+                                        userId: customer.id, 
+                                        data: {
+                                          points: pointsForm.getValues("points"),
+                                          description: pointsForm.getValues("description"),
+                                          selectedActivities: []
+                                        }
+                                      });
+                                    }}
+                                  >
+                                    Assign Custom Points
+                                  </Button>
                                 </div>
                               </div>
                             </div>
-                          </DialogContent>
-                        </Dialog>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
