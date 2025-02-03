@@ -22,8 +22,16 @@ import CustomerDashboard from "@/pages/customer/dashboard";
 import CustomerRewards from "@/pages/customer/rewards";
 import CustomerLayout from "@/components/layout/customer-layout";
 
-// Create a new QueryClient instance
-const queryClient = new QueryClient();
+// Create a new QueryClient instance with default options
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
   const { user, isLoading } = useUser();
