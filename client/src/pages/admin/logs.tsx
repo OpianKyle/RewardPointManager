@@ -22,8 +22,16 @@ type AdminLog = {
     | "PRODUCT_UNASSIGNED";
   details: string;
   createdAt: string;
-  admin: { username: string };
-  targetUser?: { username: string };
+  admin: { 
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  targetUser?: { 
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 };
 
 const getActionIcon = (actionType: string) => {
@@ -120,7 +128,16 @@ export default function AdminLogs() {
                   <TableCell>
                     {new Date(log.createdAt).toLocaleString()}
                   </TableCell>
-                  <TableCell>{log.admin.username}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">
+                        {log.admin.firstName} {log.admin.lastName}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {log.admin.email}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell className="flex items-center gap-2">
                     {getActionIcon(log.actionType)}
                     <span className="whitespace-nowrap">
@@ -128,7 +145,18 @@ export default function AdminLogs() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {log.targetUser?.username || "N/A"}
+                    {log.targetUser ? (
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {log.targetUser.firstName} {log.targetUser.lastName}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {log.targetUser.email}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">N/A</span>
+                    )}
                   </TableCell>
                   <TableCell className="max-w-md truncate">
                     {log.details}

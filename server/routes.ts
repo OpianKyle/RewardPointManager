@@ -88,8 +88,34 @@ export function registerRoutes(app: Express): Server {
   // Add new endpoint to fetch admin logs
   app.get("/api/admin/logs", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const logs = await getAdminLogs();
-    res.json(logs);
+    try {
+      const logs = await db.query.adminLogs.findMany({
+        orderBy: desc(adminLogs.createdAt),
+        with: {
+          admin: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
+          targetUser: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      });
+  
+      res.json(logs);
+    } catch (error) {
+      console.error('Error fetching admin logs:', error);
+      res.status(500).send('Failed to fetch admin logs');
+    }
   });
 
   // Modify points allocation to use new notification system
