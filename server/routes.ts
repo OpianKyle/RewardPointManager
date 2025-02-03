@@ -99,6 +99,7 @@ export function registerRoutes(app: Express): Server {
 
     try {
       await db.transaction(async (tx) => {
+        // First create the transaction record
         await tx.insert(transactions).values({
           userId,
           points,
@@ -106,6 +107,7 @@ export function registerRoutes(app: Express): Server {
           description,
         });
 
+        // Update user's points
         const [updatedUser] = await tx
           .update(users)
           .set({
@@ -127,7 +129,7 @@ export function registerRoutes(app: Express): Server {
                 pointsValue: product_activities.pointsValue,
               })
               .from(product_activities)
-              .where(sql`${product_activities.id} = ANY(ARRAY[${sql.join(activityIds, ',')}]::integer[])`);
+              .where(sql`${product_activities.id} = ANY(${activityIds})`);
 
             activityDetails = activities
               .map(activity => `${activity.type} (${activity.pointsValue} points)`)
