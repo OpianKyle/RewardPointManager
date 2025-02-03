@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { rewards, transactions, users, products, productAssignments, productActivities } from "@db/schema";
+import { rewards, transactions, users, products, productAssignments, product_activities } from "@db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -384,15 +384,17 @@ export function registerRoutes(app: Express): Server {
           .returning();
 
         // Then create all activities for this product
-        const activityPromises = activities.map(async (activity: any) => {
-          return tx.insert(productActivities).values({
-            productId: product.id,
-            type: activity.type,
-            pointsValue: activity.pointsValue,
-          });
-        });
+        if (activities && Array.isArray(activities)) {
+          const activityPromises = activities.map((activity) => 
+            tx.insert(product_activities).values({
+              productId: product.id,
+              type: activity.type,
+              pointsValue: activity.pointsValue,
+            })
+          );
 
-        await Promise.all(activityPromises);
+          await Promise.all(activityPromises);
+        }
 
         return product;
       });
@@ -438,12 +440,12 @@ export function registerRoutes(app: Express): Server {
 
         // Delete existing activities
         await tx
-          .delete(productActivities)
-          .where(eq(productActivities.productId, parseInt(id)));
+          .delete(product_activities)
+          .where(eq(product_activities.productId, parseInt(id)));
 
         // Create new activities
         const activityPromises = activities.map(async (activity: any) => {
-          return tx.insert(productActivities).values({
+          return tx.insert(product_activities).values({
             productId: parseInt(id),
             type: activity.type,
             pointsValue: activity.pointsValue,

@@ -33,7 +33,7 @@ export const products = pgTable("products", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const productActivities = pgTable("product_activities", {
+export const product_activities = pgTable("product_activities", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").references(() => products.id).notNull(),
   type: activityTypes("type").notNull(),
@@ -109,12 +109,12 @@ export const userRelations = relations(users, ({ many }) => ({
 
 export const productRelations = relations(products, ({ many }) => ({
   assignments: many(productAssignments),
-  activities: many(productActivities),
+  activities: many(product_activities),
 }));
 
-export const productActivityRelations = relations(productActivities, ({ one }) => ({
+export const productActivityRelations = relations(product_activities, ({ one }) => ({
   product: one(products, {
-    fields: [productActivities.productId],
+    fields: [product_activities.productId],
     references: [products.id],
   }),
 }));
@@ -166,8 +166,8 @@ export const insertProductSchema = createInsertSchema(products);
 export const selectProductSchema = createSelectSchema(products);
 export const insertProductAssignmentSchema = createInsertSchema(productAssignments);
 export const selectProductAssignmentSchema = createSelectSchema(productAssignments);
-export const insertProductActivitySchema = createInsertSchema(productActivities);
-export const selectProductActivitySchema = createSelectSchema(productActivities);
+export const insertProductActivitySchema = createInsertSchema(product_activities);
+export const selectProductActivitySchema = createSelectSchema(product_activities);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -181,5 +181,5 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
 export type ProductAssignment = typeof productAssignments.$inferSelect;
 export type InsertProductAssignment = typeof productAssignments.$inferInsert;
-export type ProductActivity = typeof productActivities.$inferSelect;
-export type InsertProductActivity = typeof productActivities.$inferInsert;
+export type ProductActivity = typeof product_activities.$inferSelect;
+export type InsertProductActivity = typeof product_activities.$inferInsert;
