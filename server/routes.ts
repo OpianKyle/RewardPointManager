@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { rewards, transactions, users, products, productAssignments, product_activities } from "@db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
@@ -119,8 +119,8 @@ export function registerRoutes(app: Express): Server {
         // Fetch activity details if there are selected activities
         let activityDetails = "";
         if (selectedActivities?.length > 0) {
-          // Convert the array to a proper SQL array
-          const activityIds = selectedActivities.map(id => parseInt(id)).filter(id => !isNaN(id));
+          // Convert the array to integers and filter out any invalid values
+          const activityIds = selectedActivities.map(Number).filter(id => !isNaN(id));
 
           if (activityIds.length > 0) {
             const activities = await tx
@@ -129,7 +129,7 @@ export function registerRoutes(app: Express): Server {
                 pointsValue: product_activities.pointsValue,
               })
               .from(product_activities)
-              .where(sql`${product_activities.id} = ANY(ARRAY[${sql.join(activityIds, ',')}])`);
+              .where(inArray(product_activities.id, activityIds));
 
             activityDetails = activities
               .map(activity => `${activity.type} (${activity.pointsValue} points)`)
@@ -137,6 +137,7 @@ export function registerRoutes(app: Express): Server {
           }
         }
 
+        // Log the action
         await logAdminAction({
           adminId: req.user!.id,
           actionType: "POINT_ADJUSTMENT",
@@ -146,7 +147,7 @@ export function registerRoutes(app: Express): Server {
           }Reason: ${description}`,
         });
 
-        // Add notification using new system
+        // Add notification
         addNotification({
           type: "POINTS_ALLOCATION",
           userId,
