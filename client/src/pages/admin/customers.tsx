@@ -460,39 +460,52 @@ export default function AdminCustomers() {
 
                             {/* Right Column - Points Summary and Custom Allocation */}
                             <div className="space-y-6">
-                              <div>
-                                <h3 className="text-lg font-semibold mb-4">Points Summary</h3>
-                                <div className="space-y-4">
-                                  <div className="flex justify-between items-center p-4 bg-accent rounded-lg">
-                                    <span className="font-medium">Total Selected Points:</span>
-                                    <span className="text-2xl font-bold">
-                                      {pointsForm.watch("points")}
-                                    </span>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <label>Description</label>
-                                    <Input {...pointsForm.register("description")} />
-                                  </div>
-                                  <Button 
-                                    type="submit" 
-                                    className="w-full"
-                                    disabled={!pointsForm.watch("points")}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      const formData = pointsForm.getValues();
-                                      assignPointsMutation.mutate({ 
-                                        userId: customer.id, 
-                                        data: {
-                                          points: formData.points,
-                                          description: formData.description,
-                                          selectedActivities: formData.selectedActivities
-                                        }
-                                      });
-                                    }}
-                                  >
-                                    Assign Selected Points
-                                  </Button>
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-center p-4 bg-accent rounded-lg">
+                                  <span className="font-medium">Total Selected Points:</span>
+                                  <span className="text-2xl font-bold">
+                                    {pointsForm.watch("points")}
+                                  </span>
                                 </div>
+                                <div className="space-y-2">
+                                  <label>Description <span className="text-red-500">*</span></label>
+                                  <Input
+                                    {...pointsForm.register("description")}
+                                    placeholder="Enter description for selected activities"
+                                  />
+                                  {pointsForm.formState.errors.description && (
+                                    <p className="text-sm text-red-500">
+                                      {pointsForm.formState.errors.description.message}
+                                    </p>
+                                  )}
+                                </div>
+                                <Button 
+                                  type="submit" 
+                                  className="w-full"
+                                  disabled={!pointsForm.watch("points") || !pointsForm.watch("description")}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    const formData = pointsForm.getValues();
+                                    if (!formData.description) {
+                                      toast({
+                                        variant: "destructive",
+                                        title: "Error",
+                                        description: "Please provide a description for the points adjustment"
+                                      });
+                                      return;
+                                    }
+                                    assignPointsMutation.mutate({ 
+                                      userId: customer.id, 
+                                      data: {
+                                        points: formData.points,
+                                        description: formData.description,
+                                        selectedActivities: formData.selectedActivities
+                                      }
+                                    });
+                                  }}
+                                >
+                                  Assign Selected Points
+                                </Button>
                               </div>
 
                               <Separator />
@@ -513,18 +526,31 @@ export default function AdminCustomers() {
                                     />
                                   </div>
                                   <div className="space-y-2">
-                                    <label>Description</label>
+                                    <label>Description <span className="text-red-500">*</span></label>
                                     <Input 
                                       placeholder="Enter reason for points allocation"
                                       {...pointsForm.register("description")} 
                                     />
+                                    {pointsForm.formState.errors.description && (
+                                      <p className="text-sm text-red-500">
+                                        {pointsForm.formState.errors.description.message}
+                                      </p>
+                                    )}
                                   </div>
                                   <Button 
                                     type="submit" 
                                     className="w-full"
-                                    disabled={!pointsForm.watch("points")}
+                                    disabled={!pointsForm.watch("points") || !pointsForm.watch("description")}
                                     onClick={(e) => {
                                       e.preventDefault();
+                                      if (!pointsForm.getValues("description")) {
+                                        toast({
+                                          variant: "destructive",
+                                          title: "Error",
+                                          description: "Please provide a reason for the points adjustment"
+                                        });
+                                        return;
+                                      }
                                       assignPointsMutation.mutate({ 
                                         userId: customer.id, 
                                         data: {
