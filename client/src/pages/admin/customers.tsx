@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, UserX, Power, PowerOff, TrendingUp, Plus } from "lucide-react";
+import { Pencil, UserX, Power, PowerOff, TrendingUp, Plus, Package } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,6 +33,10 @@ type PointsFormData = z.infer<typeof pointsSchema>;
 export default function AdminCustomers() {
   const { data: customers } = useQuery({
     queryKey: ["/api/admin/customers"],
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ["/api/products"],
   });
 
   const { toast } = useToast();
@@ -133,6 +137,54 @@ export default function AdminCustomers() {
     },
   });
 
+  const assignProductMutation = useMutation({
+    mutationFn: async ({ productId, userId }: { productId: number; userId: number }) => {
+      const res = await fetch(`/api/products/${productId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
+      toast({ title: "Success", description: "Product assigned successfully" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const unassignProductMutation = useMutation({
+    mutationFn: async ({ productId, userId }: { productId: number; userId: number }) => {
+      const res = await fetch(`/api/products/${productId}/unassign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
+      toast({ title: "Success", description: "Product unassigned successfully" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Customer Management</h1>
@@ -172,8 +224,20 @@ export default function AdminCustomers() {
                     <ScrollArea className="h-[100px]">
                       <div className="space-x-1">
                         {customer.productAssignments?.map((assignment: any) => (
-                          <Badge key={assignment.id} variant="secondary">
-                            {assignment.product.name}
+                          <Badge 
+                            key={assignment.id} 
+                            variant="secondary"
+                            className="cursor-pointer hover:bg-destructive/20"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to unassign this product?')) {
+                                unassignProductMutation.mutate({
+                                  productId: assignment.product.id,
+                                  userId: customer.id
+                                });
+                              }
+                            }}
+                          >
+                            {assignment.product.name} ×
                           </Badge>
                         ))}
                         {(!customer.productAssignments || customer.productAssignments.length === 0) && (
@@ -184,6 +248,66 @@ export default function AdminCustomers() {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Package className="h-4 w-4 mr-2" />
+                            Assign Product
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Assign Products to {customer.firstName}</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="grid gap-4">
+                              {products?.map((product: any) => {
+                                const isAssigned = customer.productAssignments?.some(
+                                  (a: any) => a.product.id === product.id
+                                );
+                                return (
+                                  <div
+                                    key={product.id}
+                                    className="flex items-center justify-between p-4 rounded-lg border"
+                                  >
+                                    <div>
+                                      <h3 className="font-medium">{product.name}</h3>
+                                      <p className="text-sm text-muted-foreground">
+                                        {product.description}
+                                      </p>
+                                    </div>
+                                    <Button
+                                      variant={isAssigned ? "secondary" : "default"}
+                                      onClick={() => {
+                                        if (isAssigned) {
+                                          if (confirm('Are you sure you want to unassign this product?')) {
+                                            unassignProductMutation.mutate({
+                                              productId: product.id,
+                                              userId: customer.id
+                                            });
+                                          }
+                                        } else {
+                                          assignProductMutation.mutate({
+                                            productId: product.id,
+                                            userId: customer.id
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      {isAssigned ? 'Unassign' : 'Assign'}
+                                    </Button>
+                                  </div>
+                                );
+                              })}
+                              {(!products || products.length === 0) && (
+                                <p className="text-center text-muted-foreground">
+                                  No products available
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
@@ -271,7 +395,6 @@ export default function AdminCustomers() {
                           </div>
                         </DialogContent>
                       </Dialog>
-
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
@@ -313,7 +436,6 @@ export default function AdminCustomers() {
                           </form>
                         </DialogContent>
                       </Dialog>
-
                       <Button
                         variant="outline"
                         size="sm"
