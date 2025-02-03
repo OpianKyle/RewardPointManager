@@ -118,7 +118,7 @@ export default function AdminLogs() {
                 <TableHead>Date</TableHead>
                 <TableHead>Admin</TableHead>
                 <TableHead>Action</TableHead>
-                <TableHead>Target User</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead>Details</TableHead>
               </TableRow>
             </TableHeader>
