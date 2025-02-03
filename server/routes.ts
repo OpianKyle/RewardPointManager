@@ -129,7 +129,7 @@ export function registerRoutes(app: Express): Server {
                 pointsValue: product_activities.pointsValue,
               })
               .from(product_activities)
-              .where(sql`${product_activities.id} = ANY(${activityIds})`);
+              .where(sql`${product_activities.id} = ANY(ARRAY[${sql.join(activityIds, ',')}])`);
 
             activityDetails = activities
               .map(activity => `${activity.type} (${activity.pointsValue} points)`)
