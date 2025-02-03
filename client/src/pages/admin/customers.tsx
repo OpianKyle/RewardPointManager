@@ -38,9 +38,16 @@ export default function AdminCustomers() {
 
   const { data: products } = useQuery({
     queryKey: ["/api/products"],
+    select: (data) => {
+      return data?.map((product: any) => ({
+        ...product,
+        activities: product.activities || []
+      }));
+    }
   });
 
   const { toast } = useToast();
+
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -261,52 +268,45 @@ export default function AdminCustomers() {
                           <DialogHeader>
                             <DialogTitle>Assign Products to {customer.firstName}</DialogTitle>
                           </DialogHeader>
-                          <div className="space-y-4">
-                            <div className="grid gap-4">
-                              {products?.map((product: any) => {
-                                const isAssigned = customer.productAssignments?.some(
-                                  (a: any) => a.product.id === product.id
-                                );
-                                return (
-                                  <div
-                                    key={product.id}
-                                    className="flex items-center justify-between p-4 rounded-lg border"
-                                  >
-                                    <div>
-                                      <h3 className="font-medium">{product.name}</h3>
-                                      <p className="text-sm text-muted-foreground">
-                                        {product.description}
-                                      </p>
-                                    </div>
-                                    <Button
-                                      variant={isAssigned ? "secondary" : "default"}
-                                      onClick={() => {
-                                        if (isAssigned) {
-                                          if (confirm('Are you sure you want to unassign this product?')) {
-                                            unassignProductMutation.mutate({
-                                              productId: product.id,
-                                              userId: customer.id
-                                            });
-                                          }
-                                        } else {
-                                          assignProductMutation.mutate({
+                          <div className="grid gap-4">
+                            {products?.map((product: any) => {
+                              const isAssigned = customer.productAssignments?.some(
+                                (a: any) => a.product.id === product.id
+                              );
+                              return (
+                                <div
+                                  key={product.id}
+                                  className="flex items-center justify-between p-4 rounded-lg border"
+                                >
+                                  <div>
+                                    <h3 className="font-medium">{product.name}</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                      {product.description}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    variant={isAssigned ? "secondary" : "default"}
+                                    onClick={() => {
+                                      if (isAssigned) {
+                                        if (confirm('Are you sure you want to unassign this product?')) {
+                                          unassignProductMutation.mutate({
                                             productId: product.id,
                                             userId: customer.id
                                           });
                                         }
-                                      }}
-                                    >
-                                      {isAssigned ? 'Unassign' : 'Assign'}
-                                    </Button>
-                                  </div>
-                                );
-                              })}
-                              {(!products || products.length === 0) && (
-                                <p className="text-center text-muted-foreground">
-                                  No products available
-                                </p>
-                              )}
-                            </div>
+                                      } else {
+                                        assignProductMutation.mutate({
+                                          productId: product.id,
+                                          userId: customer.id
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    {isAssigned ? 'Unassign' : 'Assign'}
+                                  </Button>
+                                </div>
+                              );
+                            })}
                           </div>
                         </DialogContent>
                       </Dialog>
@@ -321,96 +321,103 @@ export default function AdminCustomers() {
                           <DialogHeader>
                             <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
                           </DialogHeader>
-                           <div className="space-y-6">
-                             <div>
-                               <h3 className="text-lg font-semibold mb-4">Product Activities</h3>
-                               <div className="space-y-4">
-                                 {customer.productAssignments?.map((assignment: any) => (
-                                   <div key={assignment.id} className="space-y-2">
-                                     <div className="flex justify-between items-center p-3 bg-accent/50 rounded-lg">
-                                       <div>
-                                         <p className="font-medium">{assignment.product.name}</p>
-                                         <p className="text-sm text-muted-foreground">{assignment.product.description}</p>
-                                       </div>
-                                     </div>
-                                     {assignment.product.activities?.map((activity: any) => (
-                                       <div
-                                         key={activity.id}
-                                         className="flex items-center justify-between p-2 pl-6 border rounded-lg"
-                                       >
-                                         <div className="flex items-center space-x-2">
-                                           <input
-                                             type="checkbox"
-                                             id={`activity-${activity.id}`}
-                                             className="w-4 h-4 rounded border-gray-300"
-                                             onChange={(e) => {
-                                               const currentSelected = pointsForm.getValues("selectedActivities") || [];
-                                               if (e.target.checked) {
-                                                 pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
-                                                 pointsForm.setValue("points", 
-                                                   (pointsForm.getValues("points") || 0) + activity.pointsValue
-                                                 );
-                                               } else {
-                                                 pointsForm.setValue("selectedActivities", 
-                                                   currentSelected.filter(id => id !== activity.id)
-                                                 );
-                                                 pointsForm.setValue("points", 
-                                                   (pointsForm.getValues("points") || 0) - activity.pointsValue
-                                                 );
-                                               }
-                                             }}
-                                           />
-                                           <label
-                                             htmlFor={`activity-${activity.id}`}
-                                             className="text-sm font-medium"
-                                           >
-                                             {activity.name}
-                                           </label>
-                                         </div>
-                                         <span className="text-sm font-semibold">
-                                           {activity.pointsValue} points
-                                         </span>
-                                       </div>
-                                     ))}
-                                     {(!assignment.product.activities || assignment.product.activities.length === 0) && (
-                                       <p className="text-sm text-muted-foreground pl-6">No activities defined</p>
-                                     )}
-                                   </div>
-                                 ))}
-                                 {(!customer.productAssignments || customer.productAssignments.length === 0) && (
-                                   <p className="text-sm text-muted-foreground">No products assigned</p>
-                                 )}
-                               </div>
-                             </div>
-                             <Separator />
-                             <div>
-                               <h3 className="text-lg font-semibold mb-4">Points Summary</h3>
-                               <div className="space-y-4">
-                                 <div className="flex justify-between items-center p-4 bg-accent rounded-lg">
-                                   <span className="font-medium">Total Selected Points:</span>
-                                   <span className="text-2xl font-bold">{pointsForm.watch("points")}</span>
-                                 </div>
-                                 <div className="space-y-2">
-                                   <label>Description</label>
-                                   <Input {...pointsForm.register("description")} />
-                                 </div>
-                                 <Button 
-                                   type="submit" 
-                                   className="w-full"
-                                   disabled={!pointsForm.watch("points")}
-                                   onClick={(e) => {
-                                     e.preventDefault();
-                                     assignPointsMutation.mutate({ 
-                                       userId: customer.id, 
-                                       data: pointsForm.getValues() 
-                                     });
-                                   }}
-                                 >
-                                   Assign Selected Points
-                                 </Button>
-                               </div>
-                             </div>
-                           </div>
+                          <div className="space-y-6">
+                            <div>
+                              <h3 className="text-lg font-semibold mb-4">Product Activities</h3>
+                              <div className="space-y-4">
+                                {customer.productAssignments?.map((assignment: any) => (
+                                  <div key={assignment.id} className="space-y-2">
+                                    <div className="flex justify-between items-center p-3 bg-accent/50 rounded-lg">
+                                      <div>
+                                        <p className="font-medium">{assignment.product.name}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                          {assignment.product.description}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {assignment.product.activities?.map((activity: any) => (
+                                      <div
+                                        key={activity.id}
+                                        className="flex items-center justify-between p-2 pl-6 border rounded-lg"
+                                      >
+                                        <div className="flex items-center space-x-2">
+                                          <input
+                                            type="checkbox"
+                                            id={`activity-${activity.id}`}
+                                            className="w-4 h-4 rounded border-gray-300"
+                                            onChange={(e) => {
+                                              const currentSelected = pointsForm.getValues("selectedActivities") || [];
+                                              const currentPoints = pointsForm.getValues("points") || 0;
+
+                                              if (e.target.checked) {
+                                                pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
+                                                pointsForm.setValue("points", currentPoints + activity.pointsValue);
+                                              } else {
+                                                pointsForm.setValue(
+                                                  "selectedActivities",
+                                                  currentSelected.filter(id => id !== activity.id)
+                                                );
+                                                pointsForm.setValue("points", currentPoints - activity.pointsValue);
+                                              }
+                                            }}
+                                          />
+                                          <label
+                                            htmlFor={`activity-${activity.id}`}
+                                            className="text-sm font-medium"
+                                          >
+                                            {activity.type}
+                                          </label>
+                                        </div>
+                                        <span className="text-sm font-semibold">
+                                          {activity.pointsValue} points
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {(!assignment.product.activities || assignment.product.activities.length === 0) && (
+                                      <p className="text-sm text-muted-foreground pl-6">
+                                        No activities defined
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                                {(!customer.productAssignments || customer.productAssignments.length === 0) && (
+                                  <p className="text-sm text-muted-foreground">No products assigned</p>
+                                )}
+                              </div>
+                            </div>
+
+                            <Separator />
+
+                            <div>
+                              <h3 className="text-lg font-semibold mb-4">Points Summary</h3>
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-center p-4 bg-accent rounded-lg">
+                                  <span className="font-medium">Total Selected Points:</span>
+                                  <span className="text-2xl font-bold">
+                                    {pointsForm.watch("points")}
+                                  </span>
+                                </div>
+                                <div className="space-y-2">
+                                  <label>Description</label>
+                                  <Input {...pointsForm.register("description")} />
+                                </div>
+                                <Button 
+                                  type="submit" 
+                                  className="w-full"
+                                  disabled={!pointsForm.watch("points")}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    assignPointsMutation.mutate({ 
+                                      userId: customer.id, 
+                                      data: pointsForm.getValues() 
+                                    });
+                                  }}
+                                >
+                                  Assign Selected Points
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
                         </DialogContent>
                       </Dialog>
                       <Dialog>
