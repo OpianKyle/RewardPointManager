@@ -323,17 +323,23 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update /api/admin/users endpoint to ensure it's working
+  // Update the admin users endpoint
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const allUsers = await db.query.users.findMany({
-      where: eq(users.isAdmin, true),
-      orderBy: desc(users.createdAt),
-    });
-    res.json(allUsers);
+    try {
+      const allUsers = await db.query.users.findMany({
+        where: eq(users.isAdmin, true),
+        orderBy: desc(users.createdAt),
+      });
+      console.log('Admin users fetched:', allUsers.length);
+      res.json(allUsers);
+    } catch (error) {
+      console.error('Error fetching admin users:', error);
+      res.status(500).send('Failed to fetch admin users');
+    }
   });
 
-    // Update the customers endpoint to include product assignments
+  // Update the customers endpoint to include product assignments
   app.get("/api/admin/customers", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const customers = await db.query.users.findMany({
@@ -748,12 +754,13 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Ensure rewards endpoints are properly exposed
-  app.get("/api/rewards", async (req, res) => {
+    app.get("/api/rewards", async (req, res) => {
     try {
       const allRewards = await db.query.rewards.findMany({
         where: eq(rewards.available, true),
         orderBy: desc(rewards.createdAt),
       });
+      console.log('Rewards fetched:', allRewards.length);
       res.json(allRewards);
     } catch (error) {
       console.error('Error fetching rewards:', error);

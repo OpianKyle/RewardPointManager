@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +34,7 @@ const activitySchema = z.object({
 type ActivityFormData = z.infer<typeof activitySchema>;
 
 export default function ProductManagement() {
+  const queryClient = useQueryClient();
   const { data: products = [], refetch } = useQuery({
     queryKey: ["/api/products"],
     queryFn: async () => {
@@ -301,10 +302,16 @@ export default function ProductManagement() {
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
-        queryKey: ["/api/products", selectedProduct?.id, "activities"] 
+        queryKey: ["/api/products"]
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/products", selectedProduct?.id, "activities"]
+      });
+      queryClient.refetchQueries({
+        queryKey: ["/api/products", selectedProduct?.id, "activities"],
+        exact: true
       });
       toast({ title: "Success", description: "Activity updated successfully" });
       setIsActivityEditOpen(false);
