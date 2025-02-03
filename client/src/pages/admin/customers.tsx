@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil, UserX, Power, PowerOff, TrendingUp, Plus, Package } from "lucide-react";
@@ -328,59 +329,65 @@ export default function AdminCustomers() {
                               <ScrollArea className="h-[600px] pr-4">
                                 <div className="space-y-4">
                                   {customer.productAssignments?.map((assignment: any) => (
-                                    <div key={assignment.id} className="space-y-2">
-                                      <div className="flex justify-between items-center p-3 bg-accent/50 rounded-lg">
-                                        <div>
-                                          <p className="font-medium">{assignment.product.name}</p>
-                                          <p className="text-sm text-muted-foreground">
-                                            {assignment.product.description}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      {assignment.product.activities?.map((activity: any) => (
-                                        <div
-                                          key={activity.id}
-                                          className="flex items-center justify-between p-2 pl-6 border rounded-lg"
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <input
-                                              type="checkbox"
-                                              id={`activity-${activity.id}`}
-                                              className="w-4 h-4 rounded border-gray-300"
-                                              onChange={(e) => {
-                                                const currentSelected = pointsForm.getValues("selectedActivities") || [];
-                                                const currentPoints = pointsForm.getValues("points") || 0;
-
-                                                if (e.target.checked) {
-                                                  pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
-                                                  pointsForm.setValue("points", currentPoints + activity.pointsValue);
-                                                } else {
-                                                  pointsForm.setValue(
-                                                    "selectedActivities",
-                                                    currentSelected.filter(id => id !== activity.id)
-                                                  );
-                                                  pointsForm.setValue("points", currentPoints - activity.pointsValue);
-                                                }
-                                              }}
-                                            />
-                                            <label
-                                              htmlFor={`activity-${activity.id}`}
-                                              className="text-sm font-medium"
-                                            >
-                                              {activity.type}
-                                            </label>
+                                    <Accordion type="single" collapsible key={assignment.id}>
+                                      <AccordionItem value="activities">
+                                        <AccordionTrigger className="p-3 bg-accent/50 rounded-lg hover:no-underline">
+                                          <div className="text-left">
+                                            <p className="font-medium">{assignment.product.name}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                              {assignment.product.description}
+                                            </p>
                                           </div>
-                                          <span className="text-sm font-semibold">
-                                            {activity.pointsValue} points
-                                          </span>
-                                        </div>
-                                      ))}
-                                      {(!assignment.product.activities || assignment.product.activities.length === 0) && (
-                                        <p className="text-sm text-muted-foreground pl-6">
-                                          No activities defined
-                                        </p>
-                                      )}
-                                    </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                          <div className="space-y-2 pt-2">
+                                            {assignment.product.activities?.map((activity: any) => (
+                                              <div
+                                                key={activity.id}
+                                                className="flex items-center justify-between p-2 pl-6 border rounded-lg"
+                                              >
+                                                <div className="flex items-center space-x-2">
+                                                  <input
+                                                    type="checkbox"
+                                                    id={`activity-${activity.id}`}
+                                                    className="w-4 h-4 rounded border-gray-300"
+                                                    onChange={(e) => {
+                                                      const currentSelected = pointsForm.getValues("selectedActivities") || [];
+                                                      const currentPoints = pointsForm.getValues("points") || 0;
+
+                                                      if (e.target.checked) {
+                                                        pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
+                                                        pointsForm.setValue("points", currentPoints + activity.pointsValue);
+                                                      } else {
+                                                        pointsForm.setValue(
+                                                          "selectedActivities",
+                                                          currentSelected.filter(id => id !== activity.id)
+                                                        );
+                                                        pointsForm.setValue("points", currentPoints - activity.pointsValue);
+                                                      }
+                                                    }}
+                                                  />
+                                                  <label
+                                                    htmlFor={`activity-${activity.id}`}
+                                                    className="text-sm font-medium"
+                                                  >
+                                                    {activity.type}
+                                                  </label>
+                                                </div>
+                                                <span className="text-sm font-semibold">
+                                                  {activity.pointsValue} points
+                                                </span>
+                                              </div>
+                                            ))}
+                                            {(!assignment.product.activities || assignment.product.activities.length === 0) && (
+                                              <p className="text-sm text-muted-foreground pl-6">
+                                                No activities defined
+                                              </p>
+                                            )}
+                                          </div>
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    </Accordion>
                                   ))}
                                   {(!customer.productAssignments || customer.productAssignments.length === 0) && (
                                     <p className="text-sm text-muted-foreground">No products assigned</p>
