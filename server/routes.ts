@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { rewards, transactions, users, products, productAssignments } from "@db/schema";
+import { rewards, transactions, users, products, productAssignments, productActivities } from "@db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -354,6 +354,9 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/products", async (req, res) => {
     try {
       const allProducts = await db.query.products.findMany({
+        with: {
+          activities: true,
+        },
         orderBy: desc(products.createdAt),
       });
       res.json(allProducts);
@@ -367,25 +370,49 @@ export function registerRoutes(app: Express): Server {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
 
     try {
-      const { name, description, pointsAllocation } = req.body;
-      const [product] = await db
-        .insert(products)
-        .values({
-          name,
-          description,
-          pointsAllocation,
-          isEnabled: true,
-        })
-        .returning();
+      const { name, description, activities } = req.body;
+
+      const result = await db.transaction(async (tx) => {
+        // Create the product first
+        const [product] = await tx
+          .insert(products)
+          .values({
+            name,
+            description,
+            isEnabled: true,
+          })
+          .returning();
+
+        // Then create all activities for this product
+        const activityPromises = activities.map(async (activity: any) => {
+          return tx.insert(productActivities).values({
+            productId: product.id,
+            type: activity.type,
+            pointsValue: activity.pointsValue,
+          });
+        });
+
+        await Promise.all(activityPromises);
+
+        return product;
+      });
 
       // Log the product creation
       await logAdminAction({
-        adminId: req.user?.id,
+        adminId: req.user.id,
         actionType: "PRODUCT_CREATED",
-        details: `Created new product: ${product.name}`,
+        details: `Created new product: ${result.name}`,
       });
 
-      res.json(product);
+      // Fetch the complete product with activities
+      const completeProduct = await db.query.products.findFirst({
+        where: eq(products.id, result.id),
+        with: {
+          activities: true,
+        },
+      });
+
+      res.json(completeProduct);
     } catch (error) {
       console.error('Error creating product:', error);
       res.status(500).send('Failed to create product');
@@ -395,32 +422,55 @@ export function registerRoutes(app: Express): Server {
   app.put("/api/products/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { id } = req.params;
-    const { name, description, pointsAllocation, isEnabled } = req.body;
+    const { name, description, activities } = req.body;
 
     try {
-      const [product] = await db
-        .update(products)
-        .set({
-          name,
-          description,
-          pointsAllocation,
-          isEnabled,
-        })
-        .where(eq(products.id, parseInt(id)))
-        .returning();
+      const result = await db.transaction(async (tx) => {
+        // Update the product
+        const [product] = await tx
+          .update(products)
+          .set({
+            name,
+            description,
+          })
+          .where(eq(products.id, parseInt(id)))
+          .returning();
 
-      if (!product) {
-        return res.status(404).send("Product not found");
-      }
+        // Delete existing activities
+        await tx
+          .delete(productActivities)
+          .where(eq(productActivities.productId, parseInt(id)));
+
+        // Create new activities
+        const activityPromises = activities.map(async (activity: any) => {
+          return tx.insert(productActivities).values({
+            productId: parseInt(id),
+            type: activity.type,
+            pointsValue: activity.pointsValue,
+          });
+        });
+
+        await Promise.all(activityPromises);
+
+        return product;
+      });
 
       // Log the product update
       await logAdminAction({
         adminId: req.user.id,
         actionType: "PRODUCT_UPDATED",
-        details: `Updated product: ${product.name}`,
+        details: `Updated product: ${result.name}`,
       });
 
-      res.json(product);
+      // Fetch the complete product with activities
+      const completeProduct = await db.query.products.findFirst({
+        where: eq(products.id, parseInt(id)),
+        with: {
+          activities: true,
+        },
+      });
+
+      res.json(completeProduct);
     } catch (error) {
       console.error('Error updating product:', error);
       res.status(500).send('Failed to update product');

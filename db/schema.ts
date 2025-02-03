@@ -16,12 +16,28 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const activityTypes = pgEnum("activity_type", [
+  "ACTIVATE",
+  "TIMELINE",
+  "RENEWAL",
+  "UPGRADE",
+  "POS"
+]);
+
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull(),
   isEnabled: boolean("is_enabled").default(true).notNull(),
-  pointsAllocation: integer("points_allocation").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const productActivities = pgTable("product_activities", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").references(() => products.id).notNull(),
+  type: activityTypes("type").notNull(),
+  pointsValue: integer("points_value").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -93,6 +109,14 @@ export const userRelations = relations(users, ({ many }) => ({
 
 export const productRelations = relations(products, ({ many }) => ({
   assignments: many(productAssignments),
+  activities: many(productActivities),
+}));
+
+export const productActivityRelations = relations(productActivities, ({ one }) => ({
+  product: one(products, {
+    fields: [productActivities.productId],
+    references: [products.id],
+  }),
 }));
 
 export const productAssignmentRelations = relations(productAssignments, ({ one }) => ({
@@ -142,6 +166,8 @@ export const insertProductSchema = createInsertSchema(products);
 export const selectProductSchema = createSelectSchema(products);
 export const insertProductAssignmentSchema = createInsertSchema(productAssignments);
 export const selectProductAssignmentSchema = createSelectSchema(productAssignments);
+export const insertProductActivitySchema = createInsertSchema(productActivities);
+export const selectProductActivitySchema = createSelectSchema(productActivities);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -155,3 +181,5 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
 export type ProductAssignment = typeof productAssignments.$inferSelect;
 export type InsertProductAssignment = typeof productAssignments.$inferInsert;
+export type ProductActivity = typeof productActivities.$inferSelect;
+export type InsertProductActivity = typeof productActivities.$inferInsert;
