@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +60,7 @@ const getActionCategory = (actionType: string) => {
 };
 
 export default function AdminLogs() {
-  const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const { data: logs = [] } = useQuery<AdminLog[]>({
     queryKey: ["/api/admin/logs"],
