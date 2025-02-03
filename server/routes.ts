@@ -118,7 +118,7 @@ export function registerRoutes(app: Express): Server {
           adminId: req.user!.id,
           actionType: "POINT_ADJUSTMENT",
           targetUserId: userId,
-          details: `Adjusted points by ${points}. Reason: ${description || 'No reason provided'}`,
+          details: `Adjusted points by ${points}. Reason: ${description}`,
         });
 
         // Add notification using new system

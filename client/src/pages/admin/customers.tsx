@@ -434,7 +434,7 @@ export default function AdminCustomers() {
                                         userId: customer.id, 
                                         data: {
                                           points: formData.points,
-                                          description: formData.description || 'No description provided',
+                                          description: formData.description,
                                           selectedActivities: formData.selectedActivities
                                         }
                                       });
