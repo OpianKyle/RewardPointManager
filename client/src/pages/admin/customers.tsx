@@ -25,6 +25,7 @@ const userSchema = z.object({
 const pointsSchema = z.object({
   points: z.number().min(1, "Points must be greater than 0"),
   description: z.string().min(1, "Description is required"),
+  selectedActivities: z.array(z.number()).optional(),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -56,6 +57,7 @@ export default function AdminCustomers() {
     defaultValues: {
       points: 0,
       description: "",
+      selectedActivities: [],
     },
   });
 
@@ -319,80 +321,96 @@ export default function AdminCustomers() {
                           <DialogHeader>
                             <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
                           </DialogHeader>
-                          <div className="space-y-6">
-                            <div>
-                              <h3 className="text-lg font-semibold mb-4">Assigned Products</h3>
-                              <div className="space-y-4">
-                                {customer.productAssignments?.map((assignment: any) => (
-                                  <div key={assignment.id} className="flex justify-between items-center p-3 bg-accent/50 rounded-lg">
-                                    <div>
-                                      <p className="font-medium">{assignment.product.name}</p>
-                                      <p className="text-sm text-muted-foreground">{assignment.product.description}</p>
-                                    </div>
-                                    <p className="font-semibold">{assignment.product.pointsAllocation} points</p>
-                                  </div>
-                                ))}
-                                {(!customer.productAssignments || customer.productAssignments.length === 0) && (
-                                  <p className="text-sm text-muted-foreground">No products assigned</p>
-                                )}
-                              </div>
-                              {customer.productAssignments && customer.productAssignments.length > 0 && (
-                                <>
-                                  <Separator className="my-4" />
-                                  <div className="flex justify-between items-center">
-                                    <p className="font-medium">Total Points from Products:</p>
-                                    <p className="text-xl font-bold">
-                                      {customer.productAssignments.reduce((total: number, assignment: any) => 
-                                        total + assignment.product.pointsAllocation, 0
-                                      )} points
-                                    </p>
-                                  </div>
-                                  <Button 
-                                    className="w-full mt-4"
-                                    onClick={() => {
-                                      const totalPoints = customer.productAssignments.reduce(
-                                        (total: number, assignment: any) => total + assignment.product.pointsAllocation, 
-                                        0
-                                      );
-                                      assignPointsMutation.mutate({
-                                        userId: customer.id,
-                                        data: {
-                                          points: totalPoints,
-                                          description: "Points allocated from assigned products"
-                                        }
-                                      });
-                                    }}
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Product Points
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                            <Separator />
-                            <div>
-                              <h3 className="text-lg font-semibold mb-4">Custom Points Allocation</h3>
-                              <form
-                                onSubmit={pointsForm.handleSubmit((data) =>
-                                  assignPointsMutation.mutate({ userId: customer.id, data })
-                                )}
-                                className="space-y-4"
-                              >
-                                <div className="space-y-2">
-                                  <label>Points</label>
-                                  <Input
-                                    type="number"
-                                    {...pointsForm.register("points", { valueAsNumber: true })}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <label>Description</label>
-                                  <Input {...pointsForm.register("description")} />
-                                </div>
-                                <Button type="submit">Assign Custom Points</Button>
-                              </form>
-                            </div>
-                          </div>
+                           <div className="space-y-6">
+                             <div>
+                               <h3 className="text-lg font-semibold mb-4">Product Activities</h3>
+                               <div className="space-y-4">
+                                 {customer.productAssignments?.map((assignment: any) => (
+                                   <div key={assignment.id} className="space-y-2">
+                                     <div className="flex justify-between items-center p-3 bg-accent/50 rounded-lg">
+                                       <div>
+                                         <p className="font-medium">{assignment.product.name}</p>
+                                         <p className="text-sm text-muted-foreground">{assignment.product.description}</p>
+                                       </div>
+                                     </div>
+                                     {assignment.product.activities?.map((activity: any) => (
+                                       <div
+                                         key={activity.id}
+                                         className="flex items-center justify-between p-2 pl-6 border rounded-lg"
+                                       >
+                                         <div className="flex items-center space-x-2">
+                                           <input
+                                             type="checkbox"
+                                             id={`activity-${activity.id}`}
+                                             className="w-4 h-4 rounded border-gray-300"
+                                             onChange={(e) => {
+                                               const currentSelected = pointsForm.getValues("selectedActivities") || [];
+                                               if (e.target.checked) {
+                                                 pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
+                                                 pointsForm.setValue("points", 
+                                                   (pointsForm.getValues("points") || 0) + activity.pointsValue
+                                                 );
+                                               } else {
+                                                 pointsForm.setValue("selectedActivities", 
+                                                   currentSelected.filter(id => id !== activity.id)
+                                                 );
+                                                 pointsForm.setValue("points", 
+                                                   (pointsForm.getValues("points") || 0) - activity.pointsValue
+                                                 );
+                                               }
+                                             }}
+                                           />
+                                           <label
+                                             htmlFor={`activity-${activity.id}`}
+                                             className="text-sm font-medium"
+                                           >
+                                             {activity.name}
+                                           </label>
+                                         </div>
+                                         <span className="text-sm font-semibold">
+                                           {activity.pointsValue} points
+                                         </span>
+                                       </div>
+                                     ))}
+                                     {(!assignment.product.activities || assignment.product.activities.length === 0) && (
+                                       <p className="text-sm text-muted-foreground pl-6">No activities defined</p>
+                                     )}
+                                   </div>
+                                 ))}
+                                 {(!customer.productAssignments || customer.productAssignments.length === 0) && (
+                                   <p className="text-sm text-muted-foreground">No products assigned</p>
+                                 )}
+                               </div>
+                             </div>
+                             <Separator />
+                             <div>
+                               <h3 className="text-lg font-semibold mb-4">Points Summary</h3>
+                               <div className="space-y-4">
+                                 <div className="flex justify-between items-center p-4 bg-accent rounded-lg">
+                                   <span className="font-medium">Total Selected Points:</span>
+                                   <span className="text-2xl font-bold">{pointsForm.watch("points")}</span>
+                                 </div>
+                                 <div className="space-y-2">
+                                   <label>Description</label>
+                                   <Input {...pointsForm.register("description")} />
+                                 </div>
+                                 <Button 
+                                   type="submit" 
+                                   className="w-full"
+                                   disabled={!pointsForm.watch("points")}
+                                   onClick={(e) => {
+                                     e.preventDefault();
+                                     assignPointsMutation.mutate({ 
+                                       userId: customer.id, 
+                                       data: pointsForm.getValues() 
+                                     });
+                                   }}
+                                 >
+                                   Assign Selected Points
+                                 </Button>
+                               </div>
+                             </div>
+                           </div>
                         </DialogContent>
                       </Dialog>
                       <Dialog>
