@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const activityTypes = ["ACTIVATE", "TIMELINE", "RENEWAL", "UPGRADE", "POS"] as const;
+const activityTypes = ["ACTIVATE", "TIMELINE", "RENEWAL", "UPGRADE"] as const;
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
