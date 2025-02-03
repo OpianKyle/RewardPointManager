@@ -117,17 +117,22 @@ export function registerRoutes(app: Express): Server {
         // Fetch activity details if there are selected activities
         let activityDetails = "";
         if (selectedActivities?.length > 0) {
-          const activities = await tx
-            .select({
-              type: product_activities.type,
-              pointsValue: product_activities.pointsValue,
-            })
-            .from(product_activities)
-            .where(sql`${product_activities.id} IN (${selectedActivities.join(',')})`);
+          // Convert the array to a proper SQL array
+          const activityIds = selectedActivities.map(id => parseInt(id)).filter(id => !isNaN(id));
 
-          activityDetails = activities
-            .map(activity => `${activity.type} (${activity.pointsValue} points)`)
-            .join(', ');
+          if (activityIds.length > 0) {
+            const activities = await tx
+              .select({
+                type: product_activities.type,
+                pointsValue: product_activities.pointsValue,
+              })
+              .from(product_activities)
+              .where(sql`${product_activities.id} = ANY(ARRAY[${sql.join(activityIds, ',')}]::integer[])`);
+
+            activityDetails = activities
+              .map(activity => `${activity.type} (${activity.pointsValue} points)`)
+              .join(', ');
+          }
         }
 
         await logAdminAction({
@@ -139,13 +144,13 @@ export function registerRoutes(app: Express): Server {
           }Reason: ${description}`,
         });
 
-          // Add notification using new system
-         addNotification({
-           type: "POINTS_ALLOCATION",
-           userId,
-           points,
-           description,
-          });
+        // Add notification using new system
+        addNotification({
+          type: "POINTS_ALLOCATION",
+          userId,
+          points,
+          description,
+        });
 
         return updatedUser;
       });
