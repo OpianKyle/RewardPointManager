@@ -429,9 +429,14 @@ export default function AdminCustomers() {
                                     disabled={!pointsForm.watch("points")}
                                     onClick={(e) => {
                                       e.preventDefault();
+                                      const formData = pointsForm.getValues();
                                       assignPointsMutation.mutate({ 
                                         userId: customer.id, 
-                                        data: pointsForm.getValues() 
+                                        data: {
+                                          points: formData.points,
+                                          description: formData.description || 'No description provided',
+                                          selectedActivities: formData.selectedActivities
+                                        }
                                       });
                                     }}
                                   >
