@@ -332,11 +332,22 @@ export default function AdminCustomers() {
                                     <Accordion type="single" collapsible key={assignment.id}>
                                       <AccordionItem value="activities">
                                         <AccordionTrigger className="p-3 bg-accent/50 rounded-lg hover:no-underline">
-                                          <div className="text-left">
-                                            <p className="font-medium">{assignment.product.name}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                              {assignment.product.description}
-                                            </p>
+                                          <div className="flex justify-between items-center w-full pr-4">
+                                            <div className="text-left">
+                                              <p className="font-medium">{assignment.product.name}</p>
+                                              <p className="text-sm text-muted-foreground">
+                                                {assignment.product.description}
+                                              </p>
+                                            </div>
+                                            {pointsForm.watch("selectedActivities")?.some(id => 
+                                              assignment.product.activities?.some((a: any) => a.id === id)
+                                            ) && (
+                                              <Badge variant="secondary" className="ml-2">
+                                                {assignment.product.activities?.filter((a: any) => 
+                                                  pointsForm.watch("selectedActivities")?.includes(a.id)
+                                                ).length} selected
+                                              </Badge>
+                                            )}
                                           </div>
                                         </AccordionTrigger>
                                         <AccordionContent>
@@ -351,6 +362,7 @@ export default function AdminCustomers() {
                                                     type="checkbox"
                                                     id={`activity-${activity.id}`}
                                                     className="w-4 h-4 rounded border-gray-300"
+                                                    checked={pointsForm.watch("selectedActivities")?.includes(activity.id)}
                                                     onChange={(e) => {
                                                       const currentSelected = pointsForm.getValues("selectedActivities") || [];
                                                       const currentPoints = pointsForm.getValues("points") || 0;
