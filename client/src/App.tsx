@@ -1,5 +1,6 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
@@ -21,17 +22,6 @@ import AdminProducts from "@/pages/admin/products";
 import CustomerDashboard from "@/pages/customer/dashboard";
 import CustomerRewards from "@/pages/customer/rewards";
 import CustomerLayout from "@/components/layout/customer-layout";
-
-// Create a new QueryClient instance with default options
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 0,
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
 
 function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
   const { user, isLoading } = useUser();
@@ -149,7 +139,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
-      <Toaster />
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          duration: 5000,
+          className: "rounded-lg shadow-lg",
+        }}
+      />
     </QueryClientProvider>
   );
 }

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,16 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Plus, Pencil, Power, PowerOff, UserPlus, UserX, Activity } from "lucide-react";
+import { Plus, Pencil, Power, PowerOff, UserPlus, UserX } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -25,16 +23,7 @@ const productSchema = z.object({
 
 type ProductFormData = z.infer<typeof productSchema>;
 
-const activitySchema = z.object({
-  activityType: z.enum(["ACTIVATE", "TIMELINE", "RENEWAL", "UPGRADE", "POS"]),
-  pointsAllocation: z.number().min(0, "Points allocation must be positive"),
-  isEnabled: z.boolean().default(true),
-});
-
-type ActivityFormData = z.infer<typeof activitySchema>;
-
 export default function ProductManagement() {
-  const queryClient = useQueryClient();
   const { data: products = [], refetch } = useQuery({
     queryKey: ["/api/products"],
     queryFn: async () => {
@@ -73,29 +62,6 @@ export default function ProductManagement() {
       name: "",
       description: "",
       pointsAllocation: 0,
-    },
-  });
-
-    const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [isActivityOpen, setIsActivityOpen] = useState(false);
-  const [selectedActivity, setSelectedActivity] = useState<any>(null);
-  const [isActivityEditOpen, setIsActivityEditOpen] = useState(false);
-
-  const activityForm = useForm<ActivityFormData>({
-    resolver: zodResolver(activitySchema),
-    defaultValues: {
-      activityType: "ACTIVATE",
-      pointsAllocation: 0,
-      isEnabled: true,
-    },
-  });
-
-  const editActivityForm = useForm<ActivityFormData>({
-    resolver: zodResolver(activitySchema),
-    defaultValues: {
-      activityType: "ACTIVATE",
-      pointsAllocation: 0,
-      isEnabled: true,
     },
   });
 
@@ -256,99 +222,6 @@ export default function ProductManagement() {
     },
   });
 
-    const { data: activities = [] } = useQuery({
-    queryKey: ["/api/products", selectedProduct?.id, "activities"],
-    queryFn: async () => {
-      if (!selectedProduct?.id) return [];
-      const response = await fetch(`/api/products/${selectedProduct.id}/activities`);
-      if (!response.ok) throw new Error("Failed to fetch activities");
-      return response.json();
-    },
-    enabled: !!selectedProduct?.id,
-  });
-
-    const createActivityMutation = useMutation({
-    mutationFn: async (data: ActivityFormData) => {
-      const res = await fetch(`/api/products/${selectedProduct.id}/activities`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products", selectedProduct?.id, "activities"] });
-      toast({ title: "Success", description: "Activity created successfully" });
-      activityForm.reset();
-      setIsActivityOpen(false);
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    },
-  });
-
-  const updateActivityMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: number } & Partial<ActivityFormData>) => {
-      const res = await fetch(`/api/products/activities/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ 
-        queryKey: ["/api/products"]
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ["/api/products", selectedProduct?.id, "activities"]
-      });
-      queryClient.refetchQueries({
-        queryKey: ["/api/products", selectedProduct?.id, "activities"],
-        exact: true
-      });
-      toast({ title: "Success", description: "Activity updated successfully" });
-      setIsActivityEditOpen(false);
-      setSelectedActivity(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    },
-  });
-
-  const completeActivityMutation = useMutation({
-    mutationFn: async ({ activityId, userId, customPoints }: { activityId: number; userId: number; customPoints?: number }) => {
-      const res = await fetch(`/api/products/activities/${activityId}/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, customPoints }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
-      toast({ title: "Success", description: "Activity completed and points awarded successfully" });
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    },
-  });
-
   const isCustomerAssigned = (customer: any, productId: number) => {
     return customer.productAssignments?.some(
       (assignment: any) => assignment.productId === productId
@@ -363,16 +236,6 @@ export default function ProductManagement() {
       pointsAllocation: product.pointsAllocation,
     });
     setIsEditOpen(true);
-  };
-
-  const onEditActivity = (activity: any) => {
-    setSelectedActivity(activity);
-    editActivityForm.reset({
-      activityType: activity.activityType,
-      pointsAllocation: activity.pointsAllocation,
-      isEnabled: activity.isEnabled,
-    });
-    setIsActivityEditOpen(true);
   };
 
   return (
@@ -572,17 +435,6 @@ export default function ProductManagement() {
                           </ScrollArea>
                         </DialogContent>
                       </Dialog>
-                         <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedProduct(product);
-                              setIsActivityOpen(true);
-                            }}
-                          >
-                            <Activity className="h-4 w-4 mr-2" />
-                            Manage Activities
-                          </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -591,160 +443,6 @@ export default function ProductManagement() {
           </Table>
         </CardContent>
       </Card>
-        <Dialog open={isActivityOpen} onOpenChange={setIsActivityOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Manage Activities for {selectedProduct?.name}</DialogTitle>
-            <DialogDescription>
-              Configure activities and their point values for this product
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            {/* Activity Creation Form */}
-            <form
-              onSubmit={activityForm.handleSubmit((data) => createActivityMutation.mutate(data))}
-              className="space-y-4 border-b pb-4"
-            >
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label>Activity Type</label>
-                  <Select
-                    onValueChange={(value) => activityForm.setValue("activityType", value as any)}
-                    defaultValue={activityForm.getValues("activityType")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select activity type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVATE">Activate</SelectItem>
-                      <SelectItem value="TIMELINE">Timeline</SelectItem>
-                      <SelectItem value="RENEWAL">Renewal</SelectItem>
-                      <SelectItem value="UPGRADE">Upgrade</SelectItem>
-                      <SelectItem value="POS">Point of Sale</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label>Points Allocation</label>
-                  <Input
-                    type="number"
-                    {...activityForm.register("pointsAllocation", { valueAsNumber: true })}
-                  />
-                </div>
-              </div>
-              <Button type="submit">Add Activity</Button>
-            </form>
-
-            {/* Activities List */}
-            <div className="space-y-4">
-              <h3 className="font-semibold">Configured Activities</h3>
-              {activities.map((activity: any) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium">{activity.activityType}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Points: {activity.pointsAllocation}
-                    </p>
-                  </div>
-                  <div className="space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onEditActivity(activity)}
-                    >
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isActivityEditOpen} onOpenChange={setIsActivityEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Activity</DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={editActivityForm.handleSubmit((data) =>
-              selectedActivity && updateActivityMutation.mutate({ id: selectedActivity.id, ...data })
-            )}
-            className="space-y-4"
-          >
-            <div className="space-y-2">
-              <label>Activity Type</label>
-              <Input disabled value={selectedActivity?.activityType || ''} />
-            </div>
-            <div className="space-y-2">
-              <label>Points Allocation</label>
-              <Input
-                type="number"
-                {...editActivityForm.register("pointsAllocation", { valueAsNumber: true })}
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="isEnabled"
-                checked={editActivityForm.watch("isEnabled")}
-                onCheckedChange={(checked) => editActivityForm.setValue("isEnabled", !!checked)}
-              />
-              <label htmlFor="isEnabled">Enabled</label>
-            </div>
-            <Button type="submit">Update Activity</Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Manage Activities for {selectedProduct?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {activities.map((activity: any) => (
-                <div key={activity.id} className="flex items-center justify-between p-2 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{activity.activityType}</p>
-                    <p className="text-sm text-muted-foreground">Default Points: {activity.pointsAllocation}</p>
-                  </div>
-                  <div className="space-x-2">
-                    <Input
-                      type="number"
-                      className="w-24"
-                      placeholder="Custom points"
-                      onChange={(e) => {
-                        const customPoints = parseInt(e.target.value);
-                        // Store custom points in state if needed
-                      }}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const customPoints = parseInt(
-                          (document.querySelector(`input[data-activity="${activity.id}"]`) as HTMLInputElement)?.value
-                        );
-                        completeActivityMutation.mutate({
-                          activityId: activity.id,
-                          userId: customer.id,
-                          customPoints: isNaN(customPoints) ? undefined : customPoints,
-                        });
-                      }}
-                    >
-                      Complete Activity
-                    </Button>
-                  </div>
-                </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
