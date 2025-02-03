@@ -342,7 +342,17 @@ export function registerRoutes(app: Express): Server {
         transactions: true,
         productAssignments: {
           with: {
-            product: true,
+            product: {
+              with: {
+                activities: {
+                  columns: {
+                    id: true,
+                    type: true,
+                    pointsValue: true
+                  }
+                }
+              }
+            },
           },
         },
       },
@@ -590,26 +600,9 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send('Failed to unassign product');
     }
   });
-
-  // Update the customer endpoint to include product assignments
-  app.get("/api/admin/customers", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const customers = await db.query.users.findMany({
-      where: eq(users.isAdmin, false),
-      orderBy: desc(users.createdAt),
-      with: {
-        transactions: true,
-        productAssignments: {
-          with: {
-            product: true,
-          },
-        },
-      },
-    });
-    res.json(customers);
-  });
-
-  app.get("/api/products/assignments/:id", async (req, res) => {
+  
+    
+    app.get("/api/products/assignments/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized")
     const { id } = req.params;
 
@@ -660,6 +653,7 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send('Failed to remove product assignment');
     }
   });
+
 
   // Customer Routes
   app.get("/api/customer/points", async (req, res) => {
