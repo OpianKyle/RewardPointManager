@@ -11,7 +11,6 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 const scryptAsync = promisify(scrypt);
-
 const crypto = {
   hash: async (password: string) => {
     const salt = randomBytes(16).toString("hex");
@@ -19,43 +18,36 @@ const crypto = {
     return `${buf.toString("hex")}.${salt}`;
   },
   compare: async (suppliedPassword: string, storedPassword: string) => {
-    try {
-      const [hashedPassword, salt] = storedPassword.split(".");
-      if (!hashedPassword || !salt) {
-        console.log("Invalid stored password format");
-        return false;
-      }
-      const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
-      const suppliedPasswordBuf = (await scryptAsync(
-        suppliedPassword,
-        salt,
-        64
-      )) as Buffer;
-      return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
-    } catch (error) {
-      console.error("Password comparison error:", error);
-      return false;
-    }
+    const [hashedPassword, salt] = storedPassword.split(".");
+    const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
+    const suppliedPasswordBuf = (await scryptAsync(
+      suppliedPassword,
+      salt,
+      64
+    )) as Buffer;
+    return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
   },
 };
 
 declare global {
   namespace Express {
-    interface User extends SelectUser {}
+    interface User extends SelectUser { }
   }
 }
 
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
+// Define registration schema
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
+});
+
+// Define login schema
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export function setupAuth(app: Express) {
@@ -84,7 +76,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(
       {
-        usernameField: "email",
+        usernameField: 'email',
       },
       async (email, password, done) => {
         try {
@@ -107,11 +99,9 @@ export function setupAuth(app: Express) {
 
           const isMatch = await crypto.compare(password, user.password);
           console.log("Password match result:", isMatch);
-
           if (!isMatch) {
             return done(null, false, { message: "Incorrect password." });
           }
-
           return done(null, user);
         } catch (err) {
           console.error("Login error:", err);
@@ -187,7 +177,12 @@ export function setupAuth(app: Express) {
         }
         return res.json({
           message: "Registration successful",
-          user: newUser,
+          user: { 
+            id: newUser.id, 
+            email: newUser.email,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName 
+          },
         });
       });
     } catch (error) {
@@ -206,7 +201,7 @@ export function setupAuth(app: Express) {
         .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
     }
 
-    passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
+    const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
       if (err) {
         console.error("Login error:", err);
         return next(err);
@@ -225,17 +220,16 @@ export function setupAuth(app: Express) {
         console.log("Login successful:", user.email);
         return res.json({
           message: "Login successful",
-          user: {
-            id: user.id,
+          user: { 
+            id: user.id, 
             email: user.email,
             firstName: user.firstName,
-            lastName: user.lastName,
-            isAdmin: user.isAdmin,
-            isSuperAdmin: user.isSuperAdmin
+            lastName: user.lastName
           },
         });
       });
-    })(req, res, next);
+    };
+    passport.authenticate("local", cb)(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
