@@ -202,7 +202,9 @@ export function registerRoutes(app: Express): Server {
           totalPoints: updatedUser.points
         });
 
-        // Send email notification
+        console.log('Preparing to send email notification to:', updatedUser.email);
+
+        // Generate and send email notification
         const emailContent = generatePointsUpdateEmail({
           customerName: `${updatedUser.firstName} ${updatedUser.lastName}`,
           points,
@@ -211,7 +213,9 @@ export function registerRoutes(app: Express): Server {
           description
         });
 
-        await sendEmail({
+        console.log('Email content generated, attempting to send...');
+
+        const emailResult = await sendEmail({
           to: { 
             email: updatedUser.email,
             name: `${updatedUser.firstName} ${updatedUser.lastName}`
@@ -219,6 +223,8 @@ export function registerRoutes(app: Express): Server {
           subject: "Points Update Notification",
           htmlContent: emailContent
         });
+
+        console.log('Email sending result:', emailResult ? 'Success' : 'Failed');
 
         return updatedUser;
       });

@@ -2,14 +2,17 @@ import { TransactionalEmailsApi, SendSmtpEmail } from '@getbrevo/brevo';
 
 const apiInstance = new TransactionalEmailsApi();
 
+if (!process.env.BREVO_API_KEY) {
+  console.error('BREVO_API_KEY is not set in environment variables');
+  throw new Error('BREVO_API_KEY is required');
+}
+
 // Initialize API key using the correct authentication method
-apiInstance.authentications = {
-  'api-key': {
-    type: 'apiKey',
-    in: 'header',
-    name: 'api-key',
-    apiKey: process.env.BREVO_API_KEY
-  }
+apiInstance.authentications['api-key'] = {
+  type: 'apiKey',
+  in: 'header',
+  name: 'api-key',
+  apiKey: process.env.BREVO_API_KEY
 };
 
 interface EmailParams {
@@ -20,16 +23,23 @@ interface EmailParams {
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
   try {
+    console.log('Attempting to send email to:', params.to.email);
     const sendSmtpEmail = new SendSmtpEmail();
     sendSmtpEmail.subject = params.subject;
     sendSmtpEmail.htmlContent = params.htmlContent;
     sendSmtpEmail.sender = { name: "Points System", email: "points@yourdomain.com" };
     sendSmtpEmail.to = [params.to];
 
+    console.log('Sending email with Brevo...');
     await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log('Email sent successfully');
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 }
