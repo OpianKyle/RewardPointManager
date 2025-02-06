@@ -1,14 +1,16 @@
 import nodemailer from 'nodemailer';
 
-// Create reusable transporter
+// Create reusable transporter with more detailed options
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
-  secure: false,
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
-  }
+  },
+  debug: true, // Enable debug output
+  logger: true // Log information to the console
 });
 
 interface EmailParams {
@@ -20,16 +22,30 @@ interface EmailParams {
 
 export async function sendEmail({ to, subject, text, html }: EmailParams): Promise<boolean> {
   try {
-    await transporter.sendMail({
+    console.log('Attempting to send email to:', to);
+    console.log('Using EMAIL_USER:', process.env.EMAIL_USER);
+
+    // Verify SMTP connection configuration
+    const verification = await transporter.verify();
+    console.log('SMTP Connection verified:', verification);
+
+    const result = await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to,
       subject,
       text,
       html
     });
+
+    console.log('Email sent successfully:', result);
     return true;
   } catch (error) {
-    console.error('Email error:', error);
+    console.error('Detailed email error:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 }
