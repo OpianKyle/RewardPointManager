@@ -12,6 +12,7 @@ interface RewardCardProps {
     description: string;
     pointsCost: number;
     imageUrl: string;
+    type?: "CASH" | "STANDARD";
   };
   userPoints?: number;
   isAdmin?: boolean;
@@ -33,7 +34,10 @@ export default function RewardCard({ reward, userPoints, isAdmin }: RewardCardPr
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customer/points"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customer/transactions"] });
-      toast({ title: "Success", description: "Reward redeemed successfully!" });
+      const message = reward.type === "CASH" 
+        ? `Successfully redeemed R${(reward.pointsCost * 0.015).toFixed(2)}!`
+        : "Reward redeemed successfully!";
+      toast({ title: "Success", description: message });
     },
     onError: (error: Error) => {
       toast({
@@ -46,22 +50,39 @@ export default function RewardCard({ reward, userPoints, isAdmin }: RewardCardPr
 
   const canRedeem = userPoints !== undefined && userPoints >= reward.pointsCost;
 
+  const renderValue = () => {
+    if (reward.type === "CASH") {
+      const randValue = (reward.pointsCost * 0.015).toFixed(2);
+      return (
+        <div className="flex flex-col gap-2">
+          <div className="text-lg font-semibold">R{randValue}</div>
+          <div className="text-sm text-muted-foreground">
+            <PointsDisplay points={reward.pointsCost} size="small" />
+          </div>
+        </div>
+      );
+    }
+    return <PointsDisplay points={reward.pointsCost} size="medium" />;
+  };
+
   return (
     <Card className="overflow-hidden">
-      <div className="aspect-video relative">
-        <img
-          src={reward.imageUrl}
-          alt={reward.name}
-          className="object-cover w-full h-full"
-        />
-      </div>
+      {reward.imageUrl && (
+        <div className="aspect-video relative">
+          <img
+            src={reward.imageUrl}
+            alt={reward.name}
+            className="object-cover w-full h-full"
+          />
+        </div>
+      )}
       <CardHeader>
         <CardTitle>{reward.name}</CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">{reward.description}</p>
         <div className="mt-4">
-          <PointsDisplay points={reward.pointsCost} size="medium" />
+          {renderValue()}
         </div>
       </CardContent>
       {!isAdmin && (
@@ -71,7 +92,7 @@ export default function RewardCard({ reward, userPoints, isAdmin }: RewardCardPr
             onClick={() => redeemMutation.mutate()}
             disabled={!canRedeem}
           >
-            {canRedeem ? "Redeem Reward" : "Insufficient Points"}
+            {canRedeem ? `Redeem ${reward.type === "CASH" ? "Cash" : "Reward"}` : "Insufficient Points"}
           </Button>
         </CardFooter>
       )}

@@ -798,13 +798,16 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/rewards", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     try {
-      const [reward] = await db.insert(rewards).values(req.body).returning();
+      const [reward] = await db.insert(rewards).values({
+        ...req.body,
+        available: true,
+      }).returning();
 
       // Log both the reward creation and the points cost setting
       await logAdminAction({
         adminId: req.user.id,
         actionType: "REWARD_CREATED",
-        details: `Created new reward: ${reward.name} (Cost: ${reward.pointsCost} points)`,
+        details: `Created new ${req.body.type === 'CASH' ? 'cash redemption' : ''} reward: ${reward.name} (Cost: ${reward.pointsCost} points${req.body.type === 'CASH' ? `, R${(reward.pointsCost * 0.015).toFixed(2)}` : ''})`,
       });
 
       res.json(reward);
@@ -908,8 +911,10 @@ export function registerRoutes(app: Express): Server {
         await tx.insert(transactions).values({
           userId: user.id,
           points: -reward.pointsCost,
-          type: "REDEEMED",
-          description: `Redeemed ${reward.name}`,
+          type: reward.type === "CASH" ? "CASH_REDEMPTION" : "REDEEMED",
+          description: reward.type === "CASH"
+            ? `Redeemed points for R${(reward.pointsCost * 0.015).toFixed(2)}`
+            : `Redeemed ${reward.name}`,
           rewardId,
         });
 
@@ -924,14 +929,18 @@ export function registerRoutes(app: Express): Server {
           adminId: user.id,
           actionType: "POINT_ADJUSTMENT",
           targetUserId: user.id,
-          details: `Points deducted (-${reward.pointsCost}) for redeeming reward: ${reward.name}`,
+          details: reward.type === "CASH"
+            ? `Points deducted (-${reward.pointsCost}) for cash redemption of R${(reward.pointsCost * 0.015).toFixed(2)}`
+            : `Points deducted (-${reward.pointsCost}) for redeeming reward: ${reward.name}`,
         });
       });
 
-      // Invalidate queries after successful transaction
+      // Return success message
       res.json({
         success: true,
-        message: `Successfully redeemed ${reward.name} for ${reward.pointsCost} points`
+        message: reward.type === "CASH"
+          ? `Successfully redeemed R${(reward.pointsCost * 0.015).toFixed(2)}`
+          : `Successfully redeemed ${reward.name}`
       });
     } catch (error) {
       console.error('Error processing reward redemption:', error);

@@ -19,6 +19,7 @@ type Reward = {
   imageUrl: string;
   available: boolean;
   createdAt: string;
+  type?: "CASH" | "STANDARD";
 };
 
 export default function AdminRewards() {
@@ -37,6 +38,7 @@ export default function AdminRewards() {
       description: "",
       pointsCost: 0,
       imageUrl: "",
+      type: "STANDARD" as "CASH" | "STANDARD",
     },
   });
 
@@ -46,11 +48,18 @@ export default function AdminRewards() {
       description: "",
       pointsCost: 0,
       imageUrl: "",
+      type: "STANDARD" as "CASH" | "STANDARD",
     },
   });
 
   const createRewardMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; pointsCost: number; imageUrl: string }) => {
+    mutationFn: async (data: { 
+      name: string; 
+      description: string; 
+      pointsCost: number; 
+      imageUrl: string;
+      type: "CASH" | "STANDARD";
+    }) => {
       const res = await fetch("/api/rewards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -76,7 +85,7 @@ export default function AdminRewards() {
   });
 
   const updateRewardMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: number; name: string; description: string; pointsCost: number; imageUrl: string }) => {
+    mutationFn: async ({ id, ...data }: { id: number; name: string; description: string; pointsCost: number; imageUrl: string; type: "CASH" | "STANDARD"; }) => {
       const res = await fetch(`/api/rewards/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -131,6 +140,7 @@ export default function AdminRewards() {
       description: reward.description,
       pointsCost: reward.pointsCost,
       imageUrl: reward.imageUrl,
+      type: reward.type || "STANDARD",
     });
     setIsEditOpen(true);
   };
@@ -158,6 +168,13 @@ export default function AdminRewards() {
             </DialogHeader>
             <form onSubmit={form.handleSubmit((data) => createRewardMutation.mutate(data))} className="space-y-4">
               <div className="space-y-2">
+                <label>Type</label>
+                <select {...form.register("type")} className="w-full p-2 border rounded-md">
+                  <option value="STANDARD">Standard Reward</option>
+                  <option value="CASH">Cash Redemption</option>
+                </select>
+              </div>
+              <div className="space-y-2">
                 <label>Name</label>
                 <Input {...form.register("name")} />
               </div>
@@ -168,6 +185,11 @@ export default function AdminRewards() {
               <div className="space-y-2">
                 <label>Points Cost</label>
                 <Input type="number" {...form.register("pointsCost")} />
+                {form.watch("type") === "CASH" && (
+                  <p className="text-sm text-muted-foreground">
+                    Rand value: R{(Number(form.watch("pointsCost")) * 0.015).toFixed(2)}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <label>Image URL</label>
@@ -179,7 +201,6 @@ export default function AdminRewards() {
         </Dialog>
       </div>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader>
@@ -192,6 +213,13 @@ export default function AdminRewards() {
             className="space-y-4"
           >
             <div className="space-y-2">
+              <label>Type</label>
+              <select {...editForm.register("type")} className="w-full p-2 border rounded-md">
+                <option value="STANDARD">Standard Reward</option>
+                <option value="CASH">Cash Redemption</option>
+              </select>
+            </div>
+            <div className="space-y-2">
               <label>Name</label>
               <Input {...editForm.register("name")} />
             </div>
@@ -202,6 +230,11 @@ export default function AdminRewards() {
             <div className="space-y-2">
               <label>Points Cost</label>
               <Input type="number" {...editForm.register("pointsCost")} />
+              {editForm.watch("type") === "CASH" && (
+                <p className="text-sm text-muted-foreground">
+                  Rand value: R{(Number(editForm.watch("pointsCost")) * 0.015).toFixed(2)}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label>Image URL</label>
@@ -217,7 +250,12 @@ export default function AdminRewards() {
           <Card key={reward.id}>
             <CardHeader>
               <div className="flex justify-between items-start">
-                <CardTitle>{reward.name}</CardTitle>
+                <div>
+                  <CardTitle>{reward.name}</CardTitle>
+                  {reward.type === "CASH" && (
+                    <p className="text-sm text-muted-foreground">Cash Redemption</p>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 
@@ -238,7 +276,14 @@ export default function AdminRewards() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-2">{reward.description}</p>
-              <p className="font-semibold">{reward.pointsCost} points</p>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">{reward.pointsCost} points</p>
+                {reward.type === "CASH" && (
+                  <p className="text-sm text-muted-foreground">
+                    (R{(reward.pointsCost * 0.015).toFixed(2)})
+                  </p>
+                )}
+              </div>
               {reward.imageUrl && (
                 <img 
                   src={reward.imageUrl} 
