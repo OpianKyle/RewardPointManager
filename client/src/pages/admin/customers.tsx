@@ -15,6 +15,22 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
+const getPointsMultiplier = (points: number, type: 'premium' | 'card' | 'pos'): number => {
+  if (points >= 150000) { // Platinum
+    return type === 'premium' ? 2.5 : 0.5;
+  }
+  if (points >= 100000) { // Gold
+    return type === 'premium' ? 2.0 : 0.25;
+  }
+  if (points >= 50000) { // Purple
+    return type === 'premium' ? 1.5 : 0.10;
+  }
+  if (points >= 10000) { // Silver
+    return type === 'premium' ? 1.0 : 0.05;
+  }
+  return 0; // Bronze
+};
+
 const userSchema = z.object({
   email: z.string().email("Invalid email address"),
   firstName: z.string().min(1, "First name is required"),
@@ -426,9 +442,12 @@ export default function AdminCustomers() {
                                             <div className="space-y-2 pt-2">
                                               {assignment.product.activities?.map((activity: any) => {
                                                 const isSystemActivity = activity.type === "SYSTEM_ACTIVATION";
-                                                if (isSystemActivity) return null; // Skip system activation activities
+                                                if (isSystemActivity) return null;
 
                                                 const isPremiumOrCard = activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE";
+                                                const multiplierType = activity.type === "PREMIUM_PAYMENT" ? 'premium' : 'card';
+                                                const pointsMultiplier = getPointsMultiplier(customer.points, multiplierType);
+
                                                 return (
                                                   <div
                                                     key={activity.id}
@@ -469,22 +488,36 @@ export default function AdminCustomers() {
                                                         className="text-sm font-medium"
                                                       >
                                                         {activity.type.replace('_', ' ')}
+                                                        {isPremiumOrCard && pointsMultiplier > 0 && (
+                                                          <span className="ml-2 text-xs text-muted-foreground">
+                                                            (×{pointsMultiplier})
+                                                          </span>
+                                                        )}
                                                       </label>
                                                     </div>
                                                     {isPremiumOrCard ? (
-                                                      <Input
-                                                        type="number"
-                                                        className="w-32"
-                                                        placeholder="Enter points"
-                                                        disabled={!pointsForm.watch("selectedActivities")?.includes(activity.id)}
-                                                        onChange={(e) => {
-                                                          const newValue = parseInt(e.target.value) || 0;
-                                                          const currentPoints = pointsForm.getValues("points") || 0;
-                                                          const oldValue = activity.currentValue || 0;
-                                                          pointsForm.setValue("points", currentPoints - oldValue + newValue);
-                                                          activity.currentValue = newValue;
-                                                        }}
-                                                      />
+                                                      <div className="flex items-center space-x-2">
+                                                        <Input
+                                                          type="number"
+                                                          className="w-32"
+                                                          placeholder="Enter points"
+                                                          disabled={!pointsForm.watch("selectedActivities")?.includes(activity.id)}
+                                                          onChange={(e) => {
+                                                            const baseValue = parseInt(e.target.value) || 0;
+                                                            const multipliedValue = Math.floor(baseValue * pointsMultiplier);
+                                                            const currentPoints = pointsForm.getValues("points") || 0;
+                                                            const oldValue = activity.currentValue || 0;
+                                                            pointsForm.setValue("points", currentPoints - oldValue + multipliedValue);
+                                                            activity.currentValue = multipliedValue;
+                                                            activity.baseValue = baseValue;
+                                                          }}
+                                                        />
+                                                        {pointsMultiplier > 0 && (
+                                                          <span className="text-sm text-muted-foreground">
+                                                            = {activity.currentValue || 0} points
+                                                          </span>
+                                                        )}
+                                                      </div>
                                                     ) : (
                                                       <span className="text-sm font-semibold">
                                                         {activity.pointsValue} points
@@ -505,19 +538,36 @@ export default function AdminCustomers() {
                                   <h3 className="text-lg font-semibold mb-4">POS Points Allocation</h3>
                                   <div className="space-y-4">
                                     <div className="space-y-2">
-                                      <label className="text-sm font-medium">POS Points</label>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        placeholder="Enter POS points"
-                                        onChange={(e) => {
-                                          const posPoints = parseInt(e.target.value) || 0;
-                                          const currentPoints = pointsForm.getValues("points") || 0;
-                                          const oldPosPoints = pointsForm.getValues("posPoints") || 0;
-                                          pointsForm.setValue("points", currentPoints - oldPosPoints + posPoints);
-                                          pointsForm.setValue("posPoints", posPoints);
-                                        }}
-                                      />
+                                      <label className="text-sm font-medium">
+                                        POS Points
+                                        {getPointsMultiplier(customer.points, 'pos') > 0 && (
+                                          <span className="ml-2 text-xs text-muted-foreground">
+                                            (×{getPointsMultiplier(customer.points, 'pos')})
+                                          </span>
+                                        )}
+                                      </label>
+                                      <div className="flex items-center space-x-2">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          placeholder="Enter POS points"
+                                          onChange={(e) => {
+                                            const baseValue = parseInt(e.target.value) || 0;
+                                            const multiplier = getPointsMultiplier(customer.points, 'pos');
+                                            const multipliedValue = Math.floor(baseValue * multiplier);
+                                            const currentPoints = pointsForm.getValues("points") || 0;
+                                            const oldPosPoints = pointsForm.getValues("posPoints") || 0;
+                                            pointsForm.setValue("points", currentPoints - oldPosPoints + multipliedValue);
+                                            pointsForm.setValue("posPoints", multipliedValue);
+                                            pointsForm.setValue("posBaseValue", baseValue);
+                                          }}
+                                        />
+                                        {getPointsMultiplier(customer.points, 'pos') > 0 && (
+                                          <span className="text-sm text-muted-foreground">
+                                            = {pointsForm.watch("posPoints") || 0} points
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -537,12 +587,14 @@ export default function AdminCustomers() {
                                             <div key={activity.id} className="flex justify-between items-center py-2">
                                               <span className="text-sm">
                                                 {assignment.product.name} - {activity.type.replace('_', ' ')}
+                                                {(activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE") && (
+                                                  <span className="text-xs text-muted-foreground ml-1">
+                                                    (Base: {activity.baseValue || 0})
+                                                  </span>
+                                                )}
                                               </span>
                                               <span className="font-medium">
-                                                {activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE"
-                                                  ? `${activity.currentValue || 0} points`
-                                                  : `${activity.pointsValue} points`
-                                                }
+                                                {activity.currentValue || activity.pointsValue} points
                                               </span>
                                             </div>
                                           ))}
@@ -551,7 +603,12 @@ export default function AdminCustomers() {
 
                                     {pointsForm.watch("posPoints") > 0 && (
                                       <div className="flex justify-between items-center py-2 border-t">
-                                        <span className="text-sm">POS Points</span>
+                                        <span className="text-sm">
+                                          POS Points
+                                          <span className="text-xs text-muted-foreground ml-1">
+                                            (Base: {pointsForm.watch("posBaseValue") || 0})
+                                          </span>
+                                        </span>
                                         <span className="font-medium">{pointsForm.watch("posPoints")} points</span>
                                       </div>
                                     )}
