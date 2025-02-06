@@ -7,6 +7,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
+import { sendEmail, formatPointsAssignmentEmail, formatAdminNotificationEmail } from "./utils/emailService";
 
 // Global notifications queue with timestamp-based cleanup
 const notificationsQueue = new Map<number, Array<{
@@ -15,7 +16,7 @@ const notificationsQueue = new Map<number, Array<{
   points: number;
   description: string;
   timestamp: string;
-}>>(); 
+}>>();
 
 // Configuration for polling
 const POLLING_CONFIG = {
@@ -110,7 +111,7 @@ export function registerRoutes(app: Express): Server {
           }
         }
       });
-  
+
       res.json(logs);
     } catch (error) {
       console.error('Error fetching admin logs:', error);
@@ -118,13 +119,42 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Modify points allocation to use new notification system
+  // Modify points allocation to include email notifications
   app.post("/api/admin/points", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { userId, points, description } = req.body;
 
     try {
-      await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
+        // Get the target user's details
+        const [targetUser] = await tx
+          .select({
+            id: users.id,
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            points: users.points
+          })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+        if (!targetUser) {
+          throw new Error("User not found");
+        }
+
+        // Get the admin's details
+        const [admin] = await tx
+          .select({
+            id: users.id,
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName
+          })
+          .from(users)
+          .where(eq(users.id, req.user.id))
+          .limit(1);
+
         await tx.insert(transactions).values({
           userId,
           points,
@@ -140,19 +170,47 @@ export function registerRoutes(app: Express): Server {
           .where(eq(users.id, userId))
           .returning();
 
+        // Get the user's tier after points update
+        const tierPoints = updatedUser.points;
+        let currentTier = "Bronze";
+        if (tierPoints >= 150000) currentTier = "Platinum";
+        else if (tierPoints >= 100000) currentTier = "Gold";
+        else if (tierPoints >= 50000) currentTier = "Purple";
+        else if (tierPoints >= 10000) currentTier = "Silver";
+
+        // Send email to customer
+        const customerEmail = formatPointsAssignmentEmail(
+          targetUser.firstName || "Valued Customer",
+          points,
+          description,
+          currentTier
+        );
+        await sendEmail({
+          to: targetUser.email,
+          subject: "Points Added to Your Account",
+          text: customerEmail.text,
+          html: customerEmail.html
+        });
+
+        // Send email to admin
+        const adminEmail = formatAdminNotificationEmail(
+          `${targetUser.firstName} ${targetUser.lastName}`,
+          points,
+          description,
+          admin.firstName || "Admin"
+        );
+        await sendEmail({
+          to: admin.email,
+          subject: `Points Assignment Confirmation: ${targetUser.firstName} ${targetUser.lastName}`,
+          text: adminEmail.text,
+          html: adminEmail.html
+        });
+
         await logAdminAction({
-          adminId: req.user!.id,
+          adminId: req.user.id,
           actionType: "POINT_ADJUSTMENT",
           targetUserId: userId,
           details: `Adjusted points by ${points}. Reason: ${description}`,
-        });
-
-        // Add notification using new system
-        addNotification({
-          type: "POINTS_ALLOCATION",
-          userId,
-          points,
-          description,
         });
 
         return updatedUser;
@@ -654,8 +712,8 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send('Failed to unassign product');
     }
   });
-  
-    
+
+
   app.get("/api/products/assignments/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized")
     const { id } = req.params;
@@ -707,8 +765,6 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send('Failed to remove product assignment');
     }
   });
-
-
 
   // Customer Routes
   app.get("/api/customer/points", async (req, res) => {
