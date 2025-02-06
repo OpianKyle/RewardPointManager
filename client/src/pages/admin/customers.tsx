@@ -420,6 +420,12 @@ export default function AdminCustomers() {
                                                       if (e.target.checked) {
                                                         pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
                                                         pointsForm.setValue("points", currentPoints + activity.pointsValue);
+
+                                                        // Set a meaningful description based on the activity type
+                                                        const description = `Points for ${activity.type.toLowerCase().replace('_', ' ')} activity`;
+                                                        if (!pointsForm.getValues("description")) {
+                                                          pointsForm.setValue("description", description);
+                                                        }
                                                       } else {
                                                         pointsForm.setValue(
                                                           "selectedActivities",
@@ -433,7 +439,7 @@ export default function AdminCustomers() {
                                                     htmlFor={`activity-${activity.id}`}
                                                     className="text-sm font-medium"
                                                   >
-                                                    {activity.type}
+                                                    {activity.type.replace('_', ' ')}
                                                   </label>
                                                 </div>
                                                 <span className="text-sm font-semibold">

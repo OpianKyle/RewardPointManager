@@ -4,7 +4,8 @@ import { relations } from "drizzle-orm";
 
 export const activityTypes = pgEnum("activity_type", [
   "ACTIVATE",
-  "TIMELINE",
+  "PAYMENT",
+  "CARD_BALANCE",
   "RENEWAL",
   "UPGRADE"
 ]);
@@ -129,7 +130,6 @@ export const productAssignmentRelations = relations(productAssignments, ({ one }
         references: [products.id],
     }),
 }));
-
 
 export const transactionRelations = relations(transactions, ({ one }) => ({
   user: one(users, {
