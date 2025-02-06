@@ -386,7 +386,25 @@ export default function AdminCustomers() {
                               Assign Points
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-5xl">
+                          <DialogContent
+                            className="max-w-5xl"
+                            onCloseAutoFocus={() => {
+                              // Reset form and clear all activity values
+                              pointsForm.reset({
+                                points: 0,
+                                description: "",
+                                selectedActivities: [],
+                                posPoints: 0
+                              });
+                              // Clear all activity current values
+                              customer.productAssignments?.forEach((assignment: any) => {
+                                assignment.product.activities?.forEach((activity: any) => {
+                                  activity.currentValue = 0;
+                                  activity.baseValue = 0;
+                                });
+                              });
+                            }}
+                          >
                             <DialogHeader>
                               <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
                               {(() => {
@@ -479,6 +497,12 @@ export default function AdminCustomers() {
                                                             );
                                                             if (!isPremiumOrCard) {
                                                               pointsForm.setValue("points", currentPoints - activity.pointsValue);
+                                                            } else {
+                                                              // Reset points for Premium Payment or Card Balance when unchecked
+                                                              const oldValue = activity.currentValue || 0;
+                                                              pointsForm.setValue("points", currentPoints - oldValue);
+                                                              activity.currentValue = 0;
+                                                              activity.baseValue = 0;
                                                             }
                                                           }
                                                         }}
