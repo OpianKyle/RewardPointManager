@@ -18,14 +18,23 @@ const crypto = {
     return `${buf.toString("hex")}.${salt}`;
   },
   compare: async (suppliedPassword: string, storedPassword: string) => {
-    const [hashedPassword, salt] = storedPassword.split(".");
-    const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
-    const suppliedPasswordBuf = (await scryptAsync(
-      suppliedPassword,
-      salt,
-      64
-    )) as Buffer;
-    return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
+    try {
+      const [hashedPassword, salt] = storedPassword.split(".");
+      if (!hashedPassword || !salt) {
+        console.log("Invalid stored password format");
+        return false;
+      }
+      const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
+      const suppliedPasswordBuf = (await scryptAsync(
+        suppliedPassword,
+        salt,
+        64
+      )) as Buffer;
+      return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
+    } catch (error) {
+      console.error("Password comparison error:", error);
+      return false;
+    }
   },
 };
 
@@ -201,7 +210,7 @@ export function setupAuth(app: Express) {
         .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
     }
 
-    const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
+    passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
       if (err) {
         console.error("Login error:", err);
         return next(err);
@@ -224,12 +233,13 @@ export function setupAuth(app: Express) {
             id: user.id, 
             email: user.email,
             firstName: user.firstName,
-            lastName: user.lastName
+            lastName: user.lastName,
+            isAdmin: user.isAdmin,
+            isSuperAdmin: user.isSuperAdmin
           },
         });
       });
-    };
-    passport.authenticate("local", cb)(req, res, next);
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
