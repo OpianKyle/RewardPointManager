@@ -3,7 +3,6 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
 export const activityTypes = pgEnum("activity_type", [
-  "SYSTEM_ACTIVATION",
   "PRODUCT_ACTIVATION",
   "PREMIUM_PAYMENT",
   "CARD_BALANCE",
@@ -112,7 +111,6 @@ export const productActivityRelations = relations(product_activities, ({ one }) 
     references: [products.id],
   }),
 }));
-
 
 export const userRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
