@@ -1,10 +1,10 @@
+import React, { useState, useEffect } from "react";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Bell } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
 import {
   Popover,
   PopoverContent,
@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Set notification indicator when new notifications arrive
   useEffect(() => {
-    if (notifications.length > 0) {
+    if (notifications && notifications.length > 0) {
       setHasNewNotifications(true);
     }
   }, [notifications]);
@@ -75,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="space-y-2">
                   <h4 className="font-medium">Recent Notifications</h4>
                   <div className="space-y-2">
-                    {notifications.length > 0 ? (
+                    {notifications && notifications.length > 0 ? (
                       notifications.map((notification: any, index: number) => (
                         <div
                           key={index}
