@@ -7,13 +7,7 @@ if (!process.env.BREVO_API_KEY) {
   throw new Error('BREVO_API_KEY is required');
 }
 
-// Initialize API key using the correct authentication method
-apiInstance.authentications['api-key'] = {
-  type: 'apiKey',
-  in: 'header',
-  name: 'api-key',
-  apiKey: process.env.BREVO_API_KEY
-};
+apiInstance.authentications['apiKey'].apiKey = process.env.BREVO_API_KEY;
 
 interface EmailParams {
   to: { email: string; name: string };
