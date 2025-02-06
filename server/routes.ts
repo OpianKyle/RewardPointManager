@@ -973,14 +973,14 @@ export function registerRoutes(app: Express): Server {
 
       await db.transaction(async (tx) => {
         // Create the transaction record
-        await tx.insert(transactions).values({
+        const [transaction] = await tx.insert(transactions).values({
           userId: user.id,
           points: -points,
           type: "CASH_REDEMPTION",
           description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
           status: "PENDING",
           createdAt: new Date(),
-        });
+        }).returning();
 
         // Update user points
         await tx
@@ -989,14 +989,14 @@ export function registerRoutes(app: Express): Server {
             points: sql`${users.points} - ${points}`
           })
           .where(eq(users.id, user.id));
-      });
 
-      // Add notification for admins
-      addNotification({
-        type: "CASH_REDEMPTION",
-        userId: req.user.id,
-        points: points,
-        description: `${user.firstName} ${user.lastName} redeemed ${points} points for R${(points * 0.015).toFixed(2)}`
+        // Add notification for admins
+        addNotification({
+          type: "CASH_REDEMPTION",
+          userId: req.user.id,
+          points: points,
+          description: `${user.firstName} ${user.lastName} redeemed ${points} points for R${(points * 0.015).toFixed(2)}`
+        });
       });
 
       res.json({
@@ -1009,14 +1009,14 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update the cash redemptions endpoint
+  // Update the cash redemptions endpoint to properly filter and include user details
   app.get("/api/admin/cash-redemptions", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
 
     try {
       const cashRedemptions = await db.query.transactions.findMany({
-        where: sql`${transactions.type} = 'CASH_REDEMPTION'`,
-        orderBy: desc(transactions.createdAt),
+        where: eq(transactions.type, "CASH_REDEMPTION"),
+        orderBy: [desc(transactions.createdAt)],
         with: {
           user: {
             columns: {
@@ -1035,7 +1035,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update the process endpoint
+  // Add endpoint to mark cash redemption as processed
   app.post("/api/admin/cash-redemptions/:id/process", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { id } = req.params;
@@ -1236,8 +1236,8 @@ export function registerRoutes(app: Express): Server {
 
     try {
       const cashRedemptions = await db.query.transactions.findMany({
-        where: sql`${transactions.type} = 'CASH_REDEMPTION'`,
-        orderBy: desc(transactions.createdAt),
+        where: eq(transactions.type, "CASH_REDEMPTION"),
+        orderBy: [desc(transactions.createdAt)],
         with: {
           user: {
             columns: {
