@@ -559,6 +559,34 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.delete("/api/products/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+
+    try {
+      const [product] = await db
+        .delete(products)
+        .where(eq(products.id, parseInt(id)))
+        .returning();
+
+      if (!product) {
+        return res.status(404).send("Product not found");
+      }
+
+      // Log the product deletion
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "PRODUCT_DELETED",
+        details: `Deleted product: ${product.name}`,
+      });
+
+      res.json({ message: "Product deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).send('Failed to delete product');
+    }
+  });
+
   app.post("/api/products/:id/assign", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { id } = req.params;
@@ -628,7 +656,7 @@ export function registerRoutes(app: Express): Server {
   });
   
     
-    app.get("/api/products/assignments/:id", async (req, res) => {
+  app.get("/api/products/assignments/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized")
     const { id } = req.params;
 
@@ -679,6 +707,7 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send('Failed to remove product assignment');
     }
   });
+
 
 
   // Customer Routes

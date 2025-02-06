@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Plus, Pencil, Power, PowerOff } from "lucide-react";
+import { Plus, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const activityTypes = [
   "SYSTEM_ACTIVATION",
@@ -76,11 +77,10 @@ export default function ProductManagement() {
 
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
-      // Filter out PREMIUM_PAYMENT and CARD_BALANCE activities as they'll be managed in customer assignments
       const filteredActivities = data.activities.map(activity => ({
         ...activity,
-        pointsValue: activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE" 
-          ? 0 
+        pointsValue: activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE"
+          ? 0
           : activity.pointsValue
       }));
 
@@ -109,11 +109,10 @@ export default function ProductManagement() {
 
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: number } & ProductFormData) => {
-      // Filter out PREMIUM_PAYMENT and CARD_BALANCE activities as they'll be managed in customer assignments
       const filteredActivities = data.activities.map(activity => ({
         ...activity,
-        pointsValue: activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE" 
-          ? 0 
+        pointsValue: activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE"
+          ? 0
           : activity.pointsValue
       }));
 
@@ -155,6 +154,28 @@ export default function ProductManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({ title: "Success", description: "Product status updated successfully" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/products/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      toast({ title: "Success", description: "Product deleted successfully" });
     },
     onError: (error: Error) => {
       toast({
@@ -307,7 +328,7 @@ export default function ProductManagement() {
                             {activity.type.replace(/_/g, ' ')}
                           </Badge>
                           <span>
-                            {activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE" 
+                            {activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE"
                               ? "(Managed in customer assignments)"
                               : `${activity.pointsValue} points`
                             }
@@ -356,6 +377,31 @@ export default function ProductManagement() {
                         )}
                         {product.isEnabled ? 'Disable' : 'Enable'}
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the product
+                              and remove all associated data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteProductMutation.mutate(product.id)}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>
