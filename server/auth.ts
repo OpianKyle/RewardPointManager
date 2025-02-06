@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 const scryptAsync = promisify(scrypt);
+
 const crypto = {
   hash: async (password: string) => {
     const salt = randomBytes(16).toString("hex");
@@ -40,23 +41,21 @@ const crypto = {
 
 declare global {
   namespace Express {
-    interface User extends SelectUser { }
+    interface User extends SelectUser {}
   }
 }
 
-// Define registration schema
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
-});
-
-// Define login schema
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
 });
 
 export function setupAuth(app: Express) {
@@ -85,7 +84,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(
       {
-        usernameField: 'email',
+        usernameField: "email",
       },
       async (email, password, done) => {
         try {
@@ -108,9 +107,11 @@ export function setupAuth(app: Express) {
 
           const isMatch = await crypto.compare(password, user.password);
           console.log("Password match result:", isMatch);
+
           if (!isMatch) {
             return done(null, false, { message: "Incorrect password." });
           }
+
           return done(null, user);
         } catch (err) {
           console.error("Login error:", err);
@@ -186,12 +187,7 @@ export function setupAuth(app: Express) {
         }
         return res.json({
           message: "Registration successful",
-          user: { 
-            id: newUser.id, 
-            email: newUser.email,
-            firstName: newUser.firstName,
-            lastName: newUser.lastName 
-          },
+          user: newUser,
         });
       });
     } catch (error) {
@@ -229,8 +225,8 @@ export function setupAuth(app: Express) {
         console.log("Login successful:", user.email);
         return res.json({
           message: "Login successful",
-          user: { 
-            id: user.id, 
+          user: {
+            id: user.id,
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
