@@ -1,6 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 type Transaction = {
   id: number;
@@ -8,6 +12,7 @@ type Transaction = {
   points: number;
   description: string;
   createdAt: string;
+  status?: 'PENDING' | 'PROCESSED';
   user?: {
     firstName: string;
     lastName: string;
@@ -16,8 +21,35 @@ type Transaction = {
 };
 
 export default function CashRedemptions() {
+  const { toast } = useToast();
   const { data: transactions = [] } = useQuery<Transaction[]>({
     queryKey: ["/api/admin/cash-redemptions"],
+  });
+
+  const markProcessedMutation = useMutation({
+    mutationFn: async (transactionId: number) => {
+      const response = await fetch(`/api/admin/cash-redemptions/${transactionId}/process`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to mark redemption as processed');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cash-redemptions"] });
+      toast({
+        title: "Success",
+        description: "Cash redemption marked as processed",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
   });
 
   return (
@@ -47,13 +79,27 @@ export default function CashRedemptions() {
                       {new Date(transaction.createdAt).toLocaleString()}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right space-y-2">
                     <p className="font-semibold text-red-500">
                       {transaction.points.toLocaleString()} points
                     </p>
                     <p className="text-sm text-muted-foreground">
                       R{(Math.abs(transaction.points) * 0.015).toFixed(2)}
                     </p>
+                    {transaction.status === 'PROCESSED' ? (
+                      <div className="flex items-center gap-2 text-green-500">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="text-sm">Processed</span>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => markProcessedMutation.mutate(transaction.id)}
+                        disabled={markProcessedMutation.isPending}
+                      >
+                        Mark as Processed
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

@@ -61,6 +61,7 @@ export const rewards = pgTable("rewards", {
 });
 
 export const transactionTypes = pgEnum("transaction_type", ["EARNED", "REDEEMED", "ADMIN_ADJUSTMENT"]);
+export const transactionStatus = pgEnum("transaction_status", ["PENDING", "PROCESSED"]);
 
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
@@ -69,6 +70,9 @@ export const transactions = pgTable("transactions", {
   type: transactionTypes("type").notNull(),
   description: text("description").notNull(),
   rewardId: integer("reward_id").references(() => rewards.id),
+  status: transactionStatus("status").default("PENDING"),
+  processedAt: timestamp("processed_at"),
+  processedBy: integer("processed_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

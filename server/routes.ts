@@ -976,14 +976,14 @@ export function registerRoutes(app: Express): Server {
           userId: user.id,
           points: -points,
           type: "REDEEMED",
-          description: `Redeemed points for R${(points *0.015).toFixed(2)}`,
+          description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
           createdAt: new Date(),
         });
 
         // Update user points
         await tx
           .update(users)
-          .set({ 
+          .set({
             points: sql`${users.points} - ${points}`
           })
           .where(eq(users.id, user.id));
@@ -1190,6 +1190,41 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error fetching cash redemptions:', error);
       res.status(500).send('Failed to fetch cash redemptions');
+    }
+  });
+
+  // Add endpoint to mark cash redemption as processed
+  app.post("/api/admin/cash-redemptions/:id/process", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+
+    try {
+      const [transaction] = await db
+        .update(transactions)
+        .set({
+          status: 'PROCESSED',
+          processedAt: new Date(),
+          processedBy: req.user.id
+        })
+        .where(eq(transactions.id, parseInt(id)))
+        .returning();
+
+      if (!transaction) {
+        return res.status(404).send("Transaction not found");
+      }
+
+      // Log the cash redemption processing
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "POINT_ADJUSTMENT",
+        targetUserId: transaction.userId,
+        details: `Processed cash redemption of R${(Math.abs(transaction.points) * 0.015).toFixed(2)} (${Math.abs(transaction.points)} points)`,
+      });
+
+      res.json(transaction);
+    } catch (error) {
+      console.error('Error processing cash redemption:', error);
+      res.status(500).send('Failed to process cash redemption');
     }
   });
 
