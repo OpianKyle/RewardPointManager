@@ -17,6 +17,7 @@ import AdminLayout from "@/components/layout/admin-layout";
 import ManageUsers from "@/pages/admin/manage-users";
 import AdminLogs from "@/pages/admin/logs";
 import AdminProducts from "@/pages/admin/products";
+import CashRedemptions from "@/pages/admin/cash-redemptions";
 
 // Customer pages
 import CustomerDashboard from "@/pages/customer/dashboard";
@@ -95,6 +96,11 @@ function Router() {
         <Route path="/admin/rewards">
           <AdminLayout>
             <PrivateRoute component={AdminRewards} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/cash-redemptions">
+          <AdminLayout>
+            <PrivateRoute component={CashRedemptions} admin />
           </AdminLayout>
         </Route>
         <Route path="/admin/manage-users">

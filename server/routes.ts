@@ -976,7 +976,7 @@ export function registerRoutes(app: Express): Server {
           userId: user.id,
           points: -points,
           type: "REDEEMED",
-          description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
+          description: `Redeemed points for R${(points *0.015).toFixed(2)}`,
           createdAt: new Date(),
         });
 
@@ -1164,6 +1164,32 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error processing reward redemption:', error);
       res.status(500).send('Failed to process reward redemption');
+    }
+  });
+
+  // Add new endpoint for cash redemptions
+  app.get("/api/admin/cash-redemptions", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+
+    try {
+      const cashRedemptions = await db.query.transactions.findMany({
+        where: sql`${transactions.type} = 'REDEEMED' AND ${transactions.points} < 0`,
+        orderBy: desc(transactions.createdAt),
+        with: {
+          user: {
+            columns: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      res.json(cashRedemptions);
+    } catch (error) {
+      console.error('Error fetching cash redemptions:', error);
+      res.status(500).send('Failed to fetch cash redemptions');
     }
   });
 
