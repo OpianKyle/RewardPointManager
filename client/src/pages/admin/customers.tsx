@@ -27,7 +27,7 @@ const pointsSchema = z.object({
   points: z.number().min(1, "Points must be greater than 0"),
   description: z.string().min(1, "Description is required"),
   selectedActivities: z.array(z.number()).optional(),
-  posPoints: z.number().min(0).optional(), // Added posPoints field
+  posPoints: z.number().min(0).optional(),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -102,7 +102,7 @@ export default function AdminCustomers() {
       points: 0,
       description: "",
       selectedActivities: [],
-      posPoints: 0, // Added default value for posPoints
+      posPoints: 0,
     },
   });
 
@@ -425,6 +425,9 @@ export default function AdminCustomers() {
                                           <AccordionContent>
                                             <div className="space-y-2 pt-2">
                                               {assignment.product.activities?.map((activity: any) => {
+                                                const isSystemActivity = activity.type === "SYSTEM_ACTIVATION";
+                                                if (isSystemActivity) return null; // Skip system activation activities
+
                                                 const isPremiumOrCard = activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE";
                                                 return (
                                                   <div
