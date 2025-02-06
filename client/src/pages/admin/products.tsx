@@ -17,7 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const activityTypes = [
-  "SYSTEM_ACTIVATION",
   "PRODUCT_ACTIVATION",
   "PREMIUM_PAYMENT",
   "CARD_BALANCE",
