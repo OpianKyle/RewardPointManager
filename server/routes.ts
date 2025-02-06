@@ -948,5 +948,48 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.post("/api/rewards/redeem-cash", async (req, res) => {
+    if (!req.user) return res.status(401).send("Unauthorized");
+    const { points } = req.body;
+
+    if (!points || points <= 0) {
+      return res.status(400).send("Invalid points amount");
+    }
+
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, req.user.id),
+      });
+
+      if (!user || user.points < points) {
+        return res.status(400).send("Insufficient points");
+      }
+
+      await db.transaction(async (tx) => {
+        // Create the transaction record
+        await tx.insert(transactions).values({
+          userId: user.id,
+          points: -points,
+          type: "CASH_REDEMPTION",
+          description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
+        });
+
+        // Update user points
+        await tx
+          .update(users)
+          .set({ points: user.points - points })
+          .where(eq(users.id, user.id));
+      });
+
+      res.json({
+        success: true,
+        message: `Successfully redeemed R${(points * 0.015).toFixed(2)}`
+      });
+    } catch (error) {
+      console.error('Error processing cash redemption:', error);
+      res.status(500).send('Failed to process cash redemption');
+    }
+  });
+
   return httpServer;
 }

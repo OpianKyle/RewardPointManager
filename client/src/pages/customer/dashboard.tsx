@@ -1,8 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import PointsDisplay from "@/components/shared/points-display";
 import { Badge } from "@/components/ui/badge";
+import { queryClient } from "@/lib/queryClient";
+import { useState } from "react";
 
 const getTierInfo = (points: number): { name: string; color: string; nextTier?: { name: string; pointsNeeded: number } } => {
   if (points >= 150000) {
@@ -48,13 +53,46 @@ export default function CustomerDashboard() {
     queryKey: ["/api/customer/transactions"],
   });
 
+  const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
+  const { toast } = useToast();
+
+  const redeemCashMutation = useMutation({
+    mutationFn: async (points: number) => {
+      const res = await fetch("/api/rewards/redeem-cash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customer/points"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customer/transactions"] });
+      toast({ 
+        title: "Success", 
+        description: `Successfully redeemed R${(pointsToRedeem * 0.015).toFixed(2)}` 
+      });
+      setPointsToRedeem(0);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
   const tierInfo = getTierInfo(user?.points || 0);
+  const randValue = (pointsToRedeem * 0.015).toFixed(2);
+  const canRedeem = pointsToRedeem > 0 && pointsToRedeem <= (user?.points || 0);
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Your Dashboard</h1>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Current Points & Tier</CardTitle>
@@ -71,6 +109,40 @@ export default function CustomerDashboard() {
                 </p>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Cash Redemption</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Points to Redeem</label>
+              <Input
+                type="number"
+                min="0"
+                max={user?.points || 0}
+                value={pointsToRedeem}
+                onChange={(e) => setPointsToRedeem(Number(e.target.value))}
+                placeholder="Enter points amount"
+              />
+              <p className="text-sm text-muted-foreground">
+                Conversion rate: 1 point = R0.015
+              </p>
+              {pointsToRedeem > 0 && (
+                <p className="text-sm font-medium">
+                  You will receive: R{randValue}
+                </p>
+              )}
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => redeemCashMutation.mutate(pointsToRedeem)}
+              disabled={!canRedeem}
+            >
+              {canRedeem ? "Redeem for Cash" : "Insufficient Points"}
+            </Button>
           </CardContent>
         </Card>
 
