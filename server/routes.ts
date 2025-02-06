@@ -966,13 +966,16 @@ export function registerRoutes(app: Express): Server {
       }
 
       await db.transaction(async (tx) => {
-        // Create the transaction record
-        await tx.insert(transactions).values({
-          userId: user.id,
-          points: -points,
-          type: "CASH_REDEMPTION",
-          description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
-        });
+        // Create the transaction record with proper schema fields
+        await tx
+          .insert(transactions)
+          .values({
+            points: -points,
+            description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
+            type: "CASH_REDEMPTION",
+            userId: user.id,
+            createdAt: new Date(),
+          });
 
         // Update user points
         await tx
