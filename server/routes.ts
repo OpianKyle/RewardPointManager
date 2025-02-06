@@ -7,6 +7,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
+import { sendEmail, generatePointsUpdateEmail } from './email-service';
 
 // Global notifications queue with timestamp-based cleanup
 const notificationsQueue = new Map<number, Array<{
@@ -199,6 +200,24 @@ export function registerRoutes(app: Express): Server {
           title: "Points Allocated",
           tier: tierInfo.name,
           totalPoints: updatedUser.points
+        });
+
+        // Send email notification
+        const emailContent = generatePointsUpdateEmail({
+          customerName: `${updatedUser.firstName} ${updatedUser.lastName}`,
+          points,
+          newTotal: updatedUser.points,
+          tier: tierInfo.name,
+          description
+        });
+
+        await sendEmail({
+          to: { 
+            email: updatedUser.email,
+            name: `${updatedUser.firstName} ${updatedUser.lastName}`
+          },
+          subject: "Points Update Notification",
+          htmlContent: emailContent
         });
 
         return updatedUser;
@@ -756,7 +775,6 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send('Failed to remove product assignment');
     }
   });
-
 
   // Customer Routes
   app.get("/api/customer/points", async (req, res) => {
