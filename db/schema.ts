@@ -3,11 +3,12 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
 export const activityTypes = pgEnum("activity_type", [
-  "ACTIVATE",
-  "PAYMENT",
+  "SYSTEM_ACTIVATION",
+  "PRODUCT_ACTIVATION",
+  "PREMIUM_PAYMENT",
   "CARD_BALANCE",
-  "RENEWAL",
-  "UPGRADE"
+  "UPGRADE",
+  "RENEWAL"
 ]);
 
 export const products = pgTable("products", {

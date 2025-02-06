@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Plus, Pencil, Power, PowerOff } from "lucide-react";
@@ -15,7 +15,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const activityTypes = ["ACTIVATE", "PAYMENT", "CARD_BALANCE", "RENEWAL", "UPGRADE"] as const;
+const activityTypes = [
+  "SYSTEM_ACTIVATION",
+  "PRODUCT_ACTIVATION",
+  "PREMIUM_PAYMENT",
+  "CARD_BALANCE",
+  "UPGRADE",
+  "RENEWAL"
+] as const;
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -48,7 +55,10 @@ export default function ProductManagement() {
     defaultValues: {
       name: "",
       description: "",
-      activities: activityTypes.map(type => ({ type, pointsValue: 0 })),
+      activities: activityTypes.map(type => ({
+        type,
+        pointsValue: type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE" ? 0 : 0,
+      })),
     },
   });
 
@@ -57,16 +67,27 @@ export default function ProductManagement() {
     defaultValues: {
       name: "",
       description: "",
-      activities: activityTypes.map(type => ({ type, pointsValue: 0 })),
+      activities: activityTypes.map(type => ({
+        type,
+        pointsValue: type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE" ? 0 : 0,
+      })),
     },
   });
 
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
+      // Filter out PREMIUM_PAYMENT and CARD_BALANCE activities as they'll be managed in customer assignments
+      const filteredActivities = data.activities.map(activity => ({
+        ...activity,
+        pointsValue: activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE" 
+          ? 0 
+          : activity.pointsValue
+      }));
+
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, activities: filteredActivities }),
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -88,10 +109,18 @@ export default function ProductManagement() {
 
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: number } & ProductFormData) => {
+      // Filter out PREMIUM_PAYMENT and CARD_BALANCE activities as they'll be managed in customer assignments
+      const filteredActivities = data.activities.map(activity => ({
+        ...activity,
+        pointsValue: activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE" 
+          ? 0 
+          : activity.pointsValue
+      }));
+
       const res = await fetch(`/api/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, activities: filteredActivities }),
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -154,15 +183,26 @@ export default function ProductManagement() {
 
   const renderActivitiesForm = (formContext: any, isEdit: boolean = false) => (
     <div className="space-y-4">
-      {activityTypes.map((type, index) => (
-        <div key={type} className="grid grid-cols-2 gap-4 items-center">
-          <label className="font-medium">{type} Points:</label>
-          <Input
-            type="number"
-            {...formContext.register(`activities.${index}.pointsValue`, { valueAsNumber: true })}
-          />
-        </div>
-      ))}
+      {activityTypes.map((type, index) => {
+        const isPointsManaged = type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE";
+        return (
+          <div key={type} className="grid grid-cols-2 gap-4 items-center">
+            <label className="font-medium">{type.replace(/_/g, ' ')} Points:</label>
+            <div className="flex items-center space-x-2">
+              <Input
+                type="number"
+                disabled={isPointsManaged}
+                {...formContext.register(`activities.${index}.pointsValue`, { valueAsNumber: true })}
+              />
+              {isPointsManaged && (
+                <span className="text-sm text-muted-foreground">
+                  (Managed in customer assignments)
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -263,8 +303,15 @@ export default function ProductManagement() {
                     <ScrollArea className="h-20">
                       {product.activities?.map((activity: any) => (
                         <div key={activity.type} className="flex items-center space-x-2 mb-1">
-                          <Badge variant="outline">{activity.type}</Badge>
-                          <span>{activity.pointsValue} points</span>
+                          <Badge variant="outline">
+                            {activity.type.replace(/_/g, ' ')}
+                          </Badge>
+                          <span>
+                            {activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE" 
+                              ? "(Managed in customer assignments)"
+                              : `${activity.pointsValue} points`
+                            }
+                          </span>
                         </div>
                       ))}
                     </ScrollArea>
