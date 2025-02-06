@@ -60,7 +60,13 @@ export const rewards = pgTable("rewards", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const transactionTypes = pgEnum("transaction_type", ["EARNED", "REDEEMED", "ADMIN_ADJUSTMENT"]);
+export const transactionTypes = pgEnum("transaction_type", [
+  "EARNED", 
+  "REDEEMED", 
+  "ADMIN_ADJUSTMENT",
+  "CASH_REDEMPTION"
+]);
+
 export const transactionStatus = pgEnum("transaction_status", ["PENDING", "PROCESSED"]);
 
 export const transactions = pgTable("transactions", {
@@ -116,7 +122,6 @@ export const productActivityRelations = relations(product_activities, ({ one }) 
     references: [products.id],
   }),
 }));
-
 
 export const userRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
