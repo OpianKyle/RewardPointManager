@@ -53,6 +53,8 @@ function addNotification(notification: {
     timestamp: new Date().toISOString()
   };
 
+  console.log('Adding notification:', newNotification); // Debug log
+
   // Add to queue, maintain max size
   userNotifications.push(newNotification);
   if (userNotifications.length > POLLING_CONFIG.maxQueueSize) {
@@ -81,7 +83,10 @@ export function registerRoutes(app: Express): Server {
 
     const userNotifications = notificationsQueue.get(req.user.id) || [];
     // Clear notifications after sending
-    notificationsQueue.set(req.user.id, []);
+    if (userNotifications.length > 0) {
+      notificationsQueue.set(req.user.id, []);
+      console.log('Sending notifications:', userNotifications); // Debug log
+    }
 
     res.json(userNotifications);
   });
