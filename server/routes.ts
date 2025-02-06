@@ -15,6 +15,9 @@ const notificationsQueue = new Map<number, Array<{
   points: number;
   description: string;
   timestamp: string;
+  title?: string;
+  tier?: string;
+  totalPoints?: number;
 }>>(); 
 
 // Configuration for polling
@@ -45,20 +48,55 @@ function addNotification(notification: {
   userId: number;
   points: number;
   description: string;
+  title?: string;
+  tier?: string;
+  totalPoints?: number;
 }) {
   const userNotifications = notificationsQueue.get(notification.userId) || [];
   const newNotification = {
     ...notification,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    title: notification.title || 'Points Update',
   };
 
-  // Add to queue, maintain max size
   userNotifications.push(newNotification);
   if (userNotifications.length > POLLING_CONFIG.maxQueueSize) {
-    userNotifications.shift(); // Remove oldest
+    userNotifications.shift();
   }
 
   notificationsQueue.set(notification.userId, userNotifications);
+}
+
+// Helper function to get tier info
+function getTierInfo(points: number): { name: string; multiplier: { premium: number; card: number; pos: number; } } {
+  if (points >= 150000) { // Platinum
+    return {
+      name: 'Platinum',
+      multiplier: { premium: 2.5, card: 0.5, pos: 0.5 }
+    };
+  }
+  if (points >= 100000) { // Gold
+    return {
+      name: 'Gold',
+      multiplier: { premium: 2.0, card: 0.25, pos: 0.25 }
+    };
+  }
+  if (points >= 50000) { // Purple
+    return {
+      name: 'Purple',
+      multiplier: { premium: 1.5, card: 0.10, pos: 0.10 }
+    };
+  }
+  if (points >= 10000) { // Silver
+    return {
+      name: 'Silver',
+      multiplier: { premium: 1.0, card: 0.05, pos: 0.05 }
+    };
+  }
+  return {
+    name: 'Bronze',
+    multiplier: { premium: 0, card: 0, pos: 0 }
+  };
 }
 
 const scryptAsync = promisify(scrypt);
@@ -110,7 +148,6 @@ export function registerRoutes(app: Express): Server {
           }
         }
       });
-  
       res.json(logs);
     } catch (error) {
       console.error('Error fetching admin logs:', error);
@@ -124,7 +161,8 @@ export function registerRoutes(app: Express): Server {
     const { userId, points, description } = req.body;
 
     try {
-      await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
+        // Create the transaction record
         await tx.insert(transactions).values({
           userId,
           points,
@@ -132,6 +170,7 @@ export function registerRoutes(app: Express): Server {
           description,
         });
 
+        // Update user points and get updated user
         const [updatedUser] = await tx
           .update(users)
           .set({
@@ -140,6 +179,7 @@ export function registerRoutes(app: Express): Server {
           .where(eq(users.id, userId))
           .returning();
 
+        // Log admin action
         await logAdminAction({
           adminId: req.user!.id,
           actionType: "POINT_ADJUSTMENT",
@@ -147,18 +187,27 @@ export function registerRoutes(app: Express): Server {
           details: `Adjusted points by ${points}. Reason: ${description}`,
         });
 
-        // Add notification using new system
+        // Get tier info for the notification
+        const tierInfo = getTierInfo(updatedUser.points);
+
+        // Add notification with enhanced details
         addNotification({
           type: "POINTS_ALLOCATION",
           userId,
           points,
           description,
+          title: "Points Allocated",
+          tier: tierInfo.name,
+          totalPoints: updatedUser.points
         });
 
         return updatedUser;
       });
 
-      res.json({ message: "Points adjusted successfully" });
+      res.json({ 
+        message: "Points adjusted successfully",
+        user: result
+      });
     } catch (error) {
       console.error('Error adjusting points:', error);
       res.status(500).send('Failed to adjust points');
@@ -655,7 +704,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
-    
+
   app.get("/api/products/assignments/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized")
     const { id } = req.params;
@@ -707,7 +756,6 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send('Failed to remove product assignment');
     }
   });
-
 
 
   // Customer Routes
