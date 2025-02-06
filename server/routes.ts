@@ -15,7 +15,7 @@ const notificationsQueue = new Map<number, Array<{
   points: number;
   description: string;
   timestamp: string;
-}>>(); 
+}>>();
 
 // Configuration for polling
 const POLLING_CONFIG = {
@@ -110,7 +110,7 @@ export function registerRoutes(app: Express): Server {
           }
         }
       });
-  
+
       res.json(logs);
     } catch (error) {
       console.error('Error fetching admin logs:', error);
@@ -361,29 +361,34 @@ export function registerRoutes(app: Express): Server {
   // Add the customers endpoint right after the admin users endpoint
   app.get("/api/admin/customers", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const customers = await db.query.users.findMany({
-      where: eq(users.isAdmin, false),
-      orderBy: desc(users.createdAt),
-      with: {
-        transactions: true,
-        productAssignments: {
-          with: {
-            product: {
-              with: {
-                activities: {
-                  columns: {
-                    id: true,
-                    type: true,
-                    pointsValue: true
-                  }
+    try {
+      const customers = await db.query.users.findMany({
+        where: eq(users.isAdmin, false),
+        orderBy: desc(users.createdAt),
+        with: {
+          transactions: true,
+          productAssignments: {
+            with: {
+              product: {
+                columns: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  isEnabled: true
+                },
+                with: {
+                  activities: true
                 }
               }
-            },
-          },
-        },
-      },
-    });
-    res.json(customers);
+            }
+          }
+        }
+      });
+      res.json(customers);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      res.status(500).send('Failed to fetch customers');
+    }
   });
 
   // Product Management Routes
@@ -626,9 +631,9 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send('Failed to unassign product');
     }
   });
-  
-    
-    app.get("/api/products/assignments/:id", async (req, res) => {
+
+
+  app.get("/api/products/assignments/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized")
     const { id } = req.params;
 
