@@ -7,7 +7,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
-import { sendEmail, generatePointsUpdateEmail } from './email-service';
+import { sendEmail, sendSMS, generatePointsUpdateEmail, generatePointsUpdateSMS } from './notification-service';
 
 // Global notifications queue with timestamp-based cleanup
 const notificationsQueue = new Map<number, Array<{
@@ -202,7 +202,7 @@ export function registerRoutes(app: Express): Server {
           totalPoints: updatedUser.points
         });
 
-        console.log('Preparing to send email notification to:', updatedUser.email);
+        console.log('Preparing to send notifications to:', updatedUser.email, updatedUser.phoneNumber);
 
         // Generate and send email notification
         const emailContent = generatePointsUpdateEmail({
@@ -213,8 +213,7 @@ export function registerRoutes(app: Express): Server {
           description
         });
 
-        console.log('Email content generated, attempting to send...');
-
+        // Send email
         const emailResult = await sendEmail({
           to: { 
             email: updatedUser.email,
@@ -225,6 +224,22 @@ export function registerRoutes(app: Express): Server {
         });
 
         console.log('Email sending result:', emailResult ? 'Success' : 'Failed');
+
+        // Generate and send SMS if phone number is available
+        if (updatedUser.phoneNumber) {
+          const smsContent = generatePointsUpdateSMS({
+            points,
+            newTotal: updatedUser.points,
+            tier: tierInfo.name
+          });
+
+          const smsResult = await sendSMS({
+            phoneNumber: updatedUser.phoneNumber,
+            message: smsContent
+          });
+
+          console.log('SMS sending result:', smsResult ? 'Success' : 'Failed');
+        }
 
         return updatedUser;
       });
