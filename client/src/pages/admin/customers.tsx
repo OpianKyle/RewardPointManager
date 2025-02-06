@@ -159,23 +159,13 @@ export default function AdminCustomers() {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const result = await res.json();
-      return result;
+      return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
-      toast({
-        title: "Points Assigned Successfully",
-        description: `Updated customer's points. New total: ${data.user.points.toLocaleString()} points`,
-        variant: "default"
-      });
-      pointsForm.reset({
-        points: 0,
-        description: "",
-        selectedActivities: [],
-        posPoints: 0
-      });
+      toast({ title: "Success", description: "Points assigned successfully" });
+      pointsForm.reset();
     },
     onError: (error: Error) => {
       toast({
