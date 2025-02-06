@@ -27,6 +27,7 @@ const pointsSchema = z.object({
   points: z.number().min(1, "Points must be greater than 0"),
   description: z.string().min(1, "Description is required"),
   selectedActivities: z.array(z.number()).optional(),
+  posPoints: z.number().min(0).optional(), // Added posPoints field
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -101,6 +102,7 @@ export default function AdminCustomers() {
       points: 0,
       description: "",
       selectedActivities: [],
+      posPoints: 0, // Added default value for posPoints
     },
   });
 
@@ -374,9 +376,9 @@ export default function AdminCustomers() {
                           </DialogHeader>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Left Column - Product Activities */}
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                               <h3 className="text-lg font-semibold">Product Activities</h3>
-                              <ScrollArea className="h-[600px] pr-4">
+                              <ScrollArea className="h-[400px] pr-4">
                                 <div className="space-y-4">
                                   {customer.productAssignments?.map((assignment: any) => (
                                     <Accordion type="single" collapsible key={assignment.id}>
@@ -402,82 +404,148 @@ export default function AdminCustomers() {
                                         </AccordionTrigger>
                                         <AccordionContent>
                                           <div className="space-y-2 pt-2">
-                                            {assignment.product.activities?.map((activity: any) => (
-                                              <div
-                                                key={activity.id}
-                                                className="flex items-center justify-between p-2 pl-6 border rounded-lg"
-                                              >
-                                                <div className="flex items-center space-x-2">
-                                                  <input
-                                                    type="checkbox"
-                                                    id={`activity-${activity.id}`}
-                                                    className="w-4 h-4 rounded border-gray-300"
-                                                    checked={pointsForm.watch("selectedActivities")?.includes(activity.id)}
-                                                    onChange={(e) => {
-                                                      const currentSelected = pointsForm.getValues("selectedActivities") || [];
-                                                      const currentPoints = pointsForm.getValues("points") || 0;
+                                            {assignment.product.activities?.map((activity: any) => {
+                                              const isPremiumOrCard = activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE";
+                                              return (
+                                                <div
+                                                  key={activity.id}
+                                                  className="flex items-center justify-between p-2 pl-6 border rounded-lg"
+                                                >
+                                                  <div className="flex items-center space-x-2">
+                                                    <input
+                                                      type="checkbox"
+                                                      id={`activity-${activity.id}`}
+                                                      className="w-4 h-4 rounded border-gray-300"
+                                                      checked={pointsForm.watch("selectedActivities")?.includes(activity.id)}
+                                                      onChange={(e) => {
+                                                        const currentSelected = pointsForm.getValues("selectedActivities") || [];
+                                                        const currentPoints = pointsForm.getValues("points") || 0;
 
-                                                      if (e.target.checked) {
-                                                        pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
-                                                        pointsForm.setValue("points", currentPoints + activity.pointsValue);
-
-                                                        // Set a meaningful description based on the activity type
-                                                        const description = `Points for ${activity.type.toLowerCase().replace('_', ' ')} activity`;
-                                                        if (!pointsForm.getValues("description")) {
-                                                          pointsForm.setValue("description", description);
+                                                        if (e.target.checked) {
+                                                          pointsForm.setValue("selectedActivities", [...currentSelected, activity.id]);
+                                                          if (!isPremiumOrCard) {
+                                                            pointsForm.setValue("points", currentPoints + activity.pointsValue);
+                                                          }
+                                                          const description = `Points for ${activity.type.toLowerCase().replace('_', ' ')} activity`;
+                                                          if (!pointsForm.getValues("description")) {
+                                                            pointsForm.setValue("description", description);
+                                                          }
+                                                        } else {
+                                                          pointsForm.setValue(
+                                                            "selectedActivities",
+                                                            currentSelected.filter(id => id !== activity.id)
+                                                          );
+                                                          if (!isPremiumOrCard) {
+                                                            pointsForm.setValue("points", currentPoints - activity.pointsValue);
+                                                          }
                                                         }
-                                                      } else {
-                                                        pointsForm.setValue(
-                                                          "selectedActivities",
-                                                          currentSelected.filter(id => id !== activity.id)
-                                                        );
-                                                        pointsForm.setValue("points", currentPoints - activity.pointsValue);
-                                                      }
-                                                    }}
-                                                  />
-                                                  <label
-                                                    htmlFor={`activity-${activity.id}`}
-                                                    className="text-sm font-medium"
-                                                  >
-                                                    {activity.type.replace('_', ' ')}
-                                                  </label>
+                                                      }}
+                                                    />
+                                                    <label
+                                                      htmlFor={`activity-${activity.id}`}
+                                                      className="text-sm font-medium"
+                                                    >
+                                                      {activity.type.replace('_', ' ')}
+                                                    </label>
+                                                  </div>
+                                                  {isPremiumOrCard ? (
+                                                    <Input
+                                                      type="number"
+                                                      className="w-32"
+                                                      placeholder="Enter points"
+                                                      disabled={!pointsForm.watch("selectedActivities")?.includes(activity.id)}
+                                                      onChange={(e) => {
+                                                        const newValue = parseInt(e.target.value) || 0;
+                                                        const currentPoints = pointsForm.getValues("points") || 0;
+                                                        const oldValue = activity.currentValue || 0;
+                                                        pointsForm.setValue("points", currentPoints - oldValue + newValue);
+                                                        activity.currentValue = newValue;
+                                                      }}
+                                                    />
+                                                  ) : (
+                                                    <span className="text-sm font-semibold">
+                                                      {activity.pointsValue} points
+                                                    </span>
+                                                  )}
                                                 </div>
-                                                <span className="text-sm font-semibold">
-                                                  {activity.pointsValue} points
-                                                </span>
-                                              </div>
-                                            ))}
-                                            {(!assignment.product.activities || assignment.product.activities.length === 0) && (
-                                              <p className="text-sm text-muted-foreground pl-6">
-                                                No activities defined
-                                              </p>
-                                            )}
+                                              );
+                                            })}
                                           </div>
                                         </AccordionContent>
                                       </AccordionItem>
                                     </Accordion>
                                   ))}
-                                  {(!customer.productAssignments || customer.productAssignments.length === 0) && (
-                                    <p className="text-sm text-muted-foreground">No products assigned</p>
-                                  )}
                                 </div>
                               </ScrollArea>
+
+                              <div className="pt-4 border-t">
+                                <h3 className="text-lg font-semibold mb-4">POS Points Allocation</h3>
+                                <div className="space-y-4">
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium">POS Points</label>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      placeholder="Enter POS points"
+                                      onChange={(e) => {
+                                        const posPoints = parseInt(e.target.value) || 0;
+                                        const currentPoints = pointsForm.getValues("points") || 0;
+                                        const oldPosPoints = pointsForm.getValues("posPoints") || 0;
+                                        pointsForm.setValue("points", currentPoints - oldPosPoints + posPoints);
+                                        pointsForm.setValue("posPoints", posPoints);
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             </div>
 
-                            {/* Right Column - Points Summary and Custom Allocation */}
+                            {/* Right Column - Points Summary */}
                             <div className="space-y-6">
                               <div className="space-y-4">
-                                <div className="flex justify-between items-center p-4 bg-accent rounded-lg">
-                                  <span className="font-medium">Total Selected Points:</span>
-                                  <span className="text-2xl font-bold">
-                                    {pointsForm.watch("points")}
-                                  </span>
+                                <h3 className="text-lg font-semibold">Points Summary</h3>
+
+                                <div className="space-y-4 bg-accent/20 p-4 rounded-lg">
+                                  {customer.productAssignments?.map((assignment: any) => (
+                                    <div key={assignment.id}>
+                                      {assignment.product.activities
+                                        ?.filter((activity: any) => pointsForm.watch("selectedActivities")?.includes(activity.id))
+                                        .map((activity: any) => (
+                                          <div key={activity.id} className="flex justify-between items-center py-2">
+                                            <span className="text-sm">
+                                              {assignment.product.name} - {activity.type.replace('_', ' ')}
+                                            </span>
+                                            <span className="font-medium">
+                                              {activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE"
+                                                ? `${activity.currentValue || 0} points`
+                                                : `${activity.pointsValue} points`
+                                              }
+                                            </span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  ))}
+
+                                  {pointsForm.watch("posPoints") > 0 && (
+                                    <div className="flex justify-between items-center py-2 border-t">
+                                      <span className="text-sm">POS Points</span>
+                                      <span className="font-medium">{pointsForm.watch("posPoints")} points</span>
+                                    </div>
+                                  )}
+
+                                  <div className="flex justify-between items-center pt-4 border-t border-t-2">
+                                    <span className="font-semibold">Total Points</span>
+                                    <span className="text-2xl font-bold">
+                                      {pointsForm.watch("points")}
+                                    </span>
+                                  </div>
                                 </div>
+
                                 <div className="space-y-2">
                                   <label>Description <span className="text-red-500">*</span></label>
                                   <Input
                                     {...pointsForm.register("description")}
-                                    placeholder="Enter description for selected activities"
+                                    placeholder="Enter description for points allocation"
                                   />
                                   {pointsForm.formState.errors.description && (
                                     <p className="text-sm text-red-500">
@@ -485,6 +553,7 @@ export default function AdminCustomers() {
                                     </p>
                                   )}
                                 </div>
+
                                 <Button 
                                   type="submit" 
                                   className="w-full"
@@ -510,66 +579,8 @@ export default function AdminCustomers() {
                                     });
                                   }}
                                 >
-                                  Assign Selected Points
+                                  Assign {pointsForm.watch("points")} Points
                                 </Button>
-                              </div>
-
-                              <Separator />
-
-                              <div>
-                                <h3 className="text-lg font-semibold mb-4">Custom Points Allocation</h3>
-                                <div className="space-y-4">
-                                  <div className="space-y-2">
-                                    <label>Custom Points</label>
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      placeholder="Enter points amount"
-                                      onChange={(e) => {
-                                        const customPoints = parseInt(e.target.value) || 0;
-                                        pointsForm.setValue("points", customPoints);
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <label>Description <span className="text-red-500">*</span></label>
-                                    <Input 
-                                      placeholder="Enter reason for points allocation"
-                                      {...pointsForm.register("description")} 
-                                    />
-                                    {pointsForm.formState.errors.description && (
-                                      <p className="text-sm text-red-500">
-                                        {pointsForm.formState.errors.description.message}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <Button 
-                                    type="submit" 
-                                    className="w-full"
-                                    disabled={!pointsForm.watch("points") || !pointsForm.watch("description")}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      if (!pointsForm.getValues("description")) {
-                                        toast({
-                                          variant: "destructive",
-                                          title: "Error",
-                                          description: "Please provide a reason for the points adjustment"
-                                        });
-                                        return;
-                                      }
-                                      assignPointsMutation.mutate({ 
-                                        userId: customer.id, 
-                                        data: {
-                                          points: pointsForm.getValues("points"),
-                                          description: pointsForm.getValues("description"),
-                                          selectedActivities: []
-                                        }
-                                      });
-                                    }}
-                                  >
-                                    Assign Custom Points
-                                  </Button>
-                                </div>
                               </div>
                             </div>
                           </div>
