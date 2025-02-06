@@ -1,17 +1,15 @@
-import { TransactionalEmailsApi, SendSmtpEmail, Configuration } from '@getbrevo/brevo';
+import nodemailer from 'nodemailer';
 
-if (!process.env.BREVO_API_KEY) {
-  console.error('BREVO_API_KEY is not set in environment variables');
-  throw new Error('BREVO_API_KEY is required');
-}
-
-// Create configuration with API key
-const configuration = new Configuration({
-  apiKey: process.env.BREVO_API_KEY
+// Configure nodemailer transporter
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',  // You can change this to your preferred SMTP server
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  }
 });
-
-// Initialize API instance with configuration
-const apiInstance = new TransactionalEmailsApi(configuration);
 
 interface EmailParams {
   to: { email: string; name: string };
@@ -27,15 +25,15 @@ interface SMSParams {
 export async function sendEmail(params: EmailParams): Promise<boolean> {
   try {
     console.log('Attempting to send email to:', params.to.email);
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.subject = params.subject;
-    sendSmtpEmail.htmlContent = params.htmlContent;
-    sendSmtpEmail.sender = { name: "Points System", email: "points@yourdomain.com" };
-    sendSmtpEmail.to = [params.to];
 
-    console.log('Sending email with Brevo...');
-    const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log('Email sent successfully, response:', result);
+    const info = await transporter.sendMail({
+      from: '"Points System" <points@yourdomain.com>',
+      to: `${params.to.name} <${params.to.email}>`,
+      subject: params.subject,
+      html: params.htmlContent
+    });
+
+    console.log('Email sent successfully, messageId:', info.messageId);
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
