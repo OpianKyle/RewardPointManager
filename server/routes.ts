@@ -966,22 +966,30 @@ export function registerRoutes(app: Express): Server {
       }
 
       await db.transaction(async (tx) => {
-        // Create the transaction record with proper schema fields
-        await tx
-          .insert(transactions)
-          .values({
-            points: -points,
-            description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
-            type: "CASH_REDEMPTION",
-            userId: user.id,
-            createdAt: new Date(),
-          });
+        // Create the transaction record
+        await tx.insert(transactions).values({
+          userId: user.id,
+          points: -points,
+          type: "REDEEMED",
+          description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
+          createdAt: new Date(),
+        });
 
         // Update user points
         await tx
           .update(users)
-          .set({ points: user.points - points })
+          .set({ 
+            points: sql`${users.points} - ${points}`
+          })
           .where(eq(users.id, user.id));
+      });
+
+      // Add notification for admins
+      addNotification({
+        type: "CASH_REDEMPTION",
+        userId: req.user.id,
+        points: points,
+        description: `${user.firstName} ${user.lastName} redeemed ${points} points for R${(points * 0.015).toFixed(2)}`
       });
 
       res.json({
@@ -991,6 +999,166 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error processing cash redemption:', error);
       res.status(500).send('Failed to process cash redemption');
+    }
+  });
+
+  app.get("/api/rewards", async (req, res) => {
+    const allRewards = await db.query.rewards.findMany({
+      where: eq(rewards.available, true),
+    });
+    res.json(allRewards);
+  });
+
+  app.post("/api/rewards", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    try {
+      const [reward] = await db.insert(rewards).values({
+        ...req.body,
+        available: true,
+      }).returning();
+
+      // Log both the reward creation and the points cost setting
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "REWARD_CREATED",
+        details: `Created new ${req.body.type === 'CASH' ? 'cash redemption' : ''} reward: ${reward.name} (Cost: ${reward.pointsCost} points${req.body.type === 'CASH' ? `, R${(reward.pointsCost * 0.015).toFixed(2)}` : ''})`,
+      });
+
+      res.json(reward);
+    } catch (error) {
+      console.error('Error creating reward:', error);
+      res.status(500).send('Failed to create reward');
+    }
+  });
+
+  app.put("/api/rewards/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const { name, description, pointsCost, imageUrl, available } = req.body;
+
+    try {
+      const [reward] = await db
+        .update(rewards)
+        .set({
+          name,
+          description,
+          pointsCost,
+          imageUrl,
+          available,
+        })
+        .where(eq(rewards.id, parseInt(id)))
+        .returning();
+
+      if (!reward) {
+        return res.status(404).send("Reward not found");
+      }
+
+      // Log the reward update
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "REWARD_UPDATED",
+        details: `Updated reward: ${reward.name} (New Cost: ${reward.pointsCost} points)`,
+      });
+
+      res.json(reward);
+    } catch (error) {
+      console.error('Error updating reward:', error);
+      res.status(500).send('Failed to update reward');
+    }
+  });
+
+  app.delete("/api/rewards/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+
+    try {
+      const [reward] = await db
+        .select()
+        .from(rewards)
+        .where(eq(rewards.id, parseInt(id)))
+        .limit(1);
+
+      if (!reward) {
+        return res.status(404).send("Reward not found");
+      }
+
+      await db
+        .update(rewards)
+        .set({ available: false })
+        .where(eq(rewards.id, parseInt(id)));
+
+      // Log the reward deletion
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "REWARD_DELETED",
+        details: `Deleted reward: ${reward.name}`,
+      });
+
+      res.json({ message: "Reward deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting reward:', error);
+      res.status(500).send('Failed to delete reward');
+    }
+  });
+
+  app.post("/api/rewards/redeem", async (req, res) => {
+    if (!req.user) return res.status(401).send("Unauthorized");
+    const { rewardId } = req.body;
+
+    const reward = await db.query.rewards.findFirst({
+      where: eq(rewards.id, rewardId),
+    });
+
+    if (!reward) return res.status(404).send("Reward not found");
+
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, req.user.id),
+    });
+
+    if (!user || user.points < reward.pointsCost) {
+      return res.status(400).send("Insufficient points");
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        // Create the transaction record
+        await tx.insert(transactions).values({
+          userId: user.id,
+          points: -reward.pointsCost,
+          type: reward.type === "CASH" ? "CASH_REDEMPTION" : "REDEEMED",
+          description: reward.type === "CASH"
+            ? `Redeemed points for R${(reward.pointsCost * 0.015).toFixed(2)}`
+            : `Redeemed ${reward.name}`,
+          rewardId,
+        });
+
+        // Update user points
+        await tx
+          .update(users)
+          .set({ points: user.points - reward.pointsCost })
+          .where(eq(users.id, user.id));
+
+        // Log the point adjustment
+        await logAdminAction({
+          adminId: user.id,
+          actionType: "POINT_ADJUSTMENT",
+          targetUserId: user.id,
+          details: reward.type === "CASH"
+            ? `Points deducted (-${reward.pointsCost}) for cash redemption of R${(reward.pointsCost * 0.015).toFixed(2)}`
+            : `Points deducted (-${reward.pointsCost}) for redeeming reward: ${reward.name}`,
+        });
+      });
+
+      // Return success message
+      res.json({
+        success: true,
+        message: reward.type === "CASH"
+          ? `Successfully redeemed R${(reward.pointsCost * 0.015).toFixed(2)}`
+          : `Successfully redeemed ${reward.name}`
+      });
+    } catch (error) {
+      console.error('Error processing reward redemption:', error);
+      res.status(500).send('Failed to process reward redemption');
     }
   });
 
