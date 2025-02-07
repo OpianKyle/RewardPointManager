@@ -6,41 +6,42 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import PointsDisplay from "@/components/shared/points-display";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 
 const getTierInfo = (points: number): { name: string; color: string; nextTier?: { name: string; pointsNeeded: number } } => {
   if (points >= 150000) {
-    return { 
-      name: 'Platinum',
-      color: 'bg-gradient-to-r from-purple-400 to-gray-300 text-white'
+    return {
+      name: "Platinum",
+      color: "bg-gradient-to-r from-purple-400 to-gray-300 text-white",
     };
   }
   if (points >= 100000) {
-    return { 
-      name: 'Gold',
-      color: 'bg-yellow-500 text-white',
-      nextTier: { name: 'Platinum', pointsNeeded: 150000 - points }
+    return {
+      name: "Gold",
+      color: "bg-yellow-500 text-white",
+      nextTier: { name: "Platinum", pointsNeeded: 150000 - points },
     };
   }
   if (points >= 50000) {
-    return { 
-      name: 'Purple',
-      color: 'bg-purple-500 text-white',
-      nextTier: { name: 'Gold', pointsNeeded: 100000 - points }
+    return {
+      name: "Purple",
+      color: "bg-purple-500 text-white",
+      nextTier: { name: "Gold", pointsNeeded: 100000 - points },
     };
   }
   if (points >= 10000) {
-    return { 
-      name: 'Silver',
-      color: 'bg-gray-400 text-white',
-      nextTier: { name: 'Purple', pointsNeeded: 50000 - points }
+    return {
+      name: "Silver",
+      color: "bg-gray-400 text-white",
+      nextTier: { name: "Purple", pointsNeeded: 50000 - points },
     };
   }
-  return { 
-    name: 'Bronze',
-    color: 'bg-amber-600 text-white',
-    nextTier: { name: 'Silver', pointsNeeded: 10000 - points }
+  return {
+    name: "Bronze",
+    color: "bg-amber-600 text-white",
+    nextTier: { name: "Silver", pointsNeeded: 10000 - points },
   };
 };
 
@@ -69,9 +70,9 @@ export default function CustomerDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customer/points"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customer/transactions"] });
-      toast({ 
-        title: "Success", 
-        description: `Successfully redeemed R${(pointsToRedeem * 0.015).toFixed(2)}` 
+      toast({
+        title: "Success",
+        description: `Successfully redeemed R${(pointsToRedeem * 0.015).toFixed(2)}`,
       });
       setPointsToRedeem(0);
     },
@@ -99,14 +100,21 @@ export default function CustomerDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <PointsDisplay points={user?.points || 0} size="large" />
-            <div className="space-y-2">
+            <div className="space-y-4">
               <Badge className={`${tierInfo.color} text-lg px-4 py-2`}>
                 {tierInfo.name} Tier
               </Badge>
               {tierInfo.nextTier && (
-                <p className="text-sm text-muted-foreground">
-                  {tierInfo.nextTier.pointsNeeded.toLocaleString()} points needed to reach {tierInfo.nextTier.name}
-                </p>
+                <div className="space-y-2">
+                  <Progress
+                    value={((user?.points || 0) / tierInfo.nextTier.pointsNeeded) * 100}
+                    className="h-2"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {tierInfo.nextTier.pointsNeeded.toLocaleString()} points needed to reach{" "}
+                    {tierInfo.nextTier.name}
+                  </p>
+                </div>
               )}
             </div>
           </CardContent>
