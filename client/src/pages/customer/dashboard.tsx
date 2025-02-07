@@ -11,6 +11,21 @@ import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import ReferralSection from "@/components/shared/referral-section";
 
+interface User {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  points: number;
+}
+
+interface Transaction {
+  id: number;
+  points: number;
+  description: string;
+  createdAt: string;
+}
+
 const getTierInfo = (points: number): { name: string; color: string; nextTier?: { name: string; pointsNeeded: number } } => {
   if (points >= 150000) {
     return {
@@ -47,12 +62,30 @@ const getTierInfo = (points: number): { name: string; color: string; nextTier?: 
 };
 
 export default function CustomerDashboard() {
-  const { data: user } = useQuery({
+  const { data: user } = useQuery<User>({
     queryKey: ["/api/customer/points"],
+    queryFn: async () => {
+      const response = await fetch("/api/customer/points", {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch user points");
+      }
+      return response.json();
+    }
   });
 
-  const { data: transactions } = useQuery({
+  const { data: transactions } = useQuery<Transaction[]>({
     queryKey: ["/api/customer/transactions"],
+    queryFn: async () => {
+      const response = await fetch("/api/customer/transactions", {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
+      }
+      return response.json();
+    }
   });
 
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
@@ -64,6 +97,7 @@ export default function CustomerDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ points }),
+        credentials: 'include'
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -164,7 +198,7 @@ export default function CustomerDashboard() {
           <CardContent>
             <ScrollArea className="h-[300px]">
               <div className="space-y-4">
-                {transactions?.map((transaction: any) => (
+                {transactions?.map((transaction) => (
                   <div
                     key={transaction.id}
                     className="flex items-center justify-between p-4 border rounded-lg"
