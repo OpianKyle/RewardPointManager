@@ -7,6 +7,7 @@ import { Copy } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { AchievementBadges, referralBadges, type AchievementBadge } from "@/components/ui/badges";
 
 interface ReferralStats {
   level1Count: number;
@@ -64,9 +65,33 @@ export default function ReferralsPage() {
     }
   };
 
+  // Calculate badge progress based on referral count
+  const calculateBadgeProgress = (totalReferrals: number): AchievementBadge[] => {
+    return referralBadges.map(badge => ({
+      ...badge,
+      earned: totalReferrals >= badge.requirement,
+      progress: Math.min(totalReferrals, badge.requirement)
+    }));
+  };
+
+  const badges = calculateBadgeProgress(referralStats?.level1Count || 0);
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">My Referrals</h1>
+
+      {/* Achievement Badges Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Achievement Badges</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Earn badges by growing your referral network. Each badge represents a milestone in your journey!
+          </p>
+          <AchievementBadges badges={badges} />
+        </CardContent>
+      </Card>
 
       {/* Prominent Referral Link Card */}
       <Card className="bg-primary/5">
