@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
+import ReferralSection from "@/components/shared/referral-section";
 
 const getTierInfo = (points: number): { name: string; color: string; nextTier?: { name: string; pointsNeeded: number } } => {
   if (points >= 150000) {
@@ -154,7 +155,9 @@ export default function CustomerDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <ReferralSection />
+
+        <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
