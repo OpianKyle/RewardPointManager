@@ -14,7 +14,7 @@ export default function ReferralSection() {
     queryKey: ["/api/customer/referral"],
   });
 
-  const referralLink = `${window.location.origin}/register?ref=${referralInfo?.referralCode}`;
+  const referralLink = `${window.location.origin}/auth?ref=${referralInfo?.referralCode}`;
 
   const copyToClipboard = async () => {
     try {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
@@ -18,6 +18,16 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [, navigate] = useLocation();
 
+  // Get referral code from URL if present
+  const referralCode = new URLSearchParams(window.location.search).get('ref');
+
+  // Switch to register mode if referral code is present
+  useEffect(() => {
+    if (referralCode) {
+      setMode("register");
+    }
+  }, [referralCode]);
+
   const form = useForm({
     resolver: zodResolver(insertUserSchema),
     defaultValues: {
@@ -32,7 +42,12 @@ export default function AuthPage() {
   const onSubmit = async (data: any) => {
     try {
       setIsLoading(true);
-      const result = await (mode === "login" ? login(data) : registerUser(data));
+      // Include referral code in registration data if present
+      const submitData = mode === "register" && referralCode 
+        ? { ...data, referralCode } 
+        : data;
+
+      const result = await (mode === "login" ? login(data) : registerUser(submitData));
       if (!result.ok) {
         toast({
           variant: "destructive",
