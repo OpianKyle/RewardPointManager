@@ -159,6 +159,9 @@ export function setupAuth(app: Express) {
 
       // Start a transaction to handle both user creation and referral reward
       const newUser = await db.transaction(async (tx) => {
+        // Generate a new referral code for the user
+        const newReferralCode = randomBytes(8).toString("hex");
+
         // Create the new user
         const [user] = await tx
           .insert(users)
@@ -172,7 +175,8 @@ export function setupAuth(app: Express) {
             isSuperAdmin: false,
             isEnabled: true,
             points: 0,
-            referralCode: randomBytes(8).toString("hex"), // Generate a unique referral code
+            referral_code: newReferralCode,
+            referred_by: referralCode || null,
           })
           .returning();
 
@@ -181,7 +185,7 @@ export function setupAuth(app: Express) {
           const [referrer] = await tx
             .select()
             .from(users)
-            .where(eq(users.referralCode, referralCode))
+            .where(eq(users.referral_code, referralCode))
             .limit(1);
 
           if (referrer) {
@@ -192,14 +196,13 @@ export function setupAuth(app: Express) {
               .where(eq(users.id, referrer.id));
 
             // Add a transaction record for the referral bonus
-            await tx
-              .insert(transactions)
-              .values({
-                userId: referrer.id,
-                points: 2500,
-                description: `Referral bonus for ${email} joining`,
-                createdAt: new Date(),
-              });
+            await tx.insert(transactions).values({
+              userId: referrer.id,
+              points: 2500,
+              type: "EARNED",
+              description: `Referral bonus for ${email} joining`,
+              createdAt: new Date(),
+            });
           }
         }
 
