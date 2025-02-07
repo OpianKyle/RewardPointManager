@@ -54,7 +54,17 @@ export default function ProfilePage() {
       return res.json();
     },
     onSuccess: (data) => {
+      // Update the user data in the cache
       queryClient.setQueryData(["/api/user"], data);
+      // Force a refetch to ensure we have the latest data
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+
+      // Update form default values with new data
+      form.reset({
+        ...data,
+        password: "", // Reset password field
+      });
+
       toast({
         title: "Success",
         description: "Profile updated successfully",
