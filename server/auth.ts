@@ -9,6 +9,8 @@ import { users, type User as SelectUser } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import {transactions} from "@db/schema"; //Import transactions table
+
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -31,7 +33,7 @@ const crypto = {
 
 declare global {
   namespace Express {
-    interface User extends SelectUser { }
+    interface User extends SelectUser {}
   }
 }
 
@@ -42,6 +44,7 @@ const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
+  referralCode: z.string().optional(), // Add referralCode field to schema
 });
 
 // Define login schema
@@ -76,7 +79,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(
       {
-        usernameField: 'email',
+        usernameField: "email",
       },
       async (email, password, done) => {
         try {
@@ -136,10 +139,10 @@ export function setupAuth(app: Express) {
         console.log("Invalid registration input:", result.error);
         return res
           .status(400)
-          .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+          .send("Invalid input: " + result.error.issues.map((i) => i.message).join(", "));
       }
 
-      const { email, password, firstName, lastName, phoneNumber } = result.data;
+      const { email, password, firstName, lastName, phoneNumber, referralCode } = result.data;
 
       const [existingUser] = await db
         .select()
@@ -154,20 +157,54 @@ export function setupAuth(app: Express) {
 
       const hashedPassword = await crypto.hash(password);
 
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          email,
-          password: hashedPassword,
-          firstName,
-          lastName,
-          phoneNumber,
-          isAdmin: false,
-          isSuperAdmin: false,
-          isEnabled: true,
-          points: 0,
-        })
-        .returning();
+      // Start a transaction to handle both user creation and referral reward
+      const newUser = await db.transaction(async (tx) => {
+        // Create the new user
+        const [user] = await tx
+          .insert(users)
+          .values({
+            email,
+            password: hashedPassword,
+            firstName,
+            lastName,
+            phoneNumber,
+            isAdmin: false,
+            isSuperAdmin: false,
+            isEnabled: true,
+            points: 0,
+            referralCode: randomBytes(8).toString("hex"), // Generate a unique referral code
+          })
+          .returning();
+
+        // If there's a referral code, reward the referrer
+        if (referralCode) {
+          const [referrer] = await tx
+            .select()
+            .from(users)
+            .where(eq(users.referralCode, referralCode))
+            .limit(1);
+
+          if (referrer) {
+            // Update referrer's points
+            await tx
+              .update(users)
+              .set({ points: referrer.points + 2500 })
+              .where(eq(users.id, referrer.id));
+
+            // Add a transaction record for the referral bonus
+            await tx
+              .insert(transactions)
+              .values({
+                userId: referrer.id,
+                points: 2500,
+                description: `Referral bonus for ${email} joining`,
+                createdAt: new Date(),
+              });
+          }
+        }
+
+        return user;
+      });
 
       console.log("User registered successfully:", email);
 
@@ -177,11 +214,11 @@ export function setupAuth(app: Express) {
         }
         return res.json({
           message: "Registration successful",
-          user: { 
-            id: newUser.id, 
+          user: {
+            id: newUser.id,
             email: newUser.email,
             firstName: newUser.firstName,
-            lastName: newUser.lastName 
+            lastName: newUser.lastName,
           },
         });
       });
@@ -198,7 +235,7 @@ export function setupAuth(app: Express) {
       console.log("Invalid login input:", result.error);
       return res
         .status(400)
-        .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+        .send("Invalid input: " + result.error.issues.map((i) => i.message).join(", "));
     }
 
     const cb = (err: any, user: Express.User, info: IVerifyOptions) => {
@@ -220,11 +257,11 @@ export function setupAuth(app: Express) {
         console.log("Login successful:", user.email);
         return res.json({
           message: "Login successful",
-          user: { 
-            id: user.id, 
+          user: {
+            id: user.id,
             email: user.email,
             firstName: user.firstName,
-            lastName: user.lastName
+            lastName: user.lastName,
           },
         });
       });

@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge"; // Added import for Badge component
+
 
 export default function ReferralSection() {
   const [copied, setCopied] = useState(false);
@@ -61,6 +63,26 @@ export default function ReferralSection() {
         {referralInfo?.referralCount > 0 && (
           <div className="text-sm">
             <span className="font-medium">{referralInfo.referralCount}</span> successful referrals
+          </div>
+        )}
+        {referralInfo?.referrals?.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Recent Referrals</div>
+            <div className="space-y-2">
+              {referralInfo.referrals.map((referral: any) => (
+                <div
+                  key={referral.id}
+                  className="text-sm p-2 bg-muted rounded-lg flex justify-between items-center"
+                >
+                  <div>
+                    <span className="font-medium">{referral.firstName} {referral.lastName}</span>
+                    <span className="text-muted-foreground"> joined on </span>
+                    <span>{new Date(referral.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <Badge variant="outline">+2,500 points</Badge>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </CardContent>
