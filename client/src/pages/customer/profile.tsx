@@ -21,7 +21,7 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
-  const { user, refetch } = useUser();
+  const { user } = useUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -53,15 +53,15 @@ export default function ProfilePage() {
       }
       return res.json();
     },
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       // Immediately update the cache with the new user data
       queryClient.setQueryData(["/api/user"], (oldData: any) => ({
         ...oldData,
         ...data,
       }));
 
-      // Force a refetch to ensure we have the latest data
-      await refetch();
+      // Also invalidate the query to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
 
       // Update form default values with new data
       form.reset({
