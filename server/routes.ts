@@ -792,6 +792,46 @@ export function registerRoutes(app: Express): Server {
     res.json(userTransactions);
   });
 
+  // Add the new customer referral endpoint
+  app.get("/api/customer/referral", async (req, res) => {
+    if (!req.user) return res.status(401).send("Unauthorized");
+
+    try {
+      // Get the current user with their referral code
+      const [user] = await db
+        .select({
+          id: users.id,
+          referralCode: users.referralCode,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        })
+        .from(users)
+        .where(eq(users.id, req.user.id))
+        .limit(1);
+
+      // Get all users who used this user's referral code
+      const referrals = await db.query.users.findMany({
+        where: sql`${users.referredBy} = ${user.referralCode}`,
+        orderBy: desc(users.createdAt),
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          createdAt: true,
+        },
+      });
+
+      res.json({
+        referralCode: user.referralCode,
+        referralCount: referrals.length,
+        referrals,
+      });
+    } catch (error) {
+      console.error('Error fetching referral info:', error);
+      res.status(500).send('Failed to fetch referral information');
+    }
+  });
+
   // Shared Routes
   app.get("/api/rewards", async (req, res) => {
     const allRewards = await db.query.rewards.findMany({
