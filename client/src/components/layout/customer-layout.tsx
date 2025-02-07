@@ -15,6 +15,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     { label: "Dashboard", href: "/dashboard" },
     { label: "Rewards", href: "/rewards" },
     { label: "Referrals", href: "/referrals" },
+    { label: "Profile", href: "/profile" },
   ];
 
   return (
