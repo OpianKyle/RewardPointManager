@@ -21,7 +21,7 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
-  const { user } = useUser();
+  const { user, refetch } = useUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -53,11 +53,15 @@ export default function ProfilePage() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
-      // Update the user data in the cache
-      queryClient.setQueryData(["/api/user"], data);
+    onSuccess: async (data) => {
+      // Immediately update the cache with the new user data
+      queryClient.setQueryData(["/api/user"], (oldData: any) => ({
+        ...oldData,
+        ...data,
+      }));
+
       // Force a refetch to ensure we have the latest data
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      await refetch();
 
       // Update form default values with new data
       form.reset({
@@ -174,9 +178,13 @@ export default function ProfilePage() {
                 disabled={updateProfileMutation.isPending}
               >
                 {updateProfileMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                Save Changes
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </Button>
             </form>
           </Form>
