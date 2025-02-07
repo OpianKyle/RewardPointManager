@@ -5,12 +5,10 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, type User as SelectUser } from "@db/schema";
+import { users, transactions } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import {transactions} from "@db/schema"; //Import transactions table
-
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -44,7 +42,7 @@ const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
-  referralCode: z.string().optional(), // Add referralCode field to schema
+  referralCode: z.string().optional(),
 });
 
 // Define login schema
@@ -162,6 +160,20 @@ export function setupAuth(app: Express) {
         // Generate a new referral code for the user
         const newReferralCode = randomBytes(8).toString("hex");
 
+        // Check if the provided referral code exists
+        let referrer = null;
+        if (referralCode) {
+          [referrer] = await tx
+            .select()
+            .from(users)
+            .where(eq(users.referral_code, referralCode))
+            .limit(1);
+
+          if (!referrer) {
+            throw new Error("Invalid referral code");
+          }
+        }
+
         // Create the new user
         const [user] = await tx
           .insert(users)
@@ -180,30 +192,22 @@ export function setupAuth(app: Express) {
           })
           .returning();
 
-        // If there's a referral code, reward the referrer
-        if (referralCode) {
-          const [referrer] = await tx
-            .select()
-            .from(users)
-            .where(eq(users.referral_code, referralCode))
-            .limit(1);
+        // If there's a valid referrer, reward them
+        if (referrer) {
+          // Update referrer's points
+          await tx
+            .update(users)
+            .set({ points: referrer.points + 2500 })
+            .where(eq(users.id, referrer.id));
 
-          if (referrer) {
-            // Update referrer's points
-            await tx
-              .update(users)
-              .set({ points: referrer.points + 2500 })
-              .where(eq(users.id, referrer.id));
-
-            // Add a transaction record for the referral bonus
-            await tx.insert(transactions).values({
-              userId: referrer.id,
-              points: 2500,
-              type: "EARNED",
-              description: `Referral bonus for ${email} joining`,
-              createdAt: new Date(),
-            });
-          }
+          // Add a transaction record for the referral bonus
+          await tx.insert(transactions).values({
+            userId: referrer.id,
+            points: 2500,
+            type: "EARNED",
+            description: `Referral bonus for ${email} joining`,
+            createdAt: new Date(),
+          });
         }
 
         return user;
@@ -222,11 +226,15 @@ export function setupAuth(app: Express) {
             email: newUser.email,
             firstName: newUser.firstName,
             lastName: newUser.lastName,
+            referral_code: newUser.referral_code,
           },
         });
       });
     } catch (error) {
       console.error("Registration error:", error);
+      if (error.message === "Invalid referral code") {
+        return res.status(400).send("Invalid referral code");
+      }
       next(error);
     }
   });
@@ -265,6 +273,7 @@ export function setupAuth(app: Express) {
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
+            referral_code: user.referral_code,
           },
         });
       });

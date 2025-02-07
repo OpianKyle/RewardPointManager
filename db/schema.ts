@@ -40,6 +40,8 @@ export const users = pgTable("users", {
   isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
   isEnabled: boolean("is_enabled").default(true).notNull(),
   points: integer("points").default(0).notNull(),
+  referral_code: text("referral_code"),
+  referred_by: text("referred_by"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

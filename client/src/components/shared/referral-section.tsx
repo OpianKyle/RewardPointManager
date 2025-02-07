@@ -8,14 +8,29 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
+interface Referral {
+  id: number;
+  firstName: string;
+  lastName: string;
+  createdAt: string;
+}
+
+interface ReferralInfo {
+  referralCode: string;
+  referralCount: number;
+  referrals: Referral[];
+}
+
 export default function ReferralSection() {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  const { data: referralInfo, isLoading } = useQuery({
+  const { data: referralInfo, isLoading, error } = useQuery<ReferralInfo>({
     queryKey: ["/api/customer/referral"],
     queryFn: async () => {
-      const response = await fetch("/api/customer/referral");
+      const response = await fetch("/api/customer/referral", {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch referral data");
       }
@@ -58,6 +73,21 @@ export default function ReferralSection() {
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-10" />
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Refer & Earn Points</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-destructive">
+            Failed to load referral information. Please try again later.
+          </p>
         </CardContent>
       </Card>
     );
