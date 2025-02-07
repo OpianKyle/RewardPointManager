@@ -2,20 +2,31 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
-import { insertUserSchema } from "@db/schema";
+import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+
+const profileSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+  password: z.string().optional(),
+});
+
+type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
   const { user } = useUser();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const form = useForm({
-    resolver: zodResolver(insertUserSchema),
+  const form = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
     defaultValues: {
       email: user?.email || "",
       firstName: user?.firstName || "",
@@ -26,17 +37,24 @@ export default function ProfilePage() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: ProfileFormData) => {
       const res = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: 'include'
+        credentials: 'include',
+        body: JSON.stringify({
+          ...data,
+          password: data.password || undefined, // Only include password if it's not empty
+        }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error);
+      }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/user"], data);
       toast({
         title: "Success",
         description: "Profile updated successfully",
@@ -51,13 +69,8 @@ export default function ProfilePage() {
     },
   });
 
-  const onSubmit = async (data: any) => {
-    // Only include password in the update if it was changed
-    const updateData = {
-      ...data,
-      password: data.password || undefined,
-    };
-    await updateProfileMutation.mutateAsync(updateData);
+  const onSubmit = async (data: ProfileFormData) => {
+    await updateProfileMutation.mutateAsync(data);
   };
 
   return (
@@ -84,7 +97,7 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="firstName"

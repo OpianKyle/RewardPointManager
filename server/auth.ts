@@ -353,9 +353,9 @@ export function setupAuth(app: Express) {
         return res.status(404).send("User not found");
       }
 
-      // Update the session
+      // Update the session with the new user data
       const { password, ...userData } = updatedUser;
-      req.user = userData;
+      req.user = { ...req.user, ...userData };
 
       return res.json(userData);
     } catch (error: any) {
