@@ -45,6 +45,15 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const referralStats = pgTable("referral_stats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  level1Count: integer("level1_count").default(0).notNull(),
+  level2Count: integer("level2_count").default(0).notNull(),
+  level3Count: integer("level3_count").default(0).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const productAssignments = pgTable("product_assignments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
@@ -63,8 +72,8 @@ export const rewards = pgTable("rewards", {
 });
 
 export const transactionTypes = pgEnum("transaction_type", [
-  "EARNED", 
-  "REDEEMED", 
+  "EARNED",
+  "REDEEMED",
   "ADMIN_ADJUSTMENT",
   "CASH_REDEMPTION"
 ]);
@@ -114,8 +123,8 @@ export const adminLogs = pgTable("admin_logs", {
 });
 
 export const productRelations = relations(products, ({ many }) => ({
-    activities: many(product_activities),
-    assignments: many(productAssignments),
+  activities: many(product_activities),
+  assignments: many(productAssignments),
 }));
 
 export const productActivityRelations = relations(product_activities, ({ one }) => ({
@@ -125,22 +134,36 @@ export const productActivityRelations = relations(product_activities, ({ one }) 
   }),
 }));
 
-export const userRelations = relations(users, ({ many }) => ({
+export const userRelations = relations(users, ({ many, one }) => ({
   transactions: many(transactions),
   adminLogsCreated: many(adminLogs, { relationName: "adminLogsCreated" }),
   adminLogsTarget: many(adminLogs, { relationName: "adminLogsTarget" }),
   productAssignments: many(productAssignments),
+  referralStats: one(referralStats, {
+    fields: [users.id],
+    references: [referralStats.userId],
+  }),
+  referredUsers: many(users, {
+    relationName: "referralRelation",
+    fields: [users.referral_code],
+    references: [users.referred_by],
+  }),
+  referrer: one(users, {
+    relationName: "referralRelation",
+    fields: [users.referred_by],
+    references: [users.referral_code],
+  }),
 }));
 
 export const productAssignmentRelations = relations(productAssignments, ({ one }) => ({
-    user: one(users, {
-        fields: [productAssignments.userId],
-        references: [users.id],
-    }),
-    product: one(products, {
-        fields: [productAssignments.productId],
-        references: [products.id],
-    }),
+  user: one(users, {
+    fields: [productAssignments.userId],
+    references: [users.id],
+  }),
+  product: one(products, {
+    fields: [productAssignments.productId],
+    references: [products.id],
+  }),
 }));
 
 export const transactionRelations = relations(transactions, ({ one }) => ({
@@ -155,17 +178,24 @@ export const transactionRelations = relations(transactions, ({ one }) => ({
 }));
 
 export const adminLogRelations = relations(adminLogs, ({ one }) => ({
-    admin: one(users, {
-      fields: [adminLogs.adminId],
-      references: [users.id],
-      relationName: "adminLogsCreated"
-    }),
-    targetUser: one(users, {
-      fields: [adminLogs.targetUserId],
-      references: [users.id],
-      relationName: "adminLogsTarget"
-    }),
-  }));
+  admin: one(users, {
+    fields: [adminLogs.adminId],
+    references: [users.id],
+    relationName: "adminLogsCreated"
+  }),
+  targetUser: one(users, {
+    fields: [adminLogs.targetUserId],
+    references: [users.id],
+    relationName: "adminLogsTarget"
+  }),
+}));
+
+export const referralStatsRelations = relations(referralStats, ({ one }) => ({
+  user: one(users, {
+    fields: [referralStats.userId],
+    references: [users.id],
+  }),
+}));
 
 export const insertProductSchema = createInsertSchema(products);
 export const selectProductSchema = createSelectSchema(products);
@@ -181,6 +211,8 @@ export const insertAdminLogSchema = createInsertSchema(adminLogs);
 export const selectAdminLogSchema = createSelectSchema(adminLogs);
 export const insertProductAssignmentSchema = createInsertSchema(productAssignments);
 export const selectProductAssignmentSchema = createSelectSchema(productAssignments);
+export const insertReferralStatsSchema = createInsertSchema(referralStats);
+export const selectReferralStatsSchema = createSelectSchema(referralStats);
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
@@ -196,3 +228,5 @@ export type AdminLog = typeof adminLogs.$inferSelect;
 export type InsertAdminLog = typeof adminLogs.$inferInsert;
 export type ProductAssignment = typeof productAssignments.$inferSelect;
 export type InsertProductAssignment = typeof productAssignments.$inferInsert;
+export type ReferralStats = typeof referralStats.$inferSelect;
+export type InsertReferralStats = typeof referralStats.$inferInsert;

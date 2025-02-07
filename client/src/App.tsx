@@ -23,6 +23,7 @@ import CashRedemptions from "@/pages/admin/cash-redemptions";
 import CustomerDashboard from "@/pages/customer/dashboard";
 import CustomerRewards from "@/pages/customer/rewards";
 import CustomerLayout from "@/components/layout/customer-layout";
+import ReferralsPage from "@/pages/customer/referrals";
 
 function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
   const { user, isLoading } = useUser();
@@ -123,6 +124,11 @@ function Router() {
         <Route path="/rewards">
           <CustomerLayout>
             <PrivateRoute component={CustomerRewards} />
+          </CustomerLayout>
+        </Route>
+        <Route path="/referrals">
+          <CustomerLayout>
+            <PrivateRoute component={ReferralsPage} />
           </CustomerLayout>
         </Route>
 
