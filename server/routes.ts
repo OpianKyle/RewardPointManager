@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { rewards, transactions, users, products, productAssignments, product_activities, adminLogs, referralStats } from "@db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, inArray } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
@@ -841,41 +841,26 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // New endpoint for detailed referral information
+  // Update the query in the /api/customer/referrals endpoint
   app.get("/api/customer/referrals", async (req, res) => {
     if (!req.user) return res.status(401).send("Unauthorized");
 
     try {
-      // Get the current user's referral code and stats
-      const [user] = await db
+      console.log("Fetching referral stats for user:", req.user.id);
+
+      // Get the user's referral code and direct referrals
+      const [currentUser] = await db
         .select()
         .from(users)
         .where(eq(users.id, req.user.id))
         .limit(1);
 
-      if (!user) {
+      if (!currentUser) {
         return res.status(404).send("User not found");
       }
 
-      // If user doesn't have a referral code, generate one
-      let currentReferralCode = user.referral_code;
-      if (!currentReferralCode) {
-        currentReferralCode = randomBytes(8).toString("hex");
-        await db
-          .update(users)
-          .set({ referral_code: currentReferralCode })
-          .where(eq(users.id, req.user.id));
-      }
-
-      // Get referral stats
-      const [stats] = await db
-        .select()
-        .from(referralStats)
-        .where(eq(referralStats.userId, req.user.id))
-        .limit(1);
-
-      // Get direct referrals with their referral counts
-      const directReferrals = await db
+      // Get level 1 referrals (direct referrals)
+      const level1Referrals = await db
         .select({
           id: users.id,
           firstName: users.firstName,
@@ -885,11 +870,43 @@ export function registerRoutes(app: Express): Server {
           referral_code: users.referral_code
         })
         .from(users)
-        .where(eq(users.referred_by, currentReferralCode));
+        .where(eq(users.referred_by, currentUser.referral_code));
 
-      // Get referral counts for each direct referral
+      // Get level 2 referrals count
+      const level2Count = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(
+          inArray(
+            users.referred_by,
+            level1Referrals.map(r => r.referral_code)
+          )
+        );
+
+      // Get level 3 referrals count
+      const level2Referrals = await db
+        .select({ referral_code: users.referral_code })
+        .from(users)
+        .where(
+          inArray(
+            users.referred_by,
+            level1Referrals.map(r => r.referral_code)
+          )
+        );
+
+      const level3Count = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(
+          inArray(
+            users.referred_by,
+            level2Referrals.map(r => r.referral_code)
+          )
+        );
+
+      // Get referral counts for each level 1 referral
       const referralsWithCounts = await Promise.all(
-        directReferrals.map(async (referral) => {
+        level1Referrals.map(async (referral) => {
           const referralCount = await db
             .select({ count: sql<number>`count(*)` })
             .from(users)
@@ -897,60 +914,28 @@ export function registerRoutes(app: Express): Server {
 
           return {
             ...referral,
-            referralCount: referralCount[0]?.count || 0,
+            referralCount: Number(referralCount[0]?.count || 0),
           };
         })
       );
 
-      // Calculate multilevel referral counts if stats don't exist
-      if (!stats) {
-        const level1Count = directReferrals.length;
+      console.log("Sending referral stats:", {
+        referralCode: currentUser.referral_code,
+        level1Count: level1Referrals.length,
+        level2Count: Number(level2Count[0]?.count || 0),
+        level3Count: Number(level3Count[0]?.count || 0),
+      });
 
-        // Get level 2 referrals (referrals of referrals)
-        const level2Count = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(users)
-          .where(sql`${users.referred_by} IN (
-            SELECT referral_code FROM users WHERE referred_by = ${currentReferralCode}
-          )`);
-
-        // Get level 3 referrals
-        const level3Count = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(users)
-          .where(sql`${users.referred_by} IN (
-            SELECT referral_code FROM users WHERE referred_by IN (
-              SELECT referral_code FROM users WHERE referred_by = ${currentReferralCode}
-            )
-          )`);
-
-        // Create or update referral stats
-        await db.insert(referralStats).values({
-          userId: req.user.id,
-          level1Count,
-          level2Count: level2Count[0]?.count || 0,
-          level3Count: level3Count[0]?.count || 0,
-        });
-
-        res.json({
-          referralCode: currentReferralCode,
-          level1Count,
-          level2Count: level2Count[0]?.count || 0,
-          level3Count: level3Count[0]?.count || 0,
-          referrals: referralsWithCounts,
-        });
-      } else {
-        res.json({
-          referralCode: currentReferralCode,
-          level1Count: stats.level1Count,
-          level2Count: stats.level2Count,
-          level3Count: stats.level3Count,
-          referrals: referralsWithCounts,
-        });
-      }
+      res.json({
+        referralCode: currentUser.referral_code,
+        level1Count: level1Referrals.length,
+        level2Count: Number(level2Count[0]?.count || 0),
+        level3Count: Number(level3Count[0]?.count || 0),
+        referrals: referralsWithCounts,
+      });
     } catch (error) {
-      console.error('Error fetching referral info:', error);
-      res.status(500).send('Failed to fetch referral information');
+      console.error("Error fetching referral stats:", error);
+      res.status(500).send("Failed to fetch referral stats");
     }
   });
 
@@ -985,7 +970,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   app.put("/api/rewards/:id", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    if (!req.user?.isAdmin)return res.status(403).send("Unauthorized");
     const { id } = req.params;
     const { name, description, pointsCost, imageUrl, available } = req.body;
 
@@ -1006,284 +991,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Reward not found");
       }
 
-      // Log the reward update
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "REWARD_UPDATED",
-        details: `Updated reward: ${reward.name} (New Cost: ${reward.pointsCost} points)`,
-      });
-
-      res.json(reward);
-    } catch (error) {
-      console.error('Error updating reward:', error);
-      res.status(500).send('Failed to update reward');
-    }
-  });
-
-  app.delete("/api/rewards/:id", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { id } = req.params;
-
-    try {
-      const [reward] = await db
-        .select()
-        .from(rewards)
-        .where(eq(rewards.id, parseInt(id)))
-        .limit(1);
-
-      if (!reward) {
-        return res.status(404).send("Reward not found");
-      }
-
-      await db
-        .update(rewards)
-        .set({ available: false })
-        .where(eq(rewards.id, parseInt(id)));
-
-      // Log the reward deletion
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "REWARD_DELETED",
-        details: `Deleted reward: ${reward.name}`,
-      });
-
-      res.json({ message: "Reward deleted successfully" });
-    } catch (error) {
-      console.error('Error deleting reward:', error);
-      res.status(500).send('Failed to delete reward');
-    }
-  });
-
-  app.post("/api/rewards/redeem", async (req, res) => {
-    if (!req.user) return res.status(401).send("Unauthorized");
-    const { rewardId } = req.body;
-
-    const reward = await db.query.rewards.findFirst({
-      where: eq(rewards.id, rewardId),
-    });
-
-    if (!reward) return res.status(404).send("Reward not found");
-
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, req.user.id),
-    });
-
-    if (!user || user.points < reward.pointsCost) {
-      return res.status(400).send("Insufficient points");
-    }
-
-    try {
-      await db.transaction(async (tx) => {
-        // Create the transaction record
-        await tx.insert(transactions).values({
-          userId: user.id,
-          points: -reward.pointsCost,
-          type: reward.type === "CASH" ? "CASH_REDEMPTION" : "REDEEMED",
-          description: reward.type === "CASH"
-            ? `Redeemed points for R${(reward.pointsCost * 0.015).toFixed(2)}`
-            : `Redeemed ${reward.name}`,
-          rewardId,
-        });
-
-        // Update user points
-        await tx
-          .update(users)
-          .set({ points: user.points - reward.pointsCost })
-          .where(eq(users.id, user.id));
-
-        // Log the point adjustment
-        await logAdminAction({
-          adminId: user.id,
-          actionType: "POINT_ADJUSTMENT",
-          targetUserId: user.id,
-          details: reward.type === "CASH"
-            ? `Points deducted (-${reward.pointsCost}) for cash redemption of R${(reward.pointsCost * 0.015).toFixed(2)}`
-            : `Points deducted (-${reward.pointsCost}) for redeeming reward: ${reward.name}`,
-        });
-      });
-
-      // Return success message
-      res.json({
-        success: true,
-        message: reward.type === "CASH"
-          ? `Successfully redeemed R${(reward.pointsCost * 0.015).toFixed(2)}`
-          : `Successfully redeemed ${reward.name}`
-      });
-    } catch (error) {
-      console.error('Error processing reward redemption:', error);
-      res.status(500).send('Failed to process reward redemption');
-    }
-  });
-
-  // Update the cash redemption route
-  app.post("/api/rewards/redeem-cash", async (req, res) => {
-    if (!req.user) return res.status(401).send("Unauthorized");
-    const { points } = req.body;
-
-    if (!points || points <= 0) {
-      return res.status(400).send("Invalid points amount");
-    }
-
-    try {
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, req.user.id),
-      });
-
-      if (!user || user.points < points) {
-        return res.status(400).send("Insufficient points");
-      }
-
-      await db.transaction(async (tx) => {
-        // Create the transaction record
-        const [transaction] = await tx.insert(transactions).values({
-          userId: user.id,
-          points: -points,
-          type: "CASH_REDEMPTION",
-          description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
-          status: "PENDING",
-          createdAt: new Date(),
-        }).returning();
-
-        // Update user points
-        await tx
-          .update(users)
-          .set({
-            points: sql`${users.points} - ${points}`
-          })
-          .where(eq(users.id, user.id));
-
-        // Add notification for admins
-        addNotification({
-          type: "CASH_REDEMPTION",
-          userId: req.user.id,
-          points: points,
-          description: `${user.firstName} ${user.lastName} redeemed ${points} points for R${(points * 0.015).toFixed(2)}`
-        });
-      });
-
-      res.json({
-        success: true,
-        message: `Successfully redeemed R${(points * 0.015).toFixed(2)}`
-      });
-    } catch (error) {
-      console.error('Error processing cash redemption:', error);
-      res.status(500).send('Failed to process cash redemption');
-    }
-  });
-
-  // Update the cash redemptions endpoint to properly filter and include user details
-  app.get("/api/admin/cash-redemptions", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-
-    try {
-      const cashRedemptions = await db.query.transactions.findMany({
-        where: eq(transactions.type, "CASH_REDEMPTION"),
-        orderBy: [desc(transactions.createdAt)],
-        with: {
-          user: {
-            columns: {
-              firstName: true,
-              lastName: true,
-              email: true
-            }
-          }
-        }
-      });
-
-      res.json(cashRedemptions);
-    } catch (error) {
-      console.error('Error fetching cash redemptions:', error);
-      res.status(500).send('Failed to fetch cash redemptions');
-    }
-  });
-
-  // Add endpoint to mark cash redemption as processed
-  app.post("/api/admin/cash-redemptions/:id/process", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { id } = req.params;
-
-    try {
-      const [transaction] = await db
-        .update(transactions)
-        .set({
-          status: 'PROCESSED',
-          processedAt: new Date(),
-          processedBy: req.user.id
-        })
-        .where(eq(transactions.id, parseInt(id)))
-        .returning();
-
-      if (!transaction) {
-        return res.status(404).send("Transaction not found");
-      }
-
-      // Log the cash redemption processing
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "POINT_ADJUSTMENT",
-        targetUserId: transaction.userId,
-        details: `Processed cash redemption of R${(Math.abs(transaction.points) * 0.015).toFixed(2)} (${Math.abs(transaction.points)} points)`,
-      });
-
-      res.json(transaction);
-    } catch (error) {
-      console.error('Error processing cash redemption:', error);
-      res.status(500).send('Failed to process cash redemption');
-    }
-  });
-
-  app.get("/api/rewards", async (req, res) => {
-    const allRewards = await db.query.rewards.findMany({
-      where: eq(rewards.available, true),
-    });
-    res.json(allRewards);
-  });
-
-  app.post("/api/rewards", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    try {
-      const [reward] = await db.insert(rewards).values({
-        ...req.body,
-        available: true,
-      }).returning();
-
-      // Log both the reward creation and the points cost setting
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "REWARD_CREATED",
-        details: `Created new ${req.body.type === 'CASH' ? 'cash redemption' : ''} reward: ${reward.name} (Cost: ${reward.pointsCost} points${req.body.type === 'CASH' ? `, R${(reward.pointsCost * 0.015).toFixed(2)}` : ''})`,
-      });
-
-      res.json(reward);
-    } catch (error) {
-      console.error('Error creating reward:', error);
-      res.status(500).send('Failed to create reward');
-    }
-  });
-
-  app.put("/api/rewards/:id", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { id } = req.params;
-    const { name, description, pointsCost, imageUrl, available } = req.body;
-
-    try {
-      const [reward] = await db
-        .update(rewards)
-        .set({
-          name,
-          description,
-          pointsCost,
-          imageUrl,
-          available,
-        })
-        .where(eq(rewards.id, parseInt(id)))
-        .returning();
-
-      if (!reward) {
-        return res.status(404).send("Reward not found");
-      }
-
-      // Log the reward update
+      // Log// Log the reward update
       await logAdminAction({
         adminId: req.user.id,
         actionType: "REWARD_UPDATED",
