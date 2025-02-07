@@ -24,6 +24,7 @@ import CustomerDashboard from "@/pages/customer/dashboard";
 import CustomerRewards from "@/pages/customer/rewards";
 import CustomerLayout from "@/components/layout/customer-layout";
 import ReferralsPage from "@/pages/customer/referrals";
+import ProfilePage from "@/pages/customer/profile";
 
 function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
   const { user, isLoading } = useUser();
@@ -131,6 +132,11 @@ function Router() {
             <PrivateRoute component={ReferralsPage} />
           </CustomerLayout>
         </Route>
+        <Route path="/profile">
+          <CustomerLayout>
+            <PrivateRoute component={ProfilePage} />
+          </CustomerLayout>
+        </Route>
 
         {/* Redirect root to appropriate dashboard */}
         <Route path="/">
@@ -151,13 +157,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          duration: 5000,
-          className: "rounded-lg shadow-lg",
-        }}
-      />
+      <Toaster />
     </QueryClientProvider>
   );
 }

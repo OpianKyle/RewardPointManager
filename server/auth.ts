@@ -70,10 +70,11 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: app.get("env") === "production",
+      secure: false, // Set to false to work in development
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: "lax"
+      sameSite: "lax",
+      path: "/"
     },
     store: new MemoryStore({
       checkPeriod: 86400000,
@@ -82,6 +83,7 @@ export function setupAuth(app: Express) {
 
   if (app.get("env") === "production") {
     app.set("trust proxy", 1);
+    sessionSettings.cookie!.secure = true;
   }
 
   app.use(session(sessionSettings));
@@ -89,8 +91,13 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || "*");
     res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
     next();
   });
 
@@ -321,5 +328,39 @@ export function setupAuth(app: Express) {
     }
 
     res.status(401).send("Not logged in");
+  });
+
+  app.put("/api/user/profile", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not logged in");
+    }
+
+    try {
+      const updateData = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        phoneNumber: req.body.phoneNumber,
+        ...(req.body.password ? { password: await crypto.hash(req.body.password) } : {})
+      };
+
+      const [updatedUser] = await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, req.user.id))
+        .returning();
+
+      if (!updatedUser) {
+        return res.status(404).send("User not found");
+      }
+
+      // Update the session
+      const { password, ...userData } = updatedUser;
+      req.user = userData;
+
+      return res.json(userData);
+    } catch (error: any) {
+      console.error("Profile update error:", error);
+      return res.status(500).send(error.message);
+    }
   });
 }
