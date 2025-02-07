@@ -14,6 +14,13 @@ export default function ReferralSection() {
 
   const { data: referralInfo, isLoading } = useQuery({
     queryKey: ["/api/customer/referral"],
+    queryFn: async () => {
+      const response = await fetch("/api/customer/referral");
+      if (!response.ok) {
+        throw new Error("Failed to fetch referral data");
+      }
+      return response.json();
+    },
   });
 
   const referralLink = referralInfo?.referralCode 
@@ -91,7 +98,7 @@ export default function ReferralSection() {
           <div className="space-y-2">
             <div className="text-sm font-medium">Recent Referrals</div>
             <div className="space-y-2">
-              {referralInfo.referrals.map((referral: any) => (
+              {referralInfo.referrals.map((referral) => (
                 <div
                   key={referral.id}
                   className="text-sm p-2 bg-muted rounded-lg flex justify-between items-center"

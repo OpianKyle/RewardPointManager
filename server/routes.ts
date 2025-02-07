@@ -799,12 +799,7 @@ export function registerRoutes(app: Express): Server {
     try {
       // Get the current user with their referral code
       const [user] = await db
-        .select({
-          id: users.id,
-          referralCode: users.referral_code,
-          firstName: users.firstName,
-          lastName: users.lastName,
-        })
+        .select()
         .from(users)
         .where(eq(users.id, req.user.id))
         .limit(1);
@@ -814,18 +809,18 @@ export function registerRoutes(app: Express): Server {
       }
 
       // If user doesn't have a referral code, generate one
-      if (!user.referralCode) {
+      if (!user.referral_code) {
         const referralCode = randomBytes(8).toString("hex");
         await db
           .update(users)
           .set({ referral_code: referralCode })
           .where(eq(users.id, req.user.id));
-        user.referralCode = referralCode;
+        user.referral_code = referralCode;
       }
 
       // Get all users who used this user's referral code
       const referrals = await db.query.users.findMany({
-        where: eq(users.referred_by, user.referralCode),
+        where: eq(users.referred_by, user.referral_code),
         orderBy: desc(users.createdAt),
         columns: {
           id: true,
@@ -836,7 +831,7 @@ export function registerRoutes(app: Express): Server {
       });
 
       res.json({
-        referralCode: user.referralCode,
+        referralCode: user.referral_code,
         referralCount: referrals.length,
         referrals,
       });
@@ -983,7 +978,7 @@ export function registerRoutes(app: Express): Server {
           .set({ points: user.points - reward.pointsCost })
           .where(eq(users.id, user.id));
 
-        // Log        // Log the point adjustment
+        // Log the point adjustment
         await logAdminAction({
           adminId: user.id,
           actionType: "POINT_ADJUSTMENT",
