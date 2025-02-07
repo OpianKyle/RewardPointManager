@@ -68,6 +68,33 @@ export default function ReferralsPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">My Referrals</h1>
 
+      {/* Prominent Referral Link Card */}
+      <Card className="bg-primary/5">
+        <CardHeader>
+          <CardTitle>Your Referral Link</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Share this link with others to earn referral points. You'll receive points when they sign up and start participating!
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              value={referralLink}
+              readOnly
+              className="font-mono text-sm bg-background"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={copyToClipboard}
+              className={copied ? "text-green-500" : ""}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
@@ -99,29 +126,6 @@ export default function ReferralsPage() {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Referral Link</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <Input
-              value={referralLink}
-              readOnly
-              className="font-mono text-sm"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={copyToClipboard}
-              className={copied ? "text-green-500" : ""}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
