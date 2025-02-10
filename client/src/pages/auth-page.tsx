@@ -88,7 +88,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/50 p-4 sm:p-8">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-xl space-y-8">
         <div className="flex flex-col items-center space-y-2">
           <img 
             src="/Assets/opian-rewards-logo (R).png" 
@@ -111,7 +111,7 @@ export default function AuthPage() {
         </div>
 
         <Card>
-          <CardHeader className="space-y-1">
+          <CardHeader>
             <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "register")} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Sign In</TabsTrigger>
@@ -119,7 +119,7 @@ export default function AuthPage() {
               </TabsList>
             </Tabs>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-6 py-4">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -142,32 +142,34 @@ export default function AuthPage() {
                 />
                 {mode === "register" && (
                   <>
-                    <FormField
-                      control={form.control}
-                      name="firstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>First Name</FormLabel>
-                          <FormControl>
-                            <Input {...field} className="h-10" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input {...field} className="h-10" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} className="h-10" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} className="h-10" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     <FormField
                       control={form.control}
                       name="phoneNumber"
