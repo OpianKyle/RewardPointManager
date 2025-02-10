@@ -23,11 +23,11 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     <div className="flex h-screen w-full overflow-hidden">
       <Sidebar className="border-r">
         <div className="flex flex-col h-full">
-          <div className="p-4 border-b">
+          <div className="p-6 border-b">
             <img 
               src="/Assets/opian-rewards-logo (R).png" 
               alt="OPIAN Rewards"
-              className="h-8 w-auto object-contain mx-auto"
+              className="h-12 w-auto object-contain mx-auto"
               onError={(e) => {
                 const img = e.target as HTMLImageElement;
                 img.onerror = null;
