@@ -207,7 +207,11 @@ export default function ProductManagement() {
         const isPointsManaged = type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE";
         return (
           <div key={type} className="grid grid-cols-2 gap-4 items-center">
-            <label className="font-medium">{type.replace(/_/g, ' ')} Points:</label>
+            <label className="font-medium">
+              {type.split('_').map(word =>
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+              ).join(' ')} points:
+            </label>
             <div className="flex items-center space-x-2">
               <Input
                 type="number"
@@ -246,11 +250,11 @@ export default function ProductManagement() {
               className="space-y-4"
             >
               <div className="space-y-2">
-                <label>Name</label>
+                <label className="capitalize">Name</label>
                 <Input {...form.register("name")} />
               </div>
               <div className="space-y-2">
-                <label>Description</label>
+                <label className="capitalize">Description</label>
                 <Input {...form.register("description")} />
               </div>
               <Tabs defaultValue="activities">
@@ -279,11 +283,11 @@ export default function ProductManagement() {
             className="space-y-4"
           >
             <div className="space-y-2">
-              <label>Name</label>
+              <label className="capitalize">Name</label>
               <Input {...editForm.register("name")} />
             </div>
             <div className="space-y-2">
-              <label>Description</label>
+              <label className="capitalize">Description</label>
               <Input {...editForm.register("description")} />
             </div>
             <Tabs defaultValue="activities">
@@ -324,7 +328,9 @@ export default function ProductManagement() {
                       {product.activities?.map((activity: any) => (
                         <div key={activity.type} className="flex items-center space-x-2 mb-1">
                           <Badge variant="outline">
-                            {activity.type.replace(/_/g, ' ')}
+                            {activity.type.split('_').map(word =>
+                              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                            ).join(' ')}
                           </Badge>
                           <span>
                             {activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE"
