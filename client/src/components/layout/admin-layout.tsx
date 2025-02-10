@@ -3,6 +3,16 @@ import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Sidebar } from "@/components/ui/sidebar";
+import { 
+  LayoutDashboard, 
+  Users, 
+  Package, 
+  Gift, 
+  DollarSign, 
+  UserCog,
+  ScrollText,
+  LogOut
+} from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { logout } = useUser();
@@ -13,13 +23,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const menuItems = [
-    { label: "Dashboard", href: "/admin" },
-    { label: "Customers", href: "/admin/customers" },
-    { label: "Products", href: "/admin/products" },
-    { label: "Rewards", href: "/admin/rewards" },
-    { label: "Cash Redemptions", href: "/admin/cash-redemptions" },
-    { label: "Admin Management", href: "/admin/manage-users" },
-    { label: "Action Logs", href: "/admin/logs" },
+    { label: "Dashboard", href: "/admin", icon: <LayoutDashboard className="h-4 w-4 mr-2" /> },
+    { label: "Customers", href: "/admin/customers", icon: <Users className="h-4 w-4 mr-2" /> },
+    { label: "Products", href: "/admin/products", icon: <Package className="h-4 w-4 mr-2" /> },
+    { label: "Rewards", href: "/admin/rewards", icon: <Gift className="h-4 w-4 mr-2" /> },
+    { label: "Cash Redemptions", href: "/admin/cash-redemptions", icon: <DollarSign className="h-4 w-4 mr-2" /> },
+    { label: "Admin Management", href: "/admin/manage-users", icon: <UserCog className="h-4 w-4 mr-2" /> },
+    { label: "Action Logs", href: "/admin/logs", icon: <ScrollText className="h-4 w-4 mr-2" /> },
   ];
 
   return (
@@ -48,6 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className="w-full justify-start"
                   onClick={() => navigate(item.href)}
                 >
+                  {item.icon}
                   {item.label}
                 </Button>
               ))}
@@ -55,6 +66,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="p-4 border-t mt-auto">
             <Button variant="outline" className="w-full" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
           </div>

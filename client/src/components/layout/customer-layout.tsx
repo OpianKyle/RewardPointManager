@@ -2,6 +2,7 @@ import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Sidebar } from "@/components/ui/sidebar";
+import { Home, Gift, Users, User } from "lucide-react";
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   const { logout } = useUser();
@@ -12,10 +13,10 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
   };
 
   const menuItems = [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Rewards", href: "/rewards" },
-    { label: "Referrals", href: "/referrals" },
-    { label: "Profile", href: "/profile" },
+    { label: "Dashboard", href: "/dashboard", icon: <Home className="h-4 w-4 mr-2" /> },
+    { label: "Rewards", href: "/rewards", icon: <Gift className="h-4 w-4 mr-2" /> },
+    { label: "Referrals", href: "/referrals", icon: <Users className="h-4 w-4 mr-2" /> },
+    { label: "Profile", href: "/profile", icon: <User className="h-4 w-4 mr-2" /> },
   ];
 
   return (
@@ -44,6 +45,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                   className="w-full justify-start"
                   onClick={() => navigate(item.href)}
                 >
+                  {item.icon}
                   {item.label}
                 </Button>
               ))}
