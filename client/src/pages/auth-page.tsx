@@ -227,10 +227,15 @@ export default function AuthPage() {
       </div>
 
       {/* Right Column - Hero Image */}
-      <div className="hidden lg:block flex-1 bg-cover bg-center" style={{ 
+      <div className="hidden lg:block flex-1" style={{ 
         backgroundImage: 'url("/Assets/oracle-hero-slider-03 (1).png")',
         backgroundSize: 'cover',
-        backgroundPosition: 'center'
+        backgroundPosition: 'center',
+        position: 'fixed',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: '50%'
       }} />
     </div>
   );
