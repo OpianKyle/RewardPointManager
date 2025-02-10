@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
-import { insertUserSchema } from "@db/schema";
+import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,28 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
+// Define login schema
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+// Define registration schema
+const registerSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
+type RegisterFormData = z.infer<typeof registerSchema>;
+
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const { login, register: registerUser, user } = useUser();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [, navigate] = useLocation();
 
   // Get referral code from URL if present
@@ -29,8 +46,16 @@ export default function AuthPage() {
     }
   }, [referralCode]);
 
-  const form = useForm({
-    resolver: zodResolver(insertUserSchema),
+  const loginForm = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const registerForm = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -40,15 +65,12 @@ export default function AuthPage() {
     },
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: LoginFormData | RegisterFormData) => {
     try {
-      setIsLoading(true);
-      // Include referral code in registration data if present
-      const submitData = mode === "register" && referralCode 
-        ? { ...data, referralCode } 
-        : data;
+      const result = await (mode === "login" 
+        ? login(data as LoginFormData)
+        : registerUser({ ...data as RegisterFormData, referralCode }));
 
-      const result = await (mode === "login" ? login(data) : registerUser(submitData));
       if (!result.ok) {
         toast({
           variant: "destructive",
@@ -72,8 +94,6 @@ export default function AuthPage() {
         title: "Error",
         description: error instanceof Error ? error.message : "An unexpected error occurred",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -85,6 +105,8 @@ export default function AuthPage() {
     }
     return null;
   }
+
+  const currentForm = mode === "login" ? loginForm : registerForm;
 
   return (
     <div className="min-h-screen flex">
@@ -122,10 +144,10 @@ export default function AuthPage() {
               </Tabs>
             </CardHeader>
             <CardContent className="px-8 py-6">
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <Form {...currentForm}>
+                <form onSubmit={currentForm.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
-                    control={form.control}
+                    control={currentForm.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -146,7 +168,7 @@ export default function AuthPage() {
                     <>
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
-                          control={form.control}
+                          control={currentForm.control}
                           name="firstName"
                           render={({ field }) => (
                             <FormItem>
@@ -159,7 +181,7 @@ export default function AuthPage() {
                           )}
                         />
                         <FormField
-                          control={form.control}
+                          control={currentForm.control}
                           name="lastName"
                           render={({ field }) => (
                             <FormItem>
@@ -173,7 +195,7 @@ export default function AuthPage() {
                         />
                       </div>
                       <FormField
-                        control={form.control}
+                        control={currentForm.control}
                         name="phoneNumber"
                         render={({ field }) => (
                           <FormItem>
@@ -188,7 +210,7 @@ export default function AuthPage() {
                     </>
                   )}
                   <FormField
-                    control={form.control}
+                    control={currentForm.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
@@ -208,9 +230,9 @@ export default function AuthPage() {
                   <Button 
                     type="submit" 
                     className="w-full h-10 font-semibold"
-                    disabled={isLoading}
+                    disabled={currentForm.formState.isSubmitting}
                   >
-                    {isLoading ? (
+                    {currentForm.formState.isSubmitting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         {mode === "login" ? "Signing in..." : "Creating account..."}
