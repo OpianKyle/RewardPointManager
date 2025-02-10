@@ -90,7 +90,7 @@ export default function AuthPage() {
     <div className="min-h-screen flex">
       {/* Left Column - Form */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
-        <div className="w-full max-w-xl space-y-8">
+        <div className="w-full max-w-2xl space-y-8">
           <div className="flex flex-col items-center space-y-2">
             <img 
               src="/Assets/opian-rewards-logo (R).png" 
@@ -121,7 +121,7 @@ export default function AuthPage() {
                 </TabsList>
               </Tabs>
             </CardHeader>
-            <CardContent className="px-6 py-4">
+            <CardContent className="px-8 py-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
