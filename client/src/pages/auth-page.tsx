@@ -8,6 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -86,9 +87,9 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-8">
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/50 p-4 sm:p-8">
+      <div className="w-full max-w-md space-y-8">
+        <div className="flex flex-col items-center space-y-2">
           <img 
             src="/Assets/opian-rewards-logo (R).png" 
             alt="OPIAN Rewards"
@@ -99,13 +100,26 @@ export default function AuthPage() {
               img.src = '/logo-fallback.png';
             }}
           />
+          <h2 className="mt-2 text-center text-2xl font-bold tracking-tight text-gray-900">
+            Welcome to OPIAN Rewards
+          </h2>
+          <p className="text-center text-sm text-gray-600">
+            {mode === "login" 
+              ? "Sign in to your account to manage your rewards"
+              : "Create an account to start earning rewards"}
+          </p>
         </div>
-        <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "register")} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="login" className="text-base py-2 px-4">Login</TabsTrigger>
-            <TabsTrigger value="register" className="text-base py-2 px-4">Register</TabsTrigger>
-          </TabsList>
-          <TabsContent value={mode}>
+
+        <Card>
+          <CardHeader className="space-y-1">
+            <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "register")} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Sign In</TabsTrigger>
+                <TabsTrigger value="register">Register</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </CardHeader>
+          <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -113,13 +127,13 @@ export default function AuthPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm">Email</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="email" 
-                          autoComplete="email" 
-                          className="h-10 bg-blue-50/50 border-gray-200" 
+                          autoComplete="email"
+                          className="h-10" 
                         />
                       </FormControl>
                       <FormMessage />
@@ -133,9 +147,9 @@ export default function AuthPage() {
                       name="firstName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm">First Name</FormLabel>
+                          <FormLabel>First Name</FormLabel>
                           <FormControl>
-                            <Input {...field} className="h-10 bg-blue-50/50 border-gray-200" />
+                            <Input {...field} className="h-10" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -146,9 +160,9 @@ export default function AuthPage() {
                       name="lastName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm">Last Name</FormLabel>
+                          <FormLabel>Last Name</FormLabel>
                           <FormControl>
-                            <Input {...field} className="h-10 bg-blue-50/50 border-gray-200" />
+                            <Input {...field} className="h-10" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -159,9 +173,9 @@ export default function AuthPage() {
                       name="phoneNumber"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm">Phone Number</FormLabel>
+                          <FormLabel>Phone Number</FormLabel>
                           <FormControl>
-                            <Input {...field} type="tel" className="h-10 bg-blue-50/50 border-gray-200" />
+                            <Input {...field} type="tel" className="h-10" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -174,12 +188,12 @@ export default function AuthPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm">Password</FormLabel>
+                      <FormLabel>Password</FormLabel>
                       <FormControl>
                         <Input 
                           type="password" 
                           {...field} 
-                          className="h-10 bg-blue-50/50 border-gray-200"
+                          className="h-10"
                           autoComplete={mode === 'login' ? 'current-password' : 'new-password'} 
                         />
                       </FormControl>
@@ -189,18 +203,22 @@ export default function AuthPage() {
                 />
                 <Button 
                   type="submit" 
-                  className="w-full h-10 font-semibold mt-6 bg-blue-600 hover:bg-blue-700" 
+                  className="w-full h-10 font-semibold"
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : null}
-                  {mode === "login" ? "Login" : "Register"}
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      {mode === "login" ? "Signing in..." : "Creating account..."}
+                    </>
+                  ) : (
+                    mode === "login" ? "Sign In" : "Create Account"
+                  )}
                 </Button>
               </form>
             </Form>
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
