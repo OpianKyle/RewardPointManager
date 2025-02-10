@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import ReferralSection from "@/components/shared/referral-section";
+import { formatTransactionType } from "@/lib/utils";
 
 interface User {
   id: number;
@@ -24,6 +25,7 @@ interface Transaction {
   points: number;
   description: string;
   createdAt: string;
+  type?: string; // Added type property to Transaction interface
 }
 
 const getTierInfo = (points: number): { name: string; color: string; nextTier?: { name: string; pointsNeeded: number } } => {
@@ -204,7 +206,9 @@ export default function CustomerDashboard() {
                     className="flex items-center justify-between p-4 border rounded-lg"
                   >
                     <div className="space-y-1">
-                      <p className="font-medium">{transaction.description}</p>
+                      <p className="font-medium">
+                        {transaction.type ? formatTransactionType(transaction.type) : ''} - {transaction.description}
+                      </p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(transaction.createdAt).toLocaleDateString()}
                       </p>
