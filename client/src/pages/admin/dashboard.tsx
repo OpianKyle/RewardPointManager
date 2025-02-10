@@ -5,6 +5,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell
 } from 'recharts';
 import { Users, ShoppingBag, TrendingUp, Award } from 'lucide-react';
+import { formatTransactionType } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const { data: customers } = useQuery({
@@ -64,8 +65,8 @@ export default function AdminDashboard() {
     return acc;
   }, {});
 
-  const pieChartData = Object.entries(transactionsByType).map(([name, value]) => ({
-    name,
+  const pieChartData = Object.entries(transactionsByType).map(([type, value]) => ({
+    name: formatTransactionType(type),
     value,
   }));
 
