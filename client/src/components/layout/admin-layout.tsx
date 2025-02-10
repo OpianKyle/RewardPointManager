@@ -55,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Button
                   key={item.href}
                   variant={location === item.href ? "secondary" : "ghost"}
-                  className="w-full justify-start"
+                  className="w-full justify-start capitalize"
                   onClick={() => navigate(item.href)}
                 >
                   {item.icon}
