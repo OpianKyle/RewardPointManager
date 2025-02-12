@@ -42,14 +42,12 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       )}
 
       {/* Sidebar */}
-      <Sidebar 
-        className={cn(
-          "border-r fixed inset-y-0 left-0 z-50 w-64 lg:w-72 bg-background",
-          "transform transition-transform duration-300 ease-in-out lg:transform-none",
-          "lg:relative lg:translate-x-0",
-          !sidebarOpen && "-translate-x-full lg:translate-x-0"
-        )}
-      >
+      <aside className={cn(
+        "fixed lg:relative inset-y-0 left-0 z-50",
+        "w-64 lg:w-72 bg-background border-r",
+        "transform transition-transform duration-300 ease-in-out",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
         <div className="flex flex-col h-full">
           <div className="p-4 md:p-6 border-b">
             <img 
@@ -90,10 +88,10 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </Button>
           </div>
         </div>
-      </Sidebar>
+      </aside>
 
       {/* Main content */}
-      <main className="flex-1 p-4 lg:p-8 overflow-y-auto w-full">
+      <main className="flex-1 p-4 lg:p-8 overflow-y-auto ml-0 lg:ml-72 w-full">
         <div className="max-w-7xl mx-auto">
           {children}
         </div>
