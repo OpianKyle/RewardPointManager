@@ -684,7 +684,12 @@ export default function RegisterPage() {
       if (!isValid) {
         return;
       }
-    } else if (currentStep === 2) {
+
+      setCurrentStep(2);
+      return;
+    }
+
+    if (currentStep === 2) {
       const isValid = await form.trigger([
         "occupation",
         "industry",
@@ -697,10 +702,15 @@ export default function RegisterPage() {
       if (!isValid) {
         return;
       }
-    }
 
-    if (currentStep !== 3) {
-      setCurrentStep(currentStep + 1);
+      // Clear banking fields when moving to step 3 to prevent data interference
+      form.setValue("accountHolderName", "");
+      form.setValue("bankName", "");
+      form.setValue("branchCode", "");
+      form.setValue("accountNumber", "");
+      form.setValue("accountType", "savings");
+
+      setCurrentStep(3);
       return;
     }
 
@@ -717,38 +727,53 @@ export default function RegisterPage() {
       return;
     }
 
-    // Transform the data to match the backend schema
-    const registrationData = {
-      email: data.email,
-      password: data.password,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      isSouthAfricanCitizen: data.isSouthAfricanCitizen,
-      idOrPassport: data.idOrPassport,
-      dateOfBirth: data.dateOfBirth,
-      gender: data.gender,
-      language: data.language,
-      mobileNumber: data.mobileNumber,
-      occupation: data.occupation,
-      industry: data.industry,
-      salaryBracket: data.salaryBracket,
-      hasOwnCreditCard: data.hasOwnCreditCard,
-      addressLine1: data.addressLine1,
-      addressLine2: data.addressLine2,
-      suburb: data.suburb,
-      postalCode: data.postalCode,
-      accountHolderName: data.accountHolderName,
-      bankName: data.bankName,
-      branchCode: data.branchCode,
-      accountNumber: data.accountNumber,
-      accountType: data.accountType,
-      signatureData: data.signatureData,
-      agreedToMandate: data.agreedToMandate
-    };
+    if (!data.agreedToMandate) {
+      form.setError("agreedToMandate", {
+        type: "manual",
+        message: "You must agree to the mandate terms"
+      });
+      return;
+    }
 
-    const result = await register(registrationData);
-    if (result.ok) {
-      setLocation("/");
+    try {
+      const registrationData = {
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        isSouthAfricanCitizen: data.isSouthAfricanCitizen,
+        idOrPassport: data.idOrPassport,
+        dateOfBirth: data.dateOfBirth,
+        gender: data.gender,
+        language: data.language,
+        mobileNumber: data.mobileNumber,
+        occupation: data.occupation,
+        industry: data.industry,
+        salaryBracket: data.salaryBracket,
+        hasOwnCreditCard: data.hasOwnCreditCard,
+        addressLine1: data.addressLine1,
+        addressLine2: data.addressLine2 || "",
+        suburb: data.suburb,
+        postalCode: data.postalCode,
+        accountHolderName: data.accountHolderName,
+        bankName: data.bankName,
+        branchCode: data.branchCode,
+        accountNumber: data.accountNumber,
+        accountType: data.accountType,
+        signatureData: data.signatureData || "",
+        agreedToMandate: data.agreedToMandate
+      };
+
+      const result = await register(registrationData);
+      if (result.ok) {
+        setLocation("/");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      form.setError("root", {
+        type: "manual",
+        message: "Registration failed. Please try again."
+      });
     }
   };
 
