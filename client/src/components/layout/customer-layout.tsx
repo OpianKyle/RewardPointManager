@@ -7,12 +7,17 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
-  const { logout } = useUser();
+  const { logoutMutation } = useUser();
   const [location, navigate] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
+    try {
+      await logoutMutation.mutateAsync();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const menuItems = [
@@ -84,8 +89,13 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </div>
           </div>
           <div className="p-3 md:p-4 border-t mt-auto">
-            <Button variant="outline" className="w-full text-sm md:text-base" onClick={handleLogout}>
-              Logout
+            <Button 
+              variant="outline" 
+              className="w-full text-sm md:text-base" 
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+            >
+              {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
             </Button>
           </div>
         </div>
