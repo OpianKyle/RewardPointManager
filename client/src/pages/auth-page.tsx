@@ -26,6 +26,7 @@ export default function AuthPage() {
   const [, navigate] = useLocation();
   const { registerMutation, loginMutation, user, isLoading } = useUser();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"register" | "login">("register");
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -41,27 +42,21 @@ export default function AuthPage() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       const referralCode = new URLSearchParams(window.location.search).get('ref');
-      const registered = await registerMutation.mutateAsync({
+      await registerMutation.mutateAsync({
         ...data,
         referral_code: referralCode || undefined,
       });
 
-      // Login immediately after registration
-      await loginMutation.mutateAsync({
-        email: data.email,
-        password: data.password
-      });
-
       toast({
         title: "Success",
-        description: "Account created successfully! Redirecting to dashboard...",
+        description: "Account created successfully! Please login to continue.",
       });
 
       // Reset form
       form.reset();
 
-      // Navigate based on user role
-      navigate(registered.isAdmin ? "/admin" : "/dashboard");
+      // Switch to login tab
+      setActiveTab("login");
     } catch (error) {
       console.error('Registration error:', error);
       toast({
@@ -97,103 +92,118 @@ export default function AuthPage() {
 
         <Card>
           <CardHeader>
-            {/* Tabs removed */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="register">Register</TabsTrigger>
+                <TabsTrigger value="login">Login</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </CardHeader>
           <CardContent className="pt-6">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field}
-                          type="email"
-                          placeholder="Enter your email"
-                          className={fieldState.invalid ? "border-destructive" : ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
+            {activeTab === "register" ? (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="firstName"
-                    render={({ field }) => (
+                    name="email"
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>First Name</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="First name" />
+                          <Input 
+                            {...field}
+                            type="email"
+                            placeholder="Enter your email"
+                            className={fieldState.invalid ? "border-destructive" : ""}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>First Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="First name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Last Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Last name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
-                    name="lastName"
+                    name="phoneNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Last Name</FormLabel>
+                        <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Last name" />
+                          <Input {...field} type="tel" placeholder="Enter phone number" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
 
-                <FormField
-                  control={form.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="tel" placeholder="Enter phone number" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} placeholder="Create a password" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} placeholder="Create a password" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={registerMutation.isPending || !form.formState.isValid}
-                >
-                  {registerMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Creating account...
-                    </>
-                  ) : (
-                    "Create Account"
-                  )}
-                </Button>
-              </form>
-            </Form>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={registerMutation.isPending || !form.formState.isValid}
+                  >
+                    {registerMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Creating account...
+                      </>
+                    ) : (
+                      "Create Account"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            ) : (
+              <div className="text-center space-y-4">
+                <h3 className="text-lg font-medium">Welcome Back!</h3>
+                <p className="text-sm text-muted-foreground">
+                  Please sign in with your email and password
+                </p>
+                {/* Login form would go here */}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
