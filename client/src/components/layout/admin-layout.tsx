@@ -39,8 +39,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex h-screen w-full overflow-hidden">
       {/* Mobile menu button */}
       <Button
-        variant="ghost"
-        className="fixed top-4 left-4 z-50 lg:hidden"
+        variant="outline"
+        size="icon"
+        className="fixed top-4 right-4 z-50 lg:hidden h-10 w-10 bg-background shadow-md"
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
