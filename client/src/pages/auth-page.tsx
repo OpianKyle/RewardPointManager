@@ -28,17 +28,19 @@ const registerSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-interface AuthPageProps {
-  mode?: "login" | "register";
-}
-
-export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps) {
-  const [mode, setMode] = useState<"login" | "register">(initialMode);
-  const { login, register: registerUser } = useUser();
+export default function AuthPage() {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const { loginMutation, registerMutation } = useUser();
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
-  // Initialize forms
+  useEffect(() => {
+    const referralCode = new URLSearchParams(window.location.search).get('ref');
+    if (referralCode) {
+      setMode("register");
+    }
+  }, []);
+
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -58,16 +60,9 @@ export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps)
     },
   });
 
-  useEffect(() => {
-    const referralCode = new URLSearchParams(window.location.search).get('ref');
-    if (referralCode) {
-      setMode("register");
-    }
-  }, []);
-
   const handleLogin = async (data: LoginFormData) => {
     try {
-      await login(data);
+      await loginMutation.mutateAsync(data);
       toast({
         title: "Success",
         description: "Logged in successfully",
@@ -84,7 +79,7 @@ export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps)
   const handleRegister = async (data: RegisterFormData) => {
     try {
       const referralCode = new URLSearchParams(window.location.search).get('ref');
-      await registerUser({
+      await registerMutation.mutateAsync({
         ...data,
         referral_code: referralCode || undefined,
       });
@@ -101,14 +96,8 @@ export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps)
     }
   };
 
-  const handleModeChange = (newMode: string) => {
-    setMode(newMode as "login" | "register");
-    navigate(`/auth/${newMode}`);
-  };
-
   return (
     <div className="min-h-screen flex">
-      {/* Left Column - Form */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-8 relative z-10">
         <div className="w-full max-w-2xl space-y-8">
           <div className="flex flex-col items-center space-y-2">
@@ -134,7 +123,7 @@ export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps)
 
           <Card>
             <CardHeader>
-              <Tabs value={mode} onValueChange={handleModeChange} className="w-full">
+              <Tabs value={mode} onValueChange={(value) => setMode(value as "login" | "register")} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="login">Sign In</TabsTrigger>
                   <TabsTrigger value="register">Register</TabsTrigger>
@@ -178,9 +167,9 @@ export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps)
                     <Button
                       type="submit"
                       className="w-full h-10 font-semibold bg-[#43eb3e] text-white hover:opacity-90 transition-opacity"
-                      disabled={loginForm.formState.isSubmitting}
+                      disabled={loginMutation.isPending}
                     >
-                      {loginForm.formState.isSubmitting ? (
+                      {loginMutation.isPending ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                           Signing in...
@@ -268,9 +257,9 @@ export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps)
                     <Button
                       type="submit"
                       className="w-full h-10 font-semibold bg-[#43eb3e] text-white hover:opacity-90 transition-opacity"
-                      disabled={registerForm.formState.isSubmitting}
+                      disabled={registerMutation.isPending}
                     >
-                      {registerForm.formState.isSubmitting ? (
+                      {registerMutation.isPending ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                           Creating account...
@@ -287,7 +276,6 @@ export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps)
         </div>
       </div>
 
-      {/* Right Column - Hero Image */}
       <div
         className="hidden lg:block flex-1"
         style={{

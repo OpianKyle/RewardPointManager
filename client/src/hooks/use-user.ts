@@ -15,117 +15,96 @@ export const userSchema = z.object({
 
 export type User = z.infer<typeof userSchema>;
 
-type RequestResult = {
-  ok: true;
-  data?: User;
-} | {
-  ok: false;
-  message: string;
-};
-
-async function handleRequest(
-  url: string,
-  method: string,
-  body?: any
-): Promise<RequestResult> {
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-      credentials: "include",
-    });
-
-    if (response.status === 401) {
-      return { ok: false, message: "Unauthorized" };
-    }
-
-    if (!response.ok) {
-      const message = await response.text();
-      return { ok: false, message };
-    }
-
-    if (method === 'POST' && (url === '/api/login' || url === '/api/register')) {
-      const data = await response.json();
-      return { ok: true, data };
-    }
-
-    return { ok: true };
-  } catch (e: any) {
-    return { ok: false, message: e.toString() };
-  }
-}
-
-async function fetchUser() {
-  try {
-    const response = await fetch('/api/user', {
-      credentials: 'include'
-    });
-
-    if (response.status === 401) {
-      return null;
-    }
-
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-
-    const data = await response.json();
-    return userSchema.parse(data);
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    return null;
-  }
-}
-
 export function useUser() {
   const queryClient = useQueryClient();
 
   const { data: user, error, isLoading } = useQuery({
     queryKey: ['user'],
-    queryFn: fetchUser,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/user', {
+          credentials: 'include'
+        });
+
+        if (response.status === 401) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const data = await response.json();
+        return userSchema.parse(data);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        return null;
+      }
+    },
+    staleTime: Infinity, // Don't refetch automatically
+    cacheTime: 0, // Don't cache the result
     retry: false,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      const result = await handleRequest('/api/login', 'POST', credentials);
-      if (!result.ok) {
-        throw new Error(result.message);
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
       }
-      return result.data;
+
+      const data = await response.json();
+      return userSchema.parse(data);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['user'], data);
-    },
+    }
   });
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const result = await handleRequest('/api/logout', 'POST');
-      if (!result.ok) {
-        throw new Error(result.message);
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
       }
     },
     onSuccess: () => {
       queryClient.setQueryData(['user'], null);
-    },
+    }
   });
 
   const registerMutation = useMutation({
     mutationFn: async (data: any) => {
-      const result = await handleRequest('/api/register', 'POST', data);
-      if (!result.ok) {
-        throw new Error(result.message);
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
       }
-      return result.data;
+
+      const userData = await response.json();
+      return userSchema.parse(userData);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['user'], data);
-    },
+    }
   });
 
   return {
@@ -136,6 +115,6 @@ export function useUser() {
     logout: logoutMutation.mutateAsync,
     register: registerMutation.mutateAsync,
     loginMutation,
-    registerMutation,
+    registerMutation
   };
 }
