@@ -5,45 +5,16 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, transactions } from "@db/schema";
+import { users } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-// Define user interface to match schema
-declare global {
-  namespace Express {
-    interface User {
-      id: number;
-      email: string;
-      firstName: string;
-      lastName: string;
-      password: string;
-      isAdmin: boolean | null;
-      isSuperAdmin: boolean | null;
-      isEnabled: boolean | null;
-      points: number | null;
-      referral_code: string | null;
-      referred_by: string | null;
-      phoneNumber?: string;
-    }
-  }
-}
-
 const scryptAsync = promisify(scrypt);
 const MemoryStore = createMemoryStore(session);
 
-const registerSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phoneNumber: z.string().min(1, "Phone number is required"),
-  referral_code: z.string().optional(),
-});
-
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().min(1, "Email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -99,7 +70,7 @@ export async function setupAuth(app: Express) {
             .limit(1);
 
           if (!user) {
-            return done(null, false, { message: "Incorrect email." });
+            return done(null, false, { message: "Invalid email or password." });
           }
 
           if (!user.isEnabled) {
@@ -108,8 +79,9 @@ export async function setupAuth(app: Express) {
 
           const isMatch = await crypto.compare(password, user.password);
           if (!isMatch) {
-            return done(null, false, { message: "Incorrect password." });
+            return done(null, false, { message: "Invalid email or password." });
           }
+
           return done(null, user);
         } catch (err) {
           return done(err);
@@ -131,107 +103,11 @@ export async function setupAuth(app: Express) {
         .limit(1);
 
       if (!user) {
-        return done(new Error('User not found'), null);
+        return done(null, false);
       }
       done(null, user);
     } catch (err) {
       done(err, null);
-    }
-  });
-
-  app.post("/api/register", async (req, res) => {
-    try {
-      const result = registerSchema.safeParse(req.body);
-      if (!result.success) {
-        return res
-          .status(400)
-          .json({ error: result.error.issues.map((i) => i.message).join(", ") });
-      }
-
-      const { email, password, firstName, lastName, phoneNumber, referral_code } = result.data;
-
-      // Check for existing user
-      const existingUser = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1)
-        .then(rows => rows[0]);
-
-      if (existingUser) {
-        return res.status(400).json({ error: "Email already exists" });
-      }
-
-      const newUser = await db.transaction(async (tx) => {
-        const newReferralCode = randomBytes(8).toString("hex");
-        let referrer = null;
-
-        if (referral_code) {
-          referrer = await tx
-            .select()
-            .from(users)
-            .where(eq(users.referral_code, referral_code))
-            .limit(1)
-            .then(rows => rows[0]);
-
-          if (!referrer) {
-            throw new Error("Invalid referral code");
-          }
-        }
-
-        // Create new user
-        const [insertedUser] = await tx
-          .insert(users)
-          .values({
-            email,
-            password: await crypto.hash(password),
-            firstName,
-            lastName,
-            phoneNumber,
-            isAdmin: false,
-            isSuperAdmin: false,
-            isEnabled: true,
-            points: 0,
-            referral_code: newReferralCode,
-            referred_by: referral_code || null,
-          })
-          .returning();
-
-        if (!insertedUser) {
-          throw new Error("Failed to create user");
-        }
-
-        // Handle referral bonus if applicable
-        if (referrer) {
-          await tx
-            .update(users)
-            .set({ points: (referrer.points || 0) + 2500 })
-            .where(eq(users.id, referrer.id));
-
-          await tx.insert(transactions).values({
-            userId: referrer.id,
-            points: 2500,
-            type: "EARNED",
-            description: `Referral bonus for ${email} joining`,
-            createdAt: new Date(),
-          });
-        }
-
-        return insertedUser;
-      });
-
-      // Instead of logging in, just return success message
-      const { password: _, ...safeUser } = newUser;
-      return res.status(201).json({
-        message: "Registration successful! Please login to continue.",
-        user: safeUser,
-      });
-    } catch (error: any) {
-      console.error("Registration error:", error);
-      if (error.message === "Invalid referral code") {
-        return res.status(400).json({ error: "Invalid referral code" });
-      }
-      return res.status(500).json({ error: "Registration failed: " + error.message });
     }
   });
 
@@ -249,7 +125,7 @@ export async function setupAuth(app: Express) {
       }
 
       if (!user) {
-        return res.status(401).json({ error: info.message ?? "Login failed" });
+        return res.status(401).json({ error: info.message ?? "Invalid credentials" });
       }
 
       req.logIn(user, (err) => {

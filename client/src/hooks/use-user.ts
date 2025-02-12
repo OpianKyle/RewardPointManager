@@ -57,51 +57,13 @@ export function useUser() {
         credentials: 'include'
       });
 
-      const data = await response.text();
       if (!response.ok) {
-        throw new Error(data);
+        const data = await response.json();
+        throw new Error(data.error || 'Login failed');
       }
 
-      try {
-        const jsonData = JSON.parse(data);
-        return userSchema.parse(jsonData.user || jsonData);
-      } catch (error) {
-        throw new Error('Invalid response format from server');
-      }
-    },
-    onSuccess: (user) => {
-      queryClient.setQueryData(['/api/user'], user);
-    }
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: async (data: {
-      email: string;
-      password: string;
-      firstName: string;
-      lastName: string;
-      phoneNumber: string;
-      referral_code?: string;
-    }) => {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-        credentials: 'include'
-      });
-
-      const responseText = await response.text();
-      if (!response.ok) {
-        throw new Error(responseText);
-      }
-
-      try {
-        const jsonData = JSON.parse(responseText);
-        return userSchema.parse(jsonData.user);
-      } catch (error) {
-        console.error('Registration parse error:', error);
-        throw new Error('Invalid response format from server');
-      }
+      const data = await response.json();
+      return userSchema.parse(data.user);
     },
     onSuccess: (user) => {
       queryClient.setQueryData(['/api/user'], user);
@@ -135,7 +97,6 @@ export function useUser() {
     user,
     isLoading,
     loginMutation,
-    registerMutation,
     logoutMutation
   };
 }
