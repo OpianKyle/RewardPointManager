@@ -105,7 +105,7 @@ const industries = [
 
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
-  const { register, user } = useUser();
+  const { register } = useUser();
   const signaturePadRef = useRef<SignaturePad>(null);
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -141,53 +141,10 @@ export default function RegisterPage() {
     },
   });
 
-  if (user) {
+  if (register.user) {
     setLocation("/");
     return null;
   }
-
-  const onSubmit = async (data: RegisterFormData) => {
-    if (currentStep !== 3) {
-      setCurrentStep(currentStep + 1);
-      return;
-    }
-
-    const result = await register({
-      email: data.email,
-      password: data.password,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      isSouthAfricanCitizen: data.isSouthAfrican,
-      idOrPassport: data.idNumber,
-      dateOfBirth: data.dateOfBirth,
-      gender: data.gender,
-      language: data.language,
-      mobileNumber: data.mobileNumber,
-      occupation: data.occupation,
-      industry: data.industry,
-      salaryBracket: data.salaryBracket,
-      hasOwnCreditCard: data.hasOwnCreditCard,
-      addressLine1: data.addressLine1,
-      addressLine2: data.addressLine2,
-      suburb: data.suburb,
-      postalCode: data.postalCode,
-      accountHolderName: data.accountHolderName,
-      bankName: data.bankName,
-      branchCode: data.branchCode,
-      accountNumber: data.accountNumber,
-      accountType: data.accountType,
-      signatureData: data.signatureData,
-      agreedToMandate: data.agreedToMandate,
-    });
-
-    if (result.ok) {
-      setLocation("/");
-    }
-  };
-
-  const goToPreviousStep = () => {
-    setCurrentStep(currentStep - 1);
-  };
 
   const renderStepIndicator = () => (
     <div className="flex justify-center mb-6">
@@ -221,6 +178,34 @@ export default function RegisterPage() {
   const renderPersonalInformation = () => (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Personal Information</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input type="email" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={form.control}
@@ -665,6 +650,77 @@ export default function RegisterPage() {
       </div>
     </>
   );
+
+  const validateCurrentStep = () => {
+    const fields = {
+      1: ["email", "password", "firstName", "lastName", "isSouthAfrican", "idNumber", "dateOfBirth", "gender", "language", "mobileNumber"],
+      2: ["occupation", "industry", "salaryBracket", "hasOwnCreditCard", "addressLine1", "suburb", "postalCode"],
+      3: ["accountHolderName", "bankName", "branchCode", "accountNumber", "accountType", "agreedToMandate", "signatureData"],
+    };
+
+    const currentFields = fields[currentStep as keyof typeof fields];
+    const isValid = currentFields.every((field) => {
+      const value = form.getValues(field as keyof RegisterFormData);
+      if (field === "hasOwnCreditCard") return true; // Optional field
+      if (field === "addressLine2") return true; // Optional field
+      return value !== "" && value !== undefined;
+    });
+
+    return isValid;
+  };
+
+  const onSubmit = async (data: RegisterFormData) => {
+    console.log("Form data submitted:", data); // Added console logging
+
+    if (currentStep !== 3) {
+      const isValid = validateCurrentStep();
+      if (!isValid) {
+        // Trigger validation for all fields in current step
+        form.trigger();
+        return;
+      }
+      setCurrentStep(currentStep + 1);
+      return;
+    }
+
+    const result = await register({
+      email: data.email,
+      password: data.password,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      isSouthAfricanCitizen: data.isSouthAfrican,
+      idOrPassport: data.idNumber,
+      dateOfBirth: data.dateOfBirth,
+      gender: data.gender,
+      language: data.language,
+      mobileNumber: data.mobileNumber,
+      occupation: data.occupation,
+      industry: data.industry,
+      salaryBracket: data.salaryBracket,
+      hasOwnCreditCard: data.hasOwnCreditCard,
+      addressLine1: data.addressLine1,
+      addressLine2: data.addressLine2,
+      suburb: data.suburb,
+      postalCode: data.postalCode,
+      accountHolderName: data.accountHolderName,
+      bankName: data.bankName,
+      branchCode: data.branchCode,
+      accountNumber: data.accountNumber,
+      accountType: data.accountType,
+      signatureData: data.signatureData,
+      agreedToMandate: data.agreedToMandate,
+    });
+
+    console.log("Registration result:", result); // Added console logging
+
+    if (result.ok) {
+      setLocation("/");
+    }
+  };
+
+  const goToPreviousStep = () => {
+    setCurrentStep(currentStep - 1);
+  };
 
   const stepContent = {
     1: {
