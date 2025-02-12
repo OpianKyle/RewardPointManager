@@ -61,7 +61,7 @@ const crypto = {
   },
 };
 
-export function setupAuth(app: Express) {
+export async function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.REPL_ID || "your-secret-key",
     resave: false,
@@ -141,10 +141,8 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res) => {
     try {
-      console.log("Registration request body:", req.body);
       const result = registerSchema.safeParse(req.body);
       if (!result.success) {
-        console.log("Validation failed:", result.error);
         return res
           .status(400)
           .json({ error: result.error.issues.map((i) => i.message).join(", ") });
@@ -153,33 +151,36 @@ export function setupAuth(app: Express) {
       const { email, password, firstName, lastName, phoneNumber, referral_code } = result.data;
 
       // Check for existing user
-      const [existingUser] = await db
+      const existingUser = await db
         .select()
         .from(users)
         .where(eq(users.email, email))
-        .limit(1);
+        .limit(1)
+        .then(rows => rows[0]);
 
       if (existingUser) {
         return res.status(400).json({ error: "Email already exists" });
       }
 
-      const [newUser] = await db.transaction(async (tx) => {
+      const newUser = await db.transaction(async (tx) => {
         const newReferralCode = randomBytes(8).toString("hex");
         let referrer = null;
 
         if (referral_code) {
-          [referrer] = await tx
+          referrer = await tx
             .select()
             .from(users)
             .where(eq(users.referral_code, referral_code))
-            .limit(1);
+            .limit(1)
+            .then(rows => rows[0]);
 
           if (!referrer) {
             throw new Error("Invalid referral code");
           }
         }
 
-        const insertedUsers = await tx
+        // Create new user
+        const [insertedUser] = await tx
           .insert(users)
           .values({
             email,
@@ -196,8 +197,11 @@ export function setupAuth(app: Express) {
           })
           .returning();
 
-        const insertedUser = insertedUsers[0];
+        if (!insertedUser) {
+          throw new Error("Failed to create user");
+        }
 
+        // Handle referral bonus if applicable
         if (referrer) {
           await tx
             .update(users)
@@ -215,8 +219,6 @@ export function setupAuth(app: Express) {
 
         return insertedUser;
       });
-
-      console.log("New user created:", newUser);
 
       // Login the new user
       req.login(newUser, (err) => {
@@ -296,39 +298,5 @@ export function setupAuth(app: Express) {
     }
     const { password: _, ...safeUser } = req.user;
     res.json(safeUser);
-  });
-
-  app.put("/api/user/profile", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not logged in");
-    }
-
-    try {
-      const updateData = {
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        phoneNumber: req.body.phoneNumber,
-        ...(req.body.password ? { password: await crypto.hash(req.body.password) } : {})
-      };
-
-      const [updatedUser] = await db
-        .update(users)
-        .set(updateData)
-        .where(eq(users.id, req.user.id))
-        .returning();
-
-      if (!updatedUser) {
-        return res.status(404).send("User not found");
-      }
-
-      // Update the session with the new user data
-      const { password, ...userData } = updatedUser;
-      req.user = { ...req.user, ...userData };
-
-      return res.json(userData);
-    } catch (error: any) {
-      console.error("Profile update error:", error);
-      return res.status(500).send(error.message);
-    }
   });
 }
