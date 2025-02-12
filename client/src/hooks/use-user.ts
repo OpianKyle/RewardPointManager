@@ -14,6 +14,17 @@ export const userSchema = z.object({
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
   language: z.string().min(1, "Language is required"),
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
+  // Employment Details
+  occupation: z.string().min(1, "Occupation is required"),
+  industry: z.string().min(1, "Industry is required"),
+  salaryBracket: z.string().min(1, "Salary bracket is required"),
+  hasOwnCreditCard: z.boolean().default(false),
+  // Address Details
+  addressLine1: z.string().min(1, "Address line 1 is required"),
+  addressLine2: z.string().optional(),
+  suburb: z.string().min(1, "Suburb is required"),
+  postalCode: z.string().min(4, "Postal code is required"),
+  // System fields
   isAdmin: z.boolean().default(false),
   isSuperAdmin: z.boolean().default(false),
   isEnabled: z.boolean().default(true),
