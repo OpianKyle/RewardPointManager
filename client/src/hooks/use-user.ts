@@ -1,51 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from "zod";
 
-// Define the user schema with all required fields
 export const userSchema = z.object({
-  id: z.number().optional(),
+  id: z.number(),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  isSouthAfricanCitizen: z.boolean(),
-  idOrPassport: z.string().min(1, "ID/Passport number is required"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
-  language: z.string().min(1, "Language is required"),
-  mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
-  // Employment Details
-  occupation: z.string().min(1, "Occupation is required"),
-  industry: z.string().min(1, "Industry is required"),
-  salaryBracket: z.string().min(1, "Salary bracket is required"),
-  hasOwnCreditCard: z.boolean().default(false),
-  // Address Details
-  addressLine1: z.string().min(1, "Address line 1 is required"),
-  addressLine2: z.string().optional(),
-  suburb: z.string().min(1, "Suburb is required"),
-  postalCode: z.string().min(4, "Postal code is required"),
-  // Banking Details
-  accountHolderName: z.string().min(1, "Account holder name is required"),
-  bankName: z.string().min(1, "Bank name is required"),
-  branchCode: z.string().min(1, "Branch code is required"),
-  accountNumber: z.string().min(1, "Account number is required"),
-  accountType: z.enum(["savings", "current"]),
-  // Mandate Agreement
-  signatureData: z.string().min(1, "Digital signature is required"),
-  agreedToMandate: z.boolean().refine((val) => val === true, {
-    message: "You must agree to the mandate",
-  }),
-  // System fields
-  isAdmin: z.boolean().default(false),
-  isSuperAdmin: z.boolean().default(false),
-  isEnabled: z.boolean().default(true),
-  points: z.number().default(0),
-  referral_code: z.string().optional(),
-  referred_by: z.string().optional(),
+  firstName: z.string(),
+  lastName: z.string(),
+  isAdmin: z.boolean(),
+  isSuperAdmin: z.boolean(),
+  isEnabled: z.boolean(),
+  points: z.number(),
+  referral_code: z.string().nullable(),
 });
 
 export type User = z.infer<typeof userSchema>;
-export type InsertUser = Omit<User, "id" | "points" | "isAdmin" | "isSuperAdmin" | "isEnabled">;
 
 type RequestResult = {
   ok: true;
@@ -58,7 +26,7 @@ type RequestResult = {
 async function handleRequest(
   url: string,
   method: string,
-  body?: Partial<InsertUser>
+  body?: any
 ): Promise<RequestResult> {
   try {
     const response = await fetch(url, {
@@ -68,11 +36,11 @@ async function handleRequest(
       credentials: "include",
     });
 
-    if (!response.ok) {
-      if (response.status >= 500) {
-        return { ok: false, message: response.statusText };
-      }
+    if (response.status === 401) {
+      return { ok: false, message: "Unauthorized" };
+    }
 
+    if (!response.ok) {
       const message = await response.text();
       return { ok: false, message };
     }
@@ -88,58 +56,75 @@ async function handleRequest(
   }
 }
 
-async function fetchUser(): Promise<User | null> {
-  const response = await fetch('/api/user', {
-    credentials: 'include'
-  });
+async function fetchUser() {
+  try {
+    const response = await fetch('/api/user', {
+      credentials: 'include'
+    });
 
-  if (!response.ok) {
     if (response.status === 401) {
       return null;
     }
 
-    if (response.status >= 500) {
-      throw new Error(`${response.status}: ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(await response.text());
     }
 
-    throw new Error(`${response.status}: ${await response.text()}`);
+    const data = await response.json();
+    return userSchema.parse(data);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    return null;
   }
-
-  return response.json();
 }
 
 export function useUser() {
   const queryClient = useQueryClient();
 
-  const { data: user, error, isLoading } = useQuery<User | null, Error>({
+  const { data: user, error, isLoading } = useQuery({
     queryKey: ['user'],
     queryFn: fetchUser,
-    staleTime: Infinity,
-    retry: false
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    retry: false,
+    refetchOnWindowFocus: false
   });
 
   const loginMutation = useMutation({
-    mutationFn: (userData: Pick<InsertUser, "email" | "password">) => handleRequest('/api/login', 'POST', userData),
-    onSuccess: (result) => {
-      if (result.ok && result.data) {
-        queryClient.setQueryData(['user'], result.data);
+    mutationFn: async (credentials: { email: string; password: string }) => {
+      const result = await handleRequest('/api/login', 'POST', credentials);
+      if (!result.ok) {
+        throw new Error(result.message);
       }
+      return result.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user'], data);
     },
   });
 
   const logoutMutation = useMutation({
-    mutationFn: () => handleRequest('/api/logout', 'POST'),
+    mutationFn: async () => {
+      const result = await handleRequest('/api/logout', 'POST');
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
+    },
     onSuccess: () => {
       queryClient.setQueryData(['user'], null);
     },
   });
 
   const registerMutation = useMutation({
-    mutationFn: (userData: InsertUser) => handleRequest('/api/register', 'POST', userData),
-    onSuccess: (result) => {
-      if (result.ok && result.data) {
-        queryClient.setQueryData(['user'], result.data);
+    mutationFn: async (data: any) => {
+      const result = await handleRequest('/api/register', 'POST', data);
+      if (!result.ok) {
+        throw new Error(result.message);
       }
+      return result.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user'], data);
     },
   });
 

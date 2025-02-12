@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
-// Schema definitions
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
@@ -29,14 +28,15 @@ const registerSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-export default function AuthPage() {
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const { login, register: registerUser, user } = useUser();
+interface AuthPageProps {
+  mode?: "login" | "register";
+}
+
+export default function AuthPage({ mode: initialMode = "login" }: AuthPageProps) {
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
+  const { login, register: registerUser } = useUser();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-
-  // Get referral code from URL if present
-  const referralCode = new URLSearchParams(window.location.search).get('ref');
 
   // Initialize forms
   const loginForm = useForm<LoginFormData>({
@@ -58,64 +58,53 @@ export default function AuthPage() {
     },
   });
 
-  // Switch to register mode if referral code is present
   useEffect(() => {
+    const referralCode = new URLSearchParams(window.location.search).get('ref');
     if (referralCode) {
       setMode("register");
     }
-  }, [referralCode]);
+  }, []);
 
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (user) {
-      navigate(user.isAdmin ? "/admin" : "/dashboard");
-    }
-  }, [user, navigate]);
-
-  const onSubmit = async (data: LoginFormData | RegisterFormData) => {
+  const handleLogin = async (data: LoginFormData) => {
     try {
-      if (mode === "login") {
-        const result = await login(data as LoginFormData);
-        if (result.ok) {
-          toast({
-            title: "Success",
-            description: "Logged in successfully",
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: result.message,
-          });
-        }
-      } else {
-        const result = await registerUser({
-          ...(data as RegisterFormData),
-          referral_code: referralCode || undefined,
-        });
-        if (result.ok) {
-          toast({
-            title: "Success",
-            description: "Registration successful",
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: result.message,
-          });
-        }
-      }
+      await login(data);
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
+      });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "Failed to login",
       });
     }
   };
 
-  if (user) return null;
+  const handleRegister = async (data: RegisterFormData) => {
+    try {
+      const referralCode = new URLSearchParams(window.location.search).get('ref');
+      await registerUser({
+        ...data,
+        referral_code: referralCode || undefined,
+      });
+      toast({
+        title: "Success",
+        description: "Registration successful",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to register",
+      });
+    }
+  };
+
+  const handleModeChange = (newMode: string) => {
+    setMode(newMode as "login" | "register");
+    navigate(`/auth/${newMode}`);
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -145,7 +134,7 @@ export default function AuthPage() {
 
           <Card>
             <CardHeader>
-              <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "register")} className="w-full">
+              <Tabs value={mode} onValueChange={handleModeChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="login">Sign In</TabsTrigger>
                   <TabsTrigger value="register">Register</TabsTrigger>
@@ -155,7 +144,7 @@ export default function AuthPage() {
             <CardContent className="px-8 py-6">
               {mode === "login" ? (
                 <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-4">
+                  <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
                     <FormField
                       control={loginForm.control}
                       name="email"
@@ -204,7 +193,7 @@ export default function AuthPage() {
                 </Form>
               ) : (
                 <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onSubmit)} className="space-y-4">
+                  <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
                     <FormField
                       control={registerForm.control}
                       name="email"
@@ -299,17 +288,20 @@ export default function AuthPage() {
       </div>
 
       {/* Right Column - Hero Image */}
-      <div className="hidden lg:block flex-1" style={{
-        backgroundImage: 'url("/Assets/oracle-hero-slider-03 (1).png")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'left',
-        position: 'fixed',
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: '100%',
-        zIndex: 0
-      }} />
+      <div
+        className="hidden lg:block flex-1"
+        style={{
+          backgroundImage: 'url("/Assets/oracle-hero-slider-03 (1).png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'left',
+          position: 'fixed',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: '100%',
+          zIndex: 0
+        }}
+      />
     </div>
   );
 }

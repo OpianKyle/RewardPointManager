@@ -1,10 +1,9 @@
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
-import LoginPage from "@/pages/auth/login";
-import RegisterPage from "@/pages/auth/register";
+import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
 import { Loader2 } from "lucide-react";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -27,33 +26,27 @@ import CustomerLayout from "@/components/layout/customer-layout";
 import ReferralsPage from "@/pages/customer/referrals";
 import ProfilePage from "@/pages/customer/profile";
 
+const Loading = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
+
+function AuthRoute({ component: Component, ...rest }: any) {
+  const { user, isLoading } = useUser();
+
+  if (isLoading) return <Loading />;
+  if (user) return <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />;
+  return <Component {...rest} />;
+}
+
 function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
   const { user, isLoading } = useUser();
-  const [, navigate] = useLocation();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    navigate("/auth/login");
-    return null;
-  }
-
-  if (admin && !user.isAdmin) {
-    navigate("/dashboard");
-    return null;
-  }
-
-  if (!admin && user.isAdmin) {
-    navigate("/admin");
-    return null;
-  }
-
+  if (isLoading) return <Loading />;
+  if (!user) return <Redirect to="/auth/login" />;
+  if (admin && !user.isAdmin) return <Redirect to="/dashboard" />;
+  if (!admin && user.isAdmin) return <Redirect to="/admin" />;
   return <Component {...rest} />;
 }
 
@@ -61,30 +54,24 @@ function Router() {
   const { isLoading, user } = useUser();
   useNotifications();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  if (isLoading) return <Loading />;
+
+  // Root path redirection
+  if (window.location.pathname === "/") {
+    return <Redirect to={user ? (user.isAdmin ? "/admin" : "/dashboard") : "/auth/login"} />;
   }
 
   return (
     <SidebarProvider>
       <Switch>
         {/* Auth Routes */}
-        <Route path="/auth/login">
-          {user ? (
-            <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />
-          ) : (
-            <LoginPage />
-          )}
-        </Route>
-        <Route path="/auth/register">
-          {user ? (
-            <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />
-          ) : (
-            <RegisterPage />
+        <Route path="/auth/:page">
+          {(params) => (
+            <AuthRoute
+              component={AuthPage}
+              key={params.page}
+              mode={params.page === "register" ? "register" : "login"}
+            />
           )}
         </Route>
 
@@ -145,15 +132,6 @@ function Router() {
           <CustomerLayout>
             <PrivateRoute component={ProfilePage} />
           </CustomerLayout>
-        </Route>
-
-        {/* Redirect root to appropriate dashboard */}
-        <Route path="/">
-          {user ? (
-            <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />
-          ) : (
-            <Redirect to="/auth/login" />
-          )}
         </Route>
 
         <Route component={NotFound} />
