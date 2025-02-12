@@ -23,9 +23,8 @@ const registerSchema = z.object({
 type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState("register");
   const [, navigate] = useLocation();
-  const { registerMutation, user, isLoading } = useUser();
+  const { registerMutation, loginMutation, user, isLoading } = useUser();
   const { toast } = useToast();
 
   const form = useForm<RegisterFormData>({
@@ -42,19 +41,27 @@ export default function AuthPage() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       const referralCode = new URLSearchParams(window.location.search).get('ref');
-      await registerMutation.mutateAsync({
+      const registered = await registerMutation.mutateAsync({
         ...data,
         referral_code: referralCode || undefined,
       });
 
-      toast({
-        title: "Success",
-        description: "Account created successfully! Please login to continue.",
+      // Login immediately after registration
+      await loginMutation.mutateAsync({
+        email: data.email,
+        password: data.password
       });
 
-      // Switch to login tab instead of navigating away
-      setActiveTab("login");
+      toast({
+        title: "Success",
+        description: "Account created successfully! Redirecting to dashboard...",
+      });
+
+      // Reset form
       form.reset();
+
+      // Navigate based on user role
+      navigate(registered.isAdmin ? "/admin" : "/dashboard");
     } catch (error) {
       console.error('Registration error:', error);
       toast({
@@ -90,12 +97,7 @@ export default function AuthPage() {
 
         <Card>
           <CardHeader>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="register">Register</TabsTrigger>
-                <TabsTrigger value="login" onClick={() => navigate("/login")}>Sign In</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {/* Tabs removed */}
           </CardHeader>
           <CardContent className="pt-6">
             <Form {...form}>
