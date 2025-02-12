@@ -30,29 +30,29 @@ const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  isSouthAfrican: z.boolean().optional(),
-  idNumber: z.string().min(1, "ID Number/Passport is required"),
+  isSouthAfricanCitizen: z.boolean().default(false),
+  idOrPassport: z.string().min(1, "ID Number/Passport is required"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
   language: z.string().min(1, "Language is required"),
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
-  // Employment Details (Step 2) - temporarily without validation
-  occupation: z.string().optional(),
-  industry: z.string().optional(),
-  salaryBracket: z.string().optional(),
-  hasOwnCreditCard: z.boolean().optional(),
-  addressLine1: z.string().optional(),
+  // Employment Details (Step 2)
+  occupation: z.string().min(1, "Occupation is required"),
+  industry: z.string().min(1, "Industry is required"),
+  salaryBracket: z.string().min(1, "Salary bracket is required"),
+  hasOwnCreditCard: z.boolean().default(false),
+  addressLine1: z.string().min(1, "Address line 1 is required"),
   addressLine2: z.string().optional(),
-  suburb: z.string().optional(),
-  postalCode: z.string().optional(),
-  // Banking Details (Step 3) - temporarily without validation
-  accountHolderName: z.string().optional(),
-  bankName: z.string().optional(),
-  branchCode: z.string().optional(),
-  accountNumber: z.string().optional(),
-  accountType: z.enum(["savings", "current"]).optional(),
+  suburb: z.string().min(1, "Suburb is required"),
+  postalCode: z.string().min(1, "Postal code is required"),
+  // Banking Details (Step 3)
+  accountHolderName: z.string().min(1, "Account holder name is required"),
+  bankName: z.string().min(1, "Bank name is required"),
+  branchCode: z.string().min(1, "Branch code is required"),
+  accountNumber: z.string().min(1, "Account number is required"),
+  accountType: z.enum(["savings", "current"]),
   signatureData: z.string().optional(),
-  agreedToMandate: z.boolean().optional(),
+  agreedToMandate: z.boolean().default(false),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -108,8 +108,8 @@ export default function RegisterPage() {
       password: "",
       firstName: "",
       lastName: "",
-      isSouthAfrican: false,
-      idNumber: "",
+      isSouthAfricanCitizen: false,
+      idOrPassport: "",
       dateOfBirth: "",
       gender: "male",
       language: "",
@@ -229,7 +229,7 @@ export default function RegisterPage() {
 
       <FormField
         control={form.control}
-        name="isSouthAfrican"
+        name="isSouthAfricanCitizen"
         render={({ field }) => (
           <FormItem className="flex flex-row items-center space-x-3 space-y-0">
             <FormControl>
@@ -249,7 +249,7 @@ export default function RegisterPage() {
 
       <FormField
         control={form.control}
-        name="idNumber"
+        name="idOrPassport"
         render={({ field }) => (
           <FormItem>
             <FormLabel>ID Number/Passport</FormLabel>
@@ -673,7 +673,8 @@ export default function RegisterPage() {
         "password",
         "firstName",
         "lastName",
-        "idNumber",
+        "isSouthAfricanCitizen",
+        "idOrPassport",
         "dateOfBirth",
         "gender",
         "language",
@@ -681,7 +682,19 @@ export default function RegisterPage() {
       ]);
 
       if (!isValid) {
-        console.log("Step 1 validation failed:", form.formState.errors);
+        return;
+      }
+    } else if (currentStep === 2) {
+      const isValid = await form.trigger([
+        "occupation",
+        "industry",
+        "salaryBracket",
+        "addressLine1",
+        "suburb",
+        "postalCode"
+      ]);
+
+      if (!isValid) {
         return;
       }
     }
@@ -691,7 +704,49 @@ export default function RegisterPage() {
       return;
     }
 
-    const result = await register(data);
+    const isValid = await form.trigger([
+      "accountHolderName",
+      "bankName",
+      "branchCode",
+      "accountNumber",
+      "accountType",
+      "agreedToMandate"
+    ]);
+
+    if (!isValid) {
+      return;
+    }
+
+    // Transform the data to match the backend schema
+    const registrationData = {
+      email: data.email,
+      password: data.password,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      isSouthAfricanCitizen: data.isSouthAfricanCitizen,
+      idOrPassport: data.idOrPassport,
+      dateOfBirth: data.dateOfBirth,
+      gender: data.gender,
+      language: data.language,
+      mobileNumber: data.mobileNumber,
+      occupation: data.occupation,
+      industry: data.industry,
+      salaryBracket: data.salaryBracket,
+      hasOwnCreditCard: data.hasOwnCreditCard,
+      addressLine1: data.addressLine1,
+      addressLine2: data.addressLine2,
+      suburb: data.suburb,
+      postalCode: data.postalCode,
+      accountHolderName: data.accountHolderName,
+      bankName: data.bankName,
+      branchCode: data.branchCode,
+      accountNumber: data.accountNumber,
+      accountType: data.accountType,
+      signatureData: data.signatureData,
+      agreedToMandate: data.agreedToMandate
+    };
+
+    const result = await register(registrationData);
     if (result.ok) {
       setLocation("/");
     }
