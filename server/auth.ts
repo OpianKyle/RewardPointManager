@@ -40,7 +40,7 @@ const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
-  referralCode: z.string().optional(),
+  referral_code: z.string().optional(), // Changed from referralCode to referral_code
 });
 
 const loginSchema = z.object({
@@ -163,8 +163,9 @@ export function setupAuth(app: Express) {
           .json({ error: result.error.issues.map((i) => i.message).join(", ") });
       }
 
-      const { email, password, firstName, lastName, phoneNumber, referralCode } = result.data;
+      const { email, password, firstName, lastName, phoneNumber, referral_code } = result.data;
 
+      // Check for existing user
       const [existingUser] = await db
         .select()
         .from(users)
@@ -181,11 +182,11 @@ export function setupAuth(app: Express) {
         const newReferralCode = randomBytes(8).toString("hex");
         let referrer = null;
 
-        if (referralCode) {
+        if (referral_code) {
           [referrer] = await tx
             .select()
             .from(users)
-            .where(eq(users.referral_code, referralCode))
+            .where(eq(users.referral_code, referral_code))
             .limit(1);
 
           if (!referrer) {
@@ -206,7 +207,7 @@ export function setupAuth(app: Express) {
             isEnabled: true,
             points: 0,
             referral_code: newReferralCode,
-            referred_by: referralCode || null,
+            referred_by: referral_code || null,
           })
           .returning();
 
@@ -231,6 +232,7 @@ export function setupAuth(app: Express) {
       // Login the new user
       req.login(newUser[0], (err) => {
         if (err) {
+          console.error("Login error after registration:", err);
           return res.status(500).json({ error: "Login failed after registration" });
         }
         const { password: _, ...safeUser } = newUser[0];
@@ -240,10 +242,11 @@ export function setupAuth(app: Express) {
         });
       });
     } catch (error: any) {
+      console.error("Registration error:", error);
       if (error.message === "Invalid referral code") {
         return res.status(400).json({ error: "Invalid referral code" });
       }
-      return res.status(500).json({ error: "Registration failed" });
+      return res.status(500).json({ error: "Registration failed: " + error.message });
     }
   });
 
