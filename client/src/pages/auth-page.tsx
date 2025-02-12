@@ -20,7 +20,13 @@ const registerSchema = z.object({
   phoneNumber: z.string().min(1, "Phone number is required"),
 });
 
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
 type RegisterFormData = z.infer<typeof registerSchema>;
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function AuthPage() {
   const [, navigate] = useLocation();
@@ -28,7 +34,7 @@ export default function AuthPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"register" | "login">("register");
 
-  const form = useForm<RegisterFormData>({
+  const registerForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
@@ -39,7 +45,15 @@ export default function AuthPage() {
     },
   });
 
-  const onSubmit = async (data: RegisterFormData) => {
+  const loginForm = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onRegisterSubmit = async (data: RegisterFormData) => {
     try {
       const referralCode = new URLSearchParams(window.location.search).get('ref');
       await registerMutation.mutateAsync({
@@ -53,7 +67,7 @@ export default function AuthPage() {
       });
 
       // Reset form
-      form.reset();
+      registerForm.reset();
 
       // Switch to login tab
       setActiveTab("login");
@@ -63,6 +77,24 @@ export default function AuthPage() {
         variant: "destructive",
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create account",
+      });
+    }
+  };
+
+  const onLoginSubmit = async (data: LoginFormData) => {
+    try {
+      await loginMutation.mutateAsync(data);
+      toast({
+        title: "Success",
+        description: "Logged in successfully!",
+      });
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to login",
       });
     }
   };
@@ -84,15 +116,15 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Create Account</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Welcome to OPIAN Rewards</h1>
           <p className="text-sm text-muted-foreground">
-            Register to start earning rewards
+            {activeTab === "register" ? "Register to start earning rewards" : "Sign in to your account"}
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "register" | "login")} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="register">Register</TabsTrigger>
                 <TabsTrigger value="login">Login</TabsTrigger>
@@ -101,10 +133,10 @@ export default function AuthPage() {
           </CardHeader>
           <CardContent className="pt-6">
             {activeTab === "register" ? (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <Form {...registerForm}>
+                <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
                   <FormField
-                    control={form.control}
+                    control={registerForm.control}
                     name="email"
                     render={({ field, fieldState }) => (
                       <FormItem>
@@ -124,7 +156,7 @@ export default function AuthPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control}
+                      control={registerForm.control}
                       name="firstName"
                       render={({ field }) => (
                         <FormItem>
@@ -137,7 +169,7 @@ export default function AuthPage() {
                       )}
                     />
                     <FormField
-                      control={form.control}
+                      control={registerForm.control}
                       name="lastName"
                       render={({ field }) => (
                         <FormItem>
@@ -152,7 +184,7 @@ export default function AuthPage() {
                   </div>
 
                   <FormField
-                    control={form.control}
+                    control={registerForm.control}
                     name="phoneNumber"
                     render={({ field }) => (
                       <FormItem>
@@ -166,7 +198,7 @@ export default function AuthPage() {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={registerForm.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
@@ -182,7 +214,7 @@ export default function AuthPage() {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={registerMutation.isPending || !form.formState.isValid}
+                    disabled={registerMutation.isPending || !registerForm.formState.isValid}
                   >
                     {registerMutation.isPending ? (
                       <>
@@ -196,13 +228,52 @@ export default function AuthPage() {
                 </form>
               </Form>
             ) : (
-              <div className="text-center space-y-4">
-                <h3 className="text-lg font-medium">Welcome Back!</h3>
-                <p className="text-sm text-muted-foreground">
-                  Please sign in with your email and password
-                </p>
-                {/* Login form would go here */}
-              </div>
+              <Form {...loginForm}>
+                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" placeholder="Enter your email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="password" placeholder="Enter your password" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={loginMutation.isPending}
+                  >
+                    {loginMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Logging in...
+                      </>
+                    ) : (
+                      "Login"
+                    )}
+                  </Button>
+                </form>
+              </Form>
             )}
           </CardContent>
         </Card>
