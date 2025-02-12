@@ -10,17 +10,36 @@ import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+// Define user interface to match schema
+declare global {
+  namespace Express {
+    interface User {
+      id: number;
+      email: string;
+      firstName: string;
+      lastName: string;
+      password: string;
+      isAdmin: boolean | null;
+      isSuperAdmin: boolean | null;
+      isEnabled: boolean | null;
+      points: number | null;
+      referral_code: string | null;
+      referred_by: string | null;
+      phoneNumber?: string;
+    }
+  }
+}
+
 const scryptAsync = promisify(scrypt);
 const MemoryStore = createMemoryStore(session);
 
-// Update registration schema to match frontend expectations
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
-  referral_code: z.string().optional(), // Changed from referralCode to referral_code
+  referral_code: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -37,11 +56,7 @@ const crypto = {
   compare: async (suppliedPassword: string, storedPassword: string) => {
     const [hashedPassword, salt] = storedPassword.split(".");
     const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
-    const suppliedPasswordBuf = (await scryptAsync(
-      suppliedPassword,
-      salt,
-      64
-    )) as Buffer;
+    const suppliedPasswordBuf = (await scryptAsync(suppliedPassword, salt, 64)) as Buffer;
     return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
   },
 };
@@ -65,20 +80,6 @@ export function setupAuth(app: Express) {
   if (app.get("env") === "production") {
     app.set("trust proxy", 1);
   }
-
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    }
-    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
-    }
-    next();
-  });
 
   app.use(session(sessionSettings));
   app.use(passport.initialize());
@@ -117,7 +118,8 @@ export function setupAuth(app: Express) {
     )
   );
 
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: Express.User, done) => {
+    console.log("Serializing user:", user);
     done(null, user.id);
   });
 
@@ -128,9 +130,13 @@ export function setupAuth(app: Express) {
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
+
+      if (!user) {
+        return done(new Error('User not found'), null);
+      }
       done(null, user);
     } catch (err) {
-      done(err);
+      done(err, null);
     }
   });
 
@@ -139,6 +145,7 @@ export function setupAuth(app: Express) {
       console.log("Registration request body:", req.body);
       const result = registerSchema.safeParse(req.body);
       if (!result.success) {
+        console.log("Validation failed:", result.error);
         return res
           .status(400)
           .json({ error: result.error.issues.map((i) => i.message).join(", ") });
@@ -173,7 +180,7 @@ export function setupAuth(app: Express) {
           }
         }
 
-        const [user] = await tx
+        const [insertedUser] = await tx
           .insert(users)
           .values({
             email,
@@ -205,8 +212,10 @@ export function setupAuth(app: Express) {
           });
         }
 
-        return [user];
+        return [insertedUser];
       });
+
+      console.log("New user created:", newUser);
 
       // Login the new user
       req.login(newUser[0], (err) => {
@@ -214,6 +223,7 @@ export function setupAuth(app: Express) {
           console.error("Login error after registration:", err);
           return res.status(500).json({ error: "Login failed after registration" });
         }
+
         const { password: _, ...safeUser } = newUser[0];
         return res.status(201).json({
           message: "Registration successful",
