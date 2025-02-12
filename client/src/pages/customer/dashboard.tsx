@@ -203,7 +203,7 @@ export default function CustomerDashboard() {
                 {transactions?.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
+                    className="flex items-center justify-between p-4 border rounded-lg transaction-item"
                   >
                     <div className="space-y-1">
                       <p className="font-medium">
@@ -233,3 +233,9 @@ export default function CustomerDashboard() {
     </div>
   );
 }
+
+<style jsx>{`
+  .transaction-item {
+    border-color: #43eb3e; /*Applies green border to each transaction item*/
+  }
+`}</style>
