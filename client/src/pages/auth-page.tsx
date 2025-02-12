@@ -13,12 +13,12 @@ import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
 const registerSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Please enter a valid email address").min(1, "Email is required"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -76,6 +76,7 @@ export default function AuthPage() {
         description: "Logged in successfully",
       });
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -87,15 +88,20 @@ export default function AuthPage() {
   const handleRegister = async (data: RegisterFormData) => {
     try {
       const referralCode = new URLSearchParams(window.location.search).get('ref');
-      await registerMutation.mutateAsync({
+      const registerData = {
         ...data,
         referral_code: referralCode || undefined,
-      });
+      };
+
+      console.log('Registering with data:', registerData);
+      await registerMutation.mutateAsync(registerData);
+
       toast({
         title: "Success",
         description: "Registration successful",
       });
     } catch (error) {
+      console.error('Registration error:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -144,7 +150,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" />
+                          <Input {...field} type="email" placeholder="Enter your email" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -157,7 +163,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <Input type="password" {...field} placeholder="Enter your password" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -189,7 +195,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" />
+                          <Input {...field} type="email" placeholder="Enter your email" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -203,7 +209,7 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>First Name</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input {...field} placeholder="First name" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -216,7 +222,7 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Last Name</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input {...field} placeholder="Last name" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -230,7 +236,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input {...field} type="tel" />
+                          <Input {...field} type="tel" placeholder="Enter phone number" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -243,7 +249,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} />
+                          <Input type="password" {...field} placeholder="Create a password" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

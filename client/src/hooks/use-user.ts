@@ -57,12 +57,17 @@ export function useUser() {
         credentials: 'include'
       });
 
+      const data = await response.text();
       if (!response.ok) {
-        throw new Error(await response.text());
+        throw new Error(data);
       }
 
-      const data = await response.json();
-      return userSchema.parse(data.user);
+      try {
+        const jsonData = JSON.parse(data);
+        return userSchema.parse(jsonData.user || jsonData);
+      } catch (error) {
+        throw new Error('Invalid response format from server');
+      }
     },
     onSuccess: (user) => {
       queryClient.setQueryData(['/api/user'], user);
@@ -85,12 +90,18 @@ export function useUser() {
         credentials: 'include'
       });
 
+      const responseText = await response.text();
       if (!response.ok) {
-        throw new Error(await response.text());
+        throw new Error(responseText);
       }
 
-      const responseData = await response.json();
-      return userSchema.parse(responseData.user);
+      try {
+        const jsonData = JSON.parse(responseText);
+        return userSchema.parse(jsonData.user);
+      } catch (error) {
+        console.error('Registration parse error:', error);
+        throw new Error('Invalid response format from server');
+      }
     },
     onSuccess: (user) => {
       queryClient.setQueryData(['/api/user'], user);
