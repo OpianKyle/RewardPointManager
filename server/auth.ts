@@ -220,18 +220,11 @@ export async function setupAuth(app: Express) {
         return insertedUser;
       });
 
-      // Login the new user
-      req.login(newUser, (err) => {
-        if (err) {
-          console.error("Login error after registration:", err);
-          return res.status(500).json({ error: "Login failed after registration" });
-        }
-
-        const { password: _, ...safeUser } = newUser;
-        return res.status(201).json({
-          message: "Registration successful",
-          user: safeUser,
-        });
+      // Instead of logging in, just return success message
+      const { password: _, ...safeUser } = newUser;
+      return res.status(201).json({
+        message: "Registration successful! Please login to continue.",
+        user: safeUser,
       });
     } catch (error: any) {
       console.error("Registration error:", error);

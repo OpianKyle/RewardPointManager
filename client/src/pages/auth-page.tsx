@@ -48,8 +48,11 @@ export default function AuthPage() {
 
       toast({
         title: "Success",
-        description: "Account created successfully",
+        description: "Account created successfully! Please login to continue.",
       });
+
+      // Navigate to login page after successful registration
+      navigate("/login");
     } catch (error) {
       console.error('Registration error:', error);
       toast({
