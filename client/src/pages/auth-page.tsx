@@ -7,18 +7,17 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
-// Define login schema
+// Schema definitions
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
-// Define registration schema
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -39,24 +38,7 @@ export default function AuthPage() {
   // Get referral code from URL if present
   const referralCode = new URLSearchParams(window.location.search).get('ref');
 
-  // Switch to register mode if referral code is present
-  useEffect(() => {
-    if (referralCode) {
-      setMode("register");
-    }
-  }, [referralCode]);
-
-  // Handle user redirect
-  useEffect(() => {
-    if (user) {
-      if (user.isAdmin) {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
-    }
-  }, [user, navigate]);
-
+  // Initialize forms
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -76,26 +58,53 @@ export default function AuthPage() {
     },
   });
 
+  // Switch to register mode if referral code is present
+  useEffect(() => {
+    if (referralCode) {
+      setMode("register");
+    }
+  }, [referralCode]);
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      navigate(user.isAdmin ? "/admin" : "/dashboard");
+    }
+  }, [user, navigate]);
+
   const onSubmit = async (data: LoginFormData | RegisterFormData) => {
     try {
-      const result = await (mode === "login"
-        ? login(data as LoginFormData)
-        : registerUser({ 
-            ...(data as RegisterFormData), 
-            referral_code: referralCode || undefined 
-          }));
-
-      if (!result.ok) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result.message,
-        });
+      if (mode === "login") {
+        const result = await login(data as LoginFormData);
+        if (result.ok) {
+          toast({
+            title: "Success",
+            description: "Logged in successfully",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: result.message,
+          });
+        }
       } else {
-        toast({
-          title: "Success",
-          description: mode === "login" ? "Logged in successfully" : "Registration successful",
+        const result = await registerUser({
+          ...(data as RegisterFormData),
+          referral_code: referralCode || undefined,
         });
+        if (result.ok) {
+          toast({
+            title: "Success",
+            description: "Registration successful",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: result.message,
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -105,6 +114,8 @@ export default function AuthPage() {
       });
     }
   };
+
+  if (user) return null;
 
   return (
     <div className="min-h-screen flex">
@@ -142,105 +153,146 @@ export default function AuthPage() {
               </Tabs>
             </CardHeader>
             <CardContent className="px-8 py-6">
-              <Form {...(mode === "login" ? loginForm : registerForm)}>
-                <form onSubmit={mode === "login" ? loginForm.handleSubmit(onSubmit) : registerForm.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={mode === "login" ? loginForm.control : registerForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="email"
-                            autoComplete="email"
-                            className="h-10 text-white bg-[#011d3d] border-[#022b5c]"
-                          />
-                        </FormControl>
-                        <FormMessage className="text-[#43EB3E]" />
-                      </FormItem>
-                    )}
-                  />
-                  {mode === "register" && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={registerForm.control}
-                          name="firstName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white">First Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
-                              </FormControl>
-                              <FormMessage className="text-[#43EB3E]" />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="lastName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-white">Last Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
-                              </FormControl>
-                              <FormMessage className="text-[#43EB3E]" />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+              {mode === "login" ? (
+                <Form {...loginForm}>
+                  <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={loginForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Email</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="email" className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
+                          </FormControl>
+                          <FormMessage className="text-[#43EB3E]" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={loginForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              {...field}
+                              className="h-10 text-white bg-[#011d3d] border-[#022b5c]"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-[#43EB3E]" />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full h-10 font-semibold bg-[#43eb3e] text-white hover:opacity-90 transition-opacity"
+                      disabled={loginForm.formState.isSubmitting}
+                    >
+                      {loginForm.formState.isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Signing in...
+                        </>
+                      ) : (
+                        "Sign In"
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              ) : (
+                <Form {...registerForm}>
+                  <form onSubmit={registerForm.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={registerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Email</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="email" className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
+                          </FormControl>
+                          <FormMessage className="text-[#43EB3E]" />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={registerForm.control}
-                        name="phoneNumber"
+                        name="firstName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-white">Phone Number</FormLabel>
+                            <FormLabel className="text-white">First Name</FormLabel>
                             <FormControl>
-                              <Input {...field} type="tel" className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
+                              <Input {...field} className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
                             </FormControl>
                             <FormMessage className="text-[#43EB3E]" />
                           </FormItem>
                         )}
                       />
-                    </>
-                  )}
-                  <FormField
-                    control={mode === "login" ? loginForm.control : registerForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="password"
-                            {...field}
-                            className="h-10 text-white bg-[#011d3d] border-[#022b5c]"
-                            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                          />
-                        </FormControl>
-                        <FormMessage className="text-[#43EB3E]" />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    className="w-full h-10 font-semibold bg-[#43eb3e] text-white hover:opacity-90 transition-opacity"
-                    disabled={mode === "login" ? loginForm.formState.isSubmitting : registerForm.formState.isSubmitting}
-                  >
-                    {(mode === "login" ? loginForm.formState.isSubmitting : registerForm.formState.isSubmitting) ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        {mode === "login" ? "Signing in..." : "Creating account..."}
-                      </>
-                    ) : (
-                      mode === "login" ? "Sign In" : "Create Account"
-                    )}
-                  </Button>
-                </form>
-              </Form>
+                      <FormField
+                        control={registerForm.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white">Last Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
+                            </FormControl>
+                            <FormMessage className="text-[#43EB3E]" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={registerForm.control}
+                      name="phoneNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Phone Number</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="tel" className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
+                          </FormControl>
+                          <FormMessage className="text-[#43EB3E]" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white">Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              {...field}
+                              className="h-10 text-white bg-[#011d3d] border-[#022b5c]"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-[#43EB3E]" />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full h-10 font-semibold bg-[#43eb3e] text-white hover:opacity-90 transition-opacity"
+                      disabled={registerForm.formState.isSubmitting}
+                    >
+                      {registerForm.formState.isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Creating account...
+                        </>
+                      ) : (
+                        "Create Account"
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              )}
             </CardContent>
           </Card>
         </div>
