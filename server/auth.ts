@@ -118,8 +118,7 @@ export function setupAuth(app: Express) {
     )
   );
 
-  passport.serializeUser((user: Express.User, done) => {
-    console.log("Serializing user:", user);
+  passport.serializeUser((user, done) => {
     done(null, user.id);
   });
 
@@ -180,7 +179,7 @@ export function setupAuth(app: Express) {
           }
         }
 
-        const [insertedUser] = await tx
+        const insertedUsers = await tx
           .insert(users)
           .values({
             email,
@@ -197,6 +196,8 @@ export function setupAuth(app: Express) {
           })
           .returning();
 
+        const insertedUser = insertedUsers[0];
+
         if (referrer) {
           await tx
             .update(users)
@@ -212,19 +213,19 @@ export function setupAuth(app: Express) {
           });
         }
 
-        return [insertedUser];
+        return insertedUser;
       });
 
       console.log("New user created:", newUser);
 
       // Login the new user
-      req.login(newUser[0], (err) => {
+      req.login(newUser, (err) => {
         if (err) {
           console.error("Login error after registration:", err);
           return res.status(500).json({ error: "Login failed after registration" });
         }
 
-        const { password: _, ...safeUser } = newUser[0];
+        const { password: _, ...safeUser } = newUser;
         return res.status(201).json({
           message: "Registration successful",
           user: safeUser,
