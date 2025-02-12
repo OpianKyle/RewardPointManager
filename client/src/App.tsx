@@ -3,7 +3,8 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
-import AuthPage from "@/pages/auth-page";
+import LoginPage from "@/pages/auth/login";
+import RegisterPage from "@/pages/auth/register";
 import { useUser } from "@/hooks/use-user";
 import { Loader2 } from "lucide-react";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -39,7 +40,7 @@ function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
   }
 
   if (!user) {
-    navigate("/auth");
+    navigate("/auth/login");
     return null;
   }
 
@@ -71,11 +72,19 @@ function Router() {
   return (
     <SidebarProvider>
       <Switch>
-        <Route path="/auth">
+        {/* Auth Routes */}
+        <Route path="/auth/login">
           {user ? (
             <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />
           ) : (
-            <AuthPage />
+            <LoginPage />
+          )}
+        </Route>
+        <Route path="/auth/register">
+          {user ? (
+            <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />
+          ) : (
+            <RegisterPage />
           )}
         </Route>
 
@@ -143,7 +152,7 @@ function Router() {
           {user ? (
             <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />
           ) : (
-            <Redirect to="/auth" />
+            <Redirect to="/auth/login" />
           )}
         </Route>
 
