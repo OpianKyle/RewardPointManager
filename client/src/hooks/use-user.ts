@@ -26,6 +26,7 @@ export function useUser() {
           credentials: 'include'
         });
 
+        // Handle 401 by returning null without throwing
         if (response.status === 401) {
           return null;
         }
@@ -41,7 +42,7 @@ export function useUser() {
         return null;
       }
     },
-    staleTime: Infinity,
+    staleTime: 30000, // Reduce refetch frequency
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -56,7 +57,8 @@ export function useUser() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to login');
       }
 
       const data = await response.json();
@@ -68,7 +70,14 @@ export function useUser() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phoneNumber: string;
+      referral_code?: string;
+    }) => {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,7 +86,8 @@ export function useUser() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to register');
       }
 
       const userData = await response.json();

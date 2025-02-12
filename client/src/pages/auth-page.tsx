@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
+// Schema definitions remain unchanged
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
@@ -34,6 +35,7 @@ export default function AuthPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
+  // Handle referral code from URL
   useEffect(() => {
     const referralCode = new URLSearchParams(window.location.search).get('ref');
     if (referralCode) {
@@ -41,6 +43,7 @@ export default function AuthPage() {
     }
   }, []);
 
+  // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && user) {
       navigate(user.isAdmin ? "/admin" : "/dashboard");
@@ -102,6 +105,7 @@ export default function AuthPage() {
     }
   };
 
+  // Show loading spinner while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
