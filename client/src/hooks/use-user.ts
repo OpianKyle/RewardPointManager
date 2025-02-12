@@ -19,7 +19,7 @@ export function useUser() {
   const queryClient = useQueryClient();
 
   const { data: user, error, isLoading } = useQuery({
-    queryKey: ['user'],
+    queryKey: ['/api/user'],
     queryFn: async () => {
       try {
         const response = await fetch('/api/user', {
@@ -41,11 +41,11 @@ export function useUser() {
         return null;
       }
     },
-    staleTime: Infinity, // Don't refetch automatically
-    cacheTime: 0, // Don't cache the result
+    staleTime: Infinity,
+    gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: true,
     refetchOnReconnect: false
   });
 
@@ -66,23 +66,7 @@ export function useUser() {
       return userSchema.parse(data);
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['user'], data);
-    }
-  });
-
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-    },
-    onSuccess: () => {
-      queryClient.setQueryData(['user'], null);
+      queryClient.setQueryData(['/api/user'], data);
     }
   });
 
@@ -99,11 +83,27 @@ export function useUser() {
         throw new Error(await response.text());
       }
 
-      const userData = await response.json();
-      return userSchema.parse(userData);
+      const data2 = await response.json();
+      return userSchema.parse(data2);
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['user'], data);
+      queryClient.setQueryData(['/api/user'], data);
+    }
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(['/api/user'], null);
     }
   });
 
@@ -111,10 +111,8 @@ export function useUser() {
     user,
     isLoading,
     error,
-    login: loginMutation.mutateAsync,
-    logout: logoutMutation.mutateAsync,
-    register: registerMutation.mutateAsync,
     loginMutation,
-    registerMutation
+    registerMutation,
+    logoutMutation
   };
 }

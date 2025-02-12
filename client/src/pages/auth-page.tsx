@@ -30,16 +30,24 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const { loginMutation, registerMutation } = useUser();
+  const { loginMutation, registerMutation, user, isLoading } = useUser();
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
+  // Check for referral code and switch to register mode if present
   useEffect(() => {
     const referralCode = new URLSearchParams(window.location.search).get('ref');
     if (referralCode) {
       setMode("register");
     }
   }, []);
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate(user.isAdmin ? "/admin" : "/dashboard");
+    }
+  }, [user, isLoading, navigate]);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -95,6 +103,15 @@ export default function AuthPage() {
       });
     }
   };
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">

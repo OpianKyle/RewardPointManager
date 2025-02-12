@@ -69,22 +69,22 @@ const Loading = () => (
   </div>
 );
 
-function AuthRoute({ component: Component, ...rest }: any) {
+function AuthRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useUser();
 
   if (isLoading) return <Loading />;
-  if (user) return <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />;
-  return <Component {...rest} />;
+  if (!isLoading && user) return <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />;
+  return <Component />;
 }
 
-function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
+function PrivateRoute({ component: Component, admin = false }: { component: React.ComponentType, admin?: boolean }) {
   const { user, isLoading } = useUser();
 
   if (isLoading) return <Loading />;
   if (!user) return <Redirect to="/auth" />;
   if (admin && !user.isAdmin) return <Redirect to="/dashboard" />;
   if (!admin && user.isAdmin) return <Redirect to="/admin" />;
-  return <Component {...rest} />;
+  return <Component />;
 }
 
 function Router() {
@@ -166,7 +166,9 @@ function Router() {
             </CustomerLayout>
           </Route>
 
-          <Route component={NotFound} />
+          <Route>
+            <NotFound />
+          </Route>
         </Switch>
       </ErrorBoundary>
     </SidebarProvider>
