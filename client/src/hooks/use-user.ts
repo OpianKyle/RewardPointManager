@@ -24,6 +24,17 @@ export const userSchema = z.object({
   addressLine2: z.string().optional(),
   suburb: z.string().min(1, "Suburb is required"),
   postalCode: z.string().min(4, "Postal code is required"),
+  // Banking Details
+  accountHolderName: z.string().min(1, "Account holder name is required"),
+  bankName: z.string().min(1, "Bank name is required"),
+  branchCode: z.string().min(1, "Branch code is required"),
+  accountNumber: z.string().min(1, "Account number is required"),
+  accountType: z.enum(["savings", "current"]),
+  // Mandate Agreement
+  signatureData: z.string().min(1, "Digital signature is required"),
+  agreedToMandate: z.boolean().refine((val) => val === true, {
+    message: "You must agree to the mandate",
+  }),
   // System fields
   isAdmin: z.boolean().default(false),
   isSuperAdmin: z.boolean().default(false),

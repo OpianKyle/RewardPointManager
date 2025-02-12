@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRef } from "react";
+import SignaturePad from 'react-signature-canvas';
 
 const registerSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -47,6 +49,17 @@ const registerSchema = z.object({
   postalCode: z.string().min(4, "Valid postal code is required"),
   agreeToTerms: z.boolean().refine((val) => val === true, {
     message: "You must agree to the terms and conditions",
+  }),
+  // Banking Details
+  accountHolderName: z.string().min(1, "Account holder name is required"),
+  bankName: z.string().min(1, "Bank name is required"),
+  branchCode: z.string().min(1, "Branch code is required"),
+  accountNumber: z.string().min(1, "Account number is required"),
+  accountType: z.enum(["savings", "current"]),
+  // Mandate Agreement
+  signatureData: z.string().min(1, "Digital signature is required"),
+  agreedToMandate: z.boolean().refine((val) => val === true, {
+    message: "You must agree to the mandate",
   }),
 });
 
@@ -93,6 +106,7 @@ const industries = [
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
   const { register, user } = useUser();
+  const signaturePadRef = useRef<SignaturePad>(null);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -116,6 +130,13 @@ export default function RegisterPage() {
       suburb: "",
       postalCode: "",
       agreeToTerms: false,
+      accountHolderName: "",
+      bankName: "",
+      branchCode: "",
+      accountNumber: "",
+      accountType: "savings",
+      signatureData: "",
+      agreedToMandate: false,
     },
   });
 
@@ -144,6 +165,14 @@ export default function RegisterPage() {
       addressLine2: data.addressLine2,
       suburb: data.suburb,
       postalCode: data.postalCode,
+      accountHolderName: data.accountHolderName,
+      bankName: data.bankName,
+      branchCode: data.branchCode,
+      accountNumber: data.accountNumber,
+      accountType: data.accountType,
+      signatureData: data.signatureData,
+      agreedToMandate: data.agreedToMandate,
+
     });
 
     if (result.ok) {
@@ -455,6 +484,154 @@ export default function RegisterPage() {
                       </FormItem>
                     )}
                   />
+                </div>
+              </div>
+
+              {/* Banking Details Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Banking Details</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="accountHolderName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Account Holder Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="bankName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="branchCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Branch & Code</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="accountNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Account Number</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="accountType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type of Account</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select account type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="savings">Savings</SelectItem>
+                            <SelectItem value="current">Current</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Mandate Agreement Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Mandate Agreement</h3>
+                <div className="text-sm space-y-4 bg-muted p-4 rounded-lg">
+                  <p>Authority and Mandate for Payments</p>
+                  <p>This signed Authority and Mandate refers to our contract dated: {new Date().toLocaleDateString()}</p>
+                  <p>I / We hereby authorise you to issue and deliver payment instructions of R550 per month for the program fee to your Banker for collection against my / our abovementioned account at my / our above-mentioned Bank (or any other bank or branch to which I / we may transfer my / our account) on condition that the sum of such payment instructions will never exceed my / our obligations as agreed to in the Agreement and commencing on the 1st of each month and continuing until this Authority and Mandate is terminated by me / us by giving you notice in writing of not less than 20 ordinary working days, and sent by prepaid registered post or delivered to your address as indicated above.</p>
+                  <p>The individual payment instructions so authorised to be issued must be issued and delivered as follows: R550 monthly.</p>
+                  <p>In the event that the payment day falls on a Sunday, or a recognised South African public holiday, the payment day will automatically be the preceding ordinary business day.</p>
+                  <p>I / We understand that the withdrawals hereby authorized will be processed through a computerized system provided by the South African Banks, and I also understand that details of each withdrawal will be printed on my bank statement. Each transaction will contain a number, which must be included in the said payment instruction and if provided to you should enable you to identify the Agreement.</p>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="agreedToMandate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          I agree to the mandate terms and conditions
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="space-y-2">
+                  <FormLabel>Digital Signature</FormLabel>
+                  <div className="border rounded-md p-2">
+                    <SignaturePad
+                      ref={signaturePadRef}
+                      canvasProps={{
+                        className: "w-full h-40 border rounded-md",
+                      }}
+                      onEnd={() => {
+                        if (signaturePadRef.current) {
+                          const signatureData = signaturePadRef.current.toDataURL();
+                          form.setValue("signatureData", signatureData);
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (signaturePadRef.current) {
+                        signaturePadRef.current.clear();
+                        form.setValue("signatureData", "");
+                      }
+                    }}
+                  >
+                    Clear Signature
+                  </Button>
                 </div>
               </div>
 
