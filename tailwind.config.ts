@@ -14,11 +14,11 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#43EB3E",
+          DEFAULT: "#01152b",
           foreground: "#FFFFFF",
         },
         secondary: {
-          DEFAULT: "#01152b",
+          DEFAULT: "#43EB3E",
           foreground: "#FFFFFF",
         },
         card: {

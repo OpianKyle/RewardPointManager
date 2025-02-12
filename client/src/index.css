@@ -9,14 +9,11 @@
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
-    --primary: 142 84% 58%;  /* #43EB3E */
+    --primary: 214 96% 8%;  /* #01152b */
     --primary-foreground: 0 0% 100%; /* White text */
 
-    --secondary: 214 96% 8%;  /* #01152b */
+    --secondary: 142 84% 58%;  /* #43EB3E */
     --secondary-foreground: 0 0% 100%; /* White text */
-
-    --button-gradient-from: var(--primary);
-    --button-gradient-to: var(--secondary);
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -35,9 +32,7 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 142 84% 58%;
-
-    --radius: 0.5rem;
+    --ring: 214 96% 8%;
   }
 }
 
