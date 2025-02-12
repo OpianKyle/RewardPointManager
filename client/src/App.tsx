@@ -7,7 +7,6 @@ import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
 import { Loader2 } from "lucide-react";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { useNotifications } from "@/hooks/use-notifications";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -26,182 +25,113 @@ import CustomerLayout from "@/components/layout/customer-layout";
 import ReferralsPage from "@/pages/customer/referrals";
 import ProfilePage from "@/pages/customer/profile";
 
-import { Component, ErrorInfo, ReactNode } from "react";
-
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(_: Error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
-            <button
-              className="px-4 py-2 bg-primary text-white rounded"
-              onClick={() => {
-                this.setState({ hasError: false });
-                window.location.href = '/auth';
-              }}
-            >
-              Return to Login
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-const Loading = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-  </div>
-);
-
-function AuthRoute({ component: Component, ...rest }: any) {
+function ProtectedRoute({ component: Component, admin = false, ...rest }: any) {
   const { user, isLoading } = useUser();
 
-  if (isLoading) return <Loading />;
-
-  // Only redirect if we have a valid user
-  if (user && user.id) {
-    return <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
-  return <Component {...rest} />;
-}
-
-function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
-  const { user, isLoading } = useUser();
-
-  if (isLoading) return <Loading />;
-
-  // If no user or the user object is invalid, redirect to auth
-  if (!user || !user.id) {
+  if (!user) {
     return <Redirect to="/auth" />;
   }
 
-  // Check admin access
   if (admin && !user.isAdmin) {
     return <Redirect to="/dashboard" />;
-  }
-
-  if (!admin && user.isAdmin) {
-    return <Redirect to="/admin" />;
   }
 
   return <Component {...rest} />;
 }
 
 function Router() {
-  const { user, isLoading } = useUser();
-  useNotifications();
-
-  // Only show loading on initial auth check
-  if (isLoading && !user) return <Loading />;
-
-  // Handle root path redirect
-  if (window.location.pathname === "/") {
-    return <Redirect to={user ? (user.isAdmin ? "/admin" : "/dashboard") : "/auth"} />;
-  }
+  const { user } = useUser();
 
   return (
     <SidebarProvider>
-      <ErrorBoundary>
-        <Switch>
-          {/* Auth Route */}
-          <Route path="/auth">
-            <AuthRoute component={AuthPage} />
-          </Route>
+      <Switch>
+        {/* Root redirect */}
+        <Route path="/">
+          <Redirect to={user?.isAdmin ? "/admin" : "/dashboard"} />
+        </Route>
 
-          {/* Admin Routes */}
-          <Route path="/admin">
-            <AdminLayout>
-              <PrivateRoute component={AdminDashboard} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/customers">
-            <AdminLayout>
-              <PrivateRoute component={AdminCustomers} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/products">
-            <AdminLayout>
-              <PrivateRoute component={AdminProducts} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/rewards">
-            <AdminLayout>
-              <PrivateRoute component={AdminRewards} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/cash-redemptions">
-            <AdminLayout>
-              <PrivateRoute component={CashRedemptions} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/manage-users">
-            <AdminLayout>
-              <PrivateRoute component={ManageUsers} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/logs">
-            <AdminLayout>
-              <PrivateRoute component={AdminLogs} admin />
-            </AdminLayout>
-          </Route>
+        {/* Auth Route */}
+        <Route path="/auth" component={AuthPage} />
 
-          {/* Customer Routes */}
-          <Route path="/dashboard">
-            <CustomerLayout>
-              <PrivateRoute component={CustomerDashboard} />
-            </CustomerLayout>
-          </Route>
-          <Route path="/rewards">
-            <CustomerLayout>
-              <PrivateRoute component={CustomerRewards} />
-            </CustomerLayout>
-          </Route>
-          <Route path="/referrals">
-            <CustomerLayout>
-              <PrivateRoute component={ReferralsPage} />
-            </CustomerLayout>
-          </Route>
-          <Route path="/profile">
-            <CustomerLayout>
-              <PrivateRoute component={ProfilePage} />
-            </CustomerLayout>
-          </Route>
+        {/* Admin Routes */}
+        <Route path="/admin">
+          <AdminLayout>
+            <ProtectedRoute component={AdminDashboard} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/customers">
+          <AdminLayout>
+            <ProtectedRoute component={AdminCustomers} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/products">
+          <AdminLayout>
+            <ProtectedRoute component={AdminProducts} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/rewards">
+          <AdminLayout>
+            <ProtectedRoute component={AdminRewards} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/cash-redemptions">
+          <AdminLayout>
+            <ProtectedRoute component={CashRedemptions} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/manage-users">
+          <AdminLayout>
+            <ProtectedRoute component={ManageUsers} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/logs">
+          <AdminLayout>
+            <ProtectedRoute component={AdminLogs} admin />
+          </AdminLayout>
+        </Route>
 
-          <Route component={NotFound} />
-        </Switch>
-      </ErrorBoundary>
+        {/* Customer Routes */}
+        <Route path="/dashboard">
+          <CustomerLayout>
+            <ProtectedRoute component={CustomerDashboard} />
+          </CustomerLayout>
+        </Route>
+        <Route path="/rewards">
+          <CustomerLayout>
+            <ProtectedRoute component={CustomerRewards} />
+          </CustomerLayout>
+        </Route>
+        <Route path="/referrals">
+          <CustomerLayout>
+            <ProtectedRoute component={ReferralsPage} />
+          </CustomerLayout>
+        </Route>
+        <Route path="/profile">
+          <CustomerLayout>
+            <ProtectedRoute component={ProfilePage} />
+          </CustomerLayout>
+        </Route>
+
+        <Route component={NotFound} />
+      </Switch>
     </SidebarProvider>
   );
 }
 
 function App() {
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <Router />
-        <Toaster />
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <Router />
+      <Toaster />
+    </QueryClientProvider>
   );
 }
 

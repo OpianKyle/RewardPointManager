@@ -20,7 +20,7 @@ export type User = z.infer<typeof userSchema>;
 export function useUser() {
   const queryClient = useQueryClient();
 
-  const { data: user, error, isLoading } = useQuery({
+  const { data: user, isLoading } = useQuery({
     queryKey: ['/api/user'],
     queryFn: async () => {
       try {
@@ -28,7 +28,6 @@ export function useUser() {
           credentials: 'include'
         });
 
-        // Handle unauthorized state by returning null
         if (response.status === 401) {
           return null;
         }
@@ -37,19 +36,16 @@ export function useUser() {
           throw new Error(`Failed to fetch user: ${await response.text()}`);
         }
 
-        const responseData = await response.json();
-        return userSchema.parse(responseData);
+        const data = await response.json();
+        return userSchema.parse(data);
       } catch (error) {
         console.error('Error fetching user:', error);
         return null;
       }
     },
-    // Reduce unnecessary refetches
     staleTime: 300000, // 5 minutes
     gcTime: 3600000, // 1 hour
     retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
   });
 
   const loginMutation = useMutation({
@@ -62,22 +58,19 @@ export function useUser() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to login');
+        throw new Error(await response.text());
       }
 
-      const responseData = await response.json();
-      // Handle nested user object in response
-      const userData = responseData.user || responseData;
-      return userSchema.parse(userData);
+      const data = await response.json();
+      return userSchema.parse(data.user);
     },
-    onSuccess: (userData) => {
-      queryClient.setQueryData(['/api/user'], userData);
+    onSuccess: (user) => {
+      queryClient.setQueryData(['/api/user'], user);
     }
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (registerData: {
+    mutationFn: async (data: {
       email: string;
       password: string;
       firstName: string;
@@ -88,22 +81,19 @@ export function useUser() {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registerData),
+        body: JSON.stringify(data),
         credentials: 'include'
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to register');
+        throw new Error(await response.text());
       }
 
       const responseData = await response.json();
-      // Handle nested user object in response
-      const userData = responseData.user || responseData;
-      return userSchema.parse(userData);
+      return userSchema.parse(responseData.user);
     },
-    onSuccess: (userData) => {
-      queryClient.setQueryData(['/api/user'], userData);
+    onSuccess: (user) => {
+      queryClient.setQueryData(['/api/user'], user);
     }
   });
 
@@ -118,19 +108,13 @@ export function useUser() {
         throw new Error(await response.text());
       }
 
-      // Clear user data from cache immediately
       queryClient.setQueryData(['/api/user'], null);
-    },
-    onSuccess: () => {
-      // Invalidate and refetch relevant queries
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
     }
   });
 
   return {
     user,
     isLoading,
-    error,
     loginMutation,
     registerMutation,
     logoutMutation
