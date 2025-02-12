@@ -651,35 +651,45 @@ export default function RegisterPage() {
     </>
   );
 
-  const validateCurrentStep = () => {
-    const fields = {
-      1: ["email", "password", "firstName", "lastName", "isSouthAfrican", "idNumber", "dateOfBirth", "gender", "language", "mobileNumber"],
-      2: ["occupation", "industry", "salaryBracket", "hasOwnCreditCard", "addressLine1", "suburb", "postalCode"],
-      3: ["accountHolderName", "bankName", "branchCode", "accountNumber", "accountType", "agreedToMandate", "signatureData"],
-    };
+  const goToPreviousStep = () => {
+    setCurrentStep(currentStep - 1);
+  };
 
-    const currentFields = fields[currentStep as keyof typeof fields];
-    const isValid = currentFields.every((field) => {
-      const value = form.getValues(field as keyof RegisterFormData);
-      if (field === "hasOwnCreditCard") return true; // Optional field
-      if (field === "addressLine2") return true; // Optional field
-      return value !== "" && value !== undefined;
-    });
-
-    return isValid;
+  const stepContent = {
+    1: {
+      title: "Create Account",
+      description: "Enter your personal information",
+      content: renderPersonalInformation,
+    },
+    2: {
+      title: "Employment & Address",
+      description: "Tell us about your work and where you live",
+      content: renderEmploymentAndAddress,
+    },
+    3: {
+      title: "Banking & Mandate",
+      description: "Set up your payment details",
+      content: renderMandateAndBanking,
+    },
   };
 
   const onSubmit = async (data: RegisterFormData) => {
-    console.log("Form data submitted:", data); // Added console logging
+    console.log("Form data submitted:", data);
+    console.log("Current step:", currentStep);
+    console.log("Form validation state:", form.formState);
 
     if (currentStep !== 3) {
-      const isValid = validateCurrentStep();
-      if (!isValid) {
-        // Trigger validation for all fields in current step
-        form.trigger();
-        return;
+      const isValid = await form.trigger(
+        currentStep === 1
+          ? ["email", "password", "firstName", "lastName", "isSouthAfrican", "idNumber", "dateOfBirth", "gender", "language", "mobileNumber"]
+          : ["occupation", "industry", "salaryBracket", "addressLine1", "suburb", "postalCode"]
+      );
+
+      console.log("Step validation result:", isValid);
+
+      if (isValid) {
+        setCurrentStep(currentStep + 1);
       }
-      setCurrentStep(currentStep + 1);
       return;
     }
 
@@ -711,33 +721,11 @@ export default function RegisterPage() {
       agreedToMandate: data.agreedToMandate,
     });
 
-    console.log("Registration result:", result); // Added console logging
+    console.log("Registration result:", result);
 
     if (result.ok) {
       setLocation("/");
     }
-  };
-
-  const goToPreviousStep = () => {
-    setCurrentStep(currentStep - 1);
-  };
-
-  const stepContent = {
-    1: {
-      title: "Create Account",
-      description: "Enter your personal information",
-      content: renderPersonalInformation,
-    },
-    2: {
-      title: "Employment & Address",
-      description: "Tell us about your work and where you live",
-      content: renderEmploymentAndAddress,
-    },
-    3: {
-      title: "Banking & Mandate",
-      description: "Set up your payment details",
-      content: renderMandateAndBanking,
-    },
   };
 
   return (
