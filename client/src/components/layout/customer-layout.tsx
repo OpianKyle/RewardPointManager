@@ -91,11 +91,32 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
         <div className="h-full p-4 lg:p-8">
           {children}
         </div>
       </main>
+
+      {/* Bottom Navigation Bar - Mobile Only */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t lg:hidden">
+        <div className="flex items-center justify-around h-16">
+          {menuItems.map((item) => (
+            <Button
+              key={item.href}
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "flex flex-col items-center justify-center h-full w-full space-y-1 rounded-none",
+                location === item.href && "bg-secondary"
+              )}
+              onClick={() => navigate(item.href)}
+            >
+              {React.cloneElement(item.icon, { className: "h-5 w-5" })}
+              <span className="text-xs">{item.label}</span>
+            </Button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
