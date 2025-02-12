@@ -34,7 +34,6 @@ export default function AuthPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
-  // Check for referral code and switch to register mode if present
   useEffect(() => {
     const referralCode = new URLSearchParams(window.location.search).get('ref');
     if (referralCode) {
@@ -42,7 +41,6 @@ export default function AuthPage() {
     }
   }, []);
 
-  // Redirect if user is already logged in
   useEffect(() => {
     if (!isLoading && user) {
       navigate(user.isAdmin ? "/admin" : "/dashboard");
@@ -104,7 +102,6 @@ export default function AuthPage() {
     }
   };
 
-  // Show loading state while checking auth
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

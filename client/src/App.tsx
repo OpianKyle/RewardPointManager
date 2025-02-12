@@ -26,65 +26,28 @@ import CustomerLayout from "@/components/layout/customer-layout";
 import ReferralsPage from "@/pages/customer/referrals";
 import ProfilePage from "@/pages/customer/profile";
 
-import { Component, ErrorInfo, ReactNode } from "react";
-
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(_: Error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
-            <button
-              className="px-4 py-2 bg-primary text-white rounded"
-              onClick={() => window.location.href = '/auth'}
-            >
-              Return to Login
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
 const Loading = () => (
   <div className="flex items-center justify-center min-h-screen">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
   </div>
 );
 
-function AuthRoute({ component: Component }: { component: React.ComponentType }) {
+function AuthRoute({ component: Component, ...rest }: any) {
   const { user, isLoading } = useUser();
 
   if (isLoading) return <Loading />;
-  if (!isLoading && user) return <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />;
-  return <Component />;
+  if (user) return <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />;
+  return <Component {...rest} />;
 }
 
-function PrivateRoute({ component: Component, admin = false }: { component: React.ComponentType, admin?: boolean }) {
+function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
   const { user, isLoading } = useUser();
 
   if (isLoading) return <Loading />;
   if (!user) return <Redirect to="/auth" />;
   if (admin && !user.isAdmin) return <Redirect to="/dashboard" />;
   if (!admin && user.isAdmin) return <Redirect to="/admin" />;
-  return <Component />;
+  return <Component {...rest} />;
 }
 
 function Router() {
@@ -93,96 +56,89 @@ function Router() {
 
   if (isLoading) return <Loading />;
 
-  // Root path redirection
   if (window.location.pathname === "/") {
     return <Redirect to={user ? (user.isAdmin ? "/admin" : "/dashboard") : "/auth"} />;
   }
 
   return (
     <SidebarProvider>
-      <ErrorBoundary>
-        <Switch>
-          {/* Auth Route */}
-          <Route path="/auth">
-            <AuthRoute component={AuthPage} />
-          </Route>
+      <Switch>
+        {/* Auth Route */}
+        <Route path="/auth">
+          <AuthRoute component={AuthPage} />
+        </Route>
 
-          {/* Admin Routes */}
-          <Route path="/admin">
-            <AdminLayout>
-              <PrivateRoute component={AdminDashboard} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/customers">
-            <AdminLayout>
-              <PrivateRoute component={AdminCustomers} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/products">
-            <AdminLayout>
-              <PrivateRoute component={AdminProducts} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/rewards">
-            <AdminLayout>
-              <PrivateRoute component={AdminRewards} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/cash-redemptions">
-            <AdminLayout>
-              <PrivateRoute component={CashRedemptions} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/manage-users">
-            <AdminLayout>
-              <PrivateRoute component={ManageUsers} admin />
-            </AdminLayout>
-          </Route>
-          <Route path="/admin/logs">
-            <AdminLayout>
-              <PrivateRoute component={AdminLogs} admin />
-            </AdminLayout>
-          </Route>
+        {/* Admin Routes */}
+        <Route path="/admin">
+          <AdminLayout>
+            <PrivateRoute component={AdminDashboard} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/customers">
+          <AdminLayout>
+            <PrivateRoute component={AdminCustomers} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/products">
+          <AdminLayout>
+            <PrivateRoute component={AdminProducts} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/rewards">
+          <AdminLayout>
+            <PrivateRoute component={AdminRewards} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/cash-redemptions">
+          <AdminLayout>
+            <PrivateRoute component={CashRedemptions} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/manage-users">
+          <AdminLayout>
+            <PrivateRoute component={ManageUsers} admin />
+          </AdminLayout>
+        </Route>
+        <Route path="/admin/logs">
+          <AdminLayout>
+            <PrivateRoute component={AdminLogs} admin />
+          </AdminLayout>
+        </Route>
 
-          {/* Customer Routes */}
-          <Route path="/dashboard">
-            <CustomerLayout>
-              <PrivateRoute component={CustomerDashboard} />
-            </CustomerLayout>
-          </Route>
-          <Route path="/rewards">
-            <CustomerLayout>
-              <PrivateRoute component={CustomerRewards} />
-            </CustomerLayout>
-          </Route>
-          <Route path="/referrals">
-            <CustomerLayout>
-              <PrivateRoute component={ReferralsPage} />
-            </CustomerLayout>
-          </Route>
-          <Route path="/profile">
-            <CustomerLayout>
-              <PrivateRoute component={ProfilePage} />
-            </CustomerLayout>
-          </Route>
+        {/* Customer Routes */}
+        <Route path="/dashboard">
+          <CustomerLayout>
+            <PrivateRoute component={CustomerDashboard} />
+          </CustomerLayout>
+        </Route>
+        <Route path="/rewards">
+          <CustomerLayout>
+            <PrivateRoute component={CustomerRewards} />
+          </CustomerLayout>
+        </Route>
+        <Route path="/referrals">
+          <CustomerLayout>
+            <PrivateRoute component={ReferralsPage} />
+          </CustomerLayout>
+        </Route>
+        <Route path="/profile">
+          <CustomerLayout>
+            <PrivateRoute component={ProfilePage} />
+          </CustomerLayout>
+        </Route>
 
-          <Route>
-            <NotFound />
-          </Route>
-        </Switch>
-      </ErrorBoundary>
+        <Route component={NotFound} />
+      </Switch>
     </SidebarProvider>
   );
 }
 
 function App() {
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <Router />
-        <Toaster />
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <Router />
+      <Toaster />
+    </QueryClientProvider>
   );
 }
 

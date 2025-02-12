@@ -42,11 +42,8 @@ export function useUser() {
       }
     },
     staleTime: Infinity,
-    gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
-    refetchOnMount: true,
-    refetchOnReconnect: false
   });
 
   const loginMutation = useMutation({
@@ -83,8 +80,8 @@ export function useUser() {
         throw new Error(await response.text());
       }
 
-      const data2 = await response.json();
-      return userSchema.parse(data2);
+      const userData = await response.json();
+      return userSchema.parse(userData);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['/api/user'], data);
