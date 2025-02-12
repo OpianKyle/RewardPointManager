@@ -229,7 +229,7 @@ export default function AuthPage() {
                   />
                   <Button
                     type="submit"
-                    className="w-full h-10 font-semibold btn-gradient"
+                    className="w-full h-10 font-semibold bg-[#43eb3e] text-white hover:opacity-90 transition-opacity"
                     disabled={currentForm.formState.isSubmitting}
                   >
                     {currentForm.formState.isSubmitting ? (
