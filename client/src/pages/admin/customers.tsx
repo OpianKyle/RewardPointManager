@@ -371,14 +371,14 @@ export default function AdminCustomers() {
                           </DropdownMenuItem>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                 <Package className="mr-2 h-4 w-4" />
                                 Assign Product
                               </DropdownMenuItem>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="bg-[#011d3d] border-[#022b5c] text-white">
                               <DialogHeader>
-                                <DialogTitle>Assign Products to {customer.firstName}</DialogTitle>
+                                <DialogTitle className="text-[#43EB3E]">Assign Products to {customer.firstName}</DialogTitle>
                               </DialogHeader>
                               <div className="grid gap-4">
                                 {products?.map((product: any) => {
@@ -424,22 +424,20 @@ export default function AdminCustomers() {
                           </Dialog>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                 <TrendingUp className="mr-2 h-4 w-4" />
                                 Assign Points
                               </DropdownMenuItem>
                             </DialogTrigger>
                             <DialogContent
-                              className="max-w-5xl"
+                              className="max-w-5xl bg-[#011d3d] border-[#022b5c] text-white"
                               onCloseAutoFocus={() => {
-                                // Reset form and clear all activity values
                                 pointsForm.reset({
                                   points: 0,
                                   description: "",
                                   selectedActivities: [],
                                   posPoints: 0
                                 });
-                                // Clear all activity current values
                                 customer.productAssignments?.forEach((assignment: any) => {
                                   assignment.product.activities?.forEach((activity: any) => {
                                     activity.currentValue = 0;
@@ -449,7 +447,7 @@ export default function AdminCustomers() {
                               }}
                             >
                               <DialogHeader>
-                                <DialogTitle>Assign Points to {customer.firstName}</DialogTitle>
+                                <DialogTitle className="text-[#43EB3E]">Assign Points to {customer.firstName}</DialogTitle>
                                 {(() => {
                                   const tierInfo = getTierInfo(customer.points);
                                   return (
@@ -472,7 +470,6 @@ export default function AdminCustomers() {
                                 })()}
                               </DialogHeader>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Left Column - Product Activities */}
                                 <div className="space-y-6">
                                   <h3 className="text-lg font-semibold">Product Activities</h3>
                                   <ScrollArea className="h-[400px] pr-4">
@@ -541,7 +538,6 @@ export default function AdminCustomers() {
                                                               if (!isPremiumOrCard) {
                                                                 pointsForm.setValue("points", currentPoints - activity.pointsValue);
                                                               } else {
-                                                                // Reset points for Premium Payment or Card Balance when unchecked
                                                                 const oldValue = activity.currentValue || 0;
                                                                 pointsForm.setValue("points", currentPoints - oldValue);
                                                                 activity.currentValue = 0;
@@ -640,7 +636,6 @@ export default function AdminCustomers() {
                                   </div>
                                 </div>
 
-                                {/* Right Column - Points Summary */}
                                 <div className="space-y-6">
                                   <div className="space-y-4">
                                     <h3 className="text-lg font-semibold">Points Summary</h3>
@@ -735,14 +730,14 @@ export default function AdminCustomers() {
                           </Dialog>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="bg-[#011d3d] border-[#022b5c] text-white">
                               <DialogHeader>
-                                <DialogTitle>Edit Customer</DialogTitle>
+                                <DialogTitle className="text-[#43EB3E]">Edit Customer</DialogTitle>
                               </DialogHeader>
                               <form
                                 onSubmit={form.handleSubmit((data) =>
