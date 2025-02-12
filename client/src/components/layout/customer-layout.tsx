@@ -1,7 +1,6 @@
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { Sidebar } from "@/components/ui/sidebar";
 import { Home, Gift, Users, User, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -91,8 +90,8 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 p-4 lg:p-8 overflow-y-auto ml-0 lg:ml-72 w-full">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 overflow-y-auto">
+        <div className="h-full p-4 lg:p-8">
           {children}
         </div>
       </main>
