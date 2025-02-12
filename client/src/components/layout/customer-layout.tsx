@@ -27,7 +27,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       <Button
         variant="outline"
         size="icon"
-        className="fixed top-4 right-4 z-50 lg:hidden h-10 w-10 bg-background shadow-md"
+        className="fixed top-4 right-6 z-50 lg:hidden h-10 w-10 bg-background shadow-md"
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
