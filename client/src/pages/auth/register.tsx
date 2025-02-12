@@ -681,7 +681,7 @@ export default function RegisterPage() {
     });
 
     if (currentStep !== 3) {
-      let fieldsToValidate = [];
+      let fieldsToValidate: (keyof RegisterFormData)[] = [];
       if (currentStep === 1) {
         fieldsToValidate = ["email", "password", "firstName", "lastName", "idNumber", "dateOfBirth", "gender", "language", "mobileNumber"];
       } else if (currentStep === 2) {
@@ -691,7 +691,7 @@ export default function RegisterPage() {
       console.log("Validating fields:", fieldsToValidate);
 
       const isValid = await form.trigger(fieldsToValidate);
-      console.log("Validation result:", isValid);
+      console.log("Validation result:", isValid, form.formState.errors);
 
       if (isValid) {
         console.log("Moving to next step", currentStep + 1);
