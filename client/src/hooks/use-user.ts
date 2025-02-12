@@ -26,25 +26,28 @@ export function useUser() {
           credentials: 'include'
         });
 
-        // Handle 401 by returning null without throwing
+        // Handle unauthorized state by returning null
         if (response.status === 401) {
           return null;
         }
 
         if (!response.ok) {
-          throw new Error(await response.text());
+          throw new Error(`Failed to fetch user: ${await response.text()}`);
         }
 
-        const data = await response.json();
-        return userSchema.parse(data);
+        const responseData = await response.json();
+        return userSchema.parse(responseData);
       } catch (error) {
         console.error('Error fetching user:', error);
         return null;
       }
     },
-    staleTime: 30000, // Reduce refetch frequency
+    // Reduce unnecessary refetches
+    staleTime: 300000, // 5 minutes
+    gcTime: 3600000, // 1 hour
     retry: false,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const loginMutation = useMutation({
@@ -61,16 +64,16 @@ export function useUser() {
         throw new Error(errorText || 'Failed to login');
       }
 
-      const data = await response.json();
-      return userSchema.parse(data);
+      const responseData = await response.json();
+      return userSchema.parse(responseData.user);
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['/api/user'], data);
+    onSuccess: (userData) => {
+      queryClient.setQueryData(['/api/user'], userData);
     }
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (data: {
+    mutationFn: async (registerData: {
       email: string;
       password: string;
       firstName: string;
@@ -81,7 +84,7 @@ export function useUser() {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(registerData),
         credentials: 'include'
       });
 
@@ -90,11 +93,11 @@ export function useUser() {
         throw new Error(errorText || 'Failed to register');
       }
 
-      const userData = await response.json();
-      return userSchema.parse(userData);
+      const responseData = await response.json();
+      return userSchema.parse(responseData.user);
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['/api/user'], data);
+    onSuccess: (userData) => {
+      queryClient.setQueryData(['/api/user'], userData);
     }
   });
 
@@ -108,9 +111,13 @@ export function useUser() {
       if (!response.ok) {
         throw new Error(await response.text());
       }
+
+      // Clear user data from cache immediately
+      queryClient.setQueryData(['/api/user'], null);
     },
     onSuccess: () => {
-      queryClient.setQueryData(['/api/user'], null);
+      // Invalidate and refetch relevant queries
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
     }
   });
 

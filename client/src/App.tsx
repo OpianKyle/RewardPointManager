@@ -50,7 +50,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
             <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
             <button
               className="px-4 py-2 bg-primary text-white rounded"
-              onClick={() => window.location.href = '/auth'}
+              onClick={() => {
+                this.setState({ hasError: false });
+                window.location.href = '/auth';
+              }}
             >
               Return to Login
             </button>
@@ -73,7 +76,12 @@ function AuthRoute({ component: Component, ...rest }: any) {
   const { user, isLoading } = useUser();
 
   if (isLoading) return <Loading />;
-  if (user) return <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />;
+
+  // Only redirect if we have a valid user
+  if (user && user.id) {
+    return <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />;
+  }
+
   return <Component {...rest} />;
 }
 
@@ -81,9 +89,21 @@ function PrivateRoute({ component: Component, admin = false, ...rest }: any) {
   const { user, isLoading } = useUser();
 
   if (isLoading) return <Loading />;
-  if (!user) return <Redirect to="/auth" />;
-  if (admin && !user.isAdmin) return <Redirect to="/dashboard" />;
-  if (!admin && user.isAdmin) return <Redirect to="/admin" />;
+
+  // If no user or the user object is invalid, redirect to auth
+  if (!user || !user.id) {
+    return <Redirect to="/auth" />;
+  }
+
+  // Check admin access
+  if (admin && !user.isAdmin) {
+    return <Redirect to="/dashboard" />;
+  }
+
+  if (!admin && user.isAdmin) {
+    return <Redirect to="/admin" />;
+  }
+
   return <Component {...rest} />;
 }
 
