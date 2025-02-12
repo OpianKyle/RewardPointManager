@@ -13,12 +13,12 @@ import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
 const loginSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
+  email: z.string().trim().min(1, "Email is required").email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
 const registerSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
+  email: z.string().trim().min(1, "Email is required").email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -146,13 +146,19 @@ export default function AuthPage() {
                   <FormField
                     control={loginForm.control}
                     name="email"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" placeholder="Enter your email" />
+                          <Input 
+                            {...field} 
+                            type="email"
+                            placeholder="Enter your email"
+                            aria-invalid={fieldState.invalid}
+                            className={fieldState.invalid ? "border-destructive" : ""}
+                          />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-destructive text-sm" />
                       </FormItem>
                     )}
                   />
@@ -191,13 +197,19 @@ export default function AuthPage() {
                   <FormField
                     control={registerForm.control}
                     name="email"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} type="email" placeholder="Enter your email" />
+                          <Input 
+                            {...field} 
+                            type="email"
+                            placeholder="Enter your email"
+                            aria-invalid={fieldState.invalid}
+                            className={fieldState.invalid ? "border-destructive" : ""}
+                          />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-destructive text-sm" />
                       </FormItem>
                     )}
                   />
