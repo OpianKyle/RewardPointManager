@@ -25,8 +25,35 @@ import {
 import { useRef, useState } from "react";
 import SignaturePad from 'react-signature-canvas';
 
-// Temporarily remove validation
-const registerSchema = z.object({});
+const registerSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  isSouthAfrican: z.boolean().optional(),
+  idNumber: z.string().min(1, "ID Number/Passport is required"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
+  language: z.string().min(1, "Language is required"),
+  mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
+  // Employment Details (Step 2) - temporarily without validation
+  occupation: z.string().optional(),
+  industry: z.string().optional(),
+  salaryBracket: z.string().optional(),
+  hasOwnCreditCard: z.boolean().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  suburb: z.string().optional(),
+  postalCode: z.string().optional(),
+  // Banking Details (Step 3) - temporarily without validation
+  accountHolderName: z.string().optional(),
+  bankName: z.string().optional(),
+  branchCode: z.string().optional(),
+  accountNumber: z.string().optional(),
+  accountType: z.enum(["savings", "current"]).optional(),
+  signatureData: z.string().optional(),
+  agreedToMandate: z.boolean().optional(),
+});
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
@@ -77,6 +104,8 @@ export default function RegisterPage() {
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      email: "",
+      password: "",
       firstName: "",
       lastName: "",
       isSouthAfrican: false,
@@ -85,8 +114,6 @@ export default function RegisterPage() {
       gender: "male",
       language: "",
       mobileNumber: "",
-      email: "",
-      password: "",
       occupation: "",
       industry: "",
       salaryBracket: "",
@@ -95,7 +122,6 @@ export default function RegisterPage() {
       addressLine2: "",
       suburb: "",
       postalCode: "",
-      agreeToTerms: false,
       accountHolderName: "",
       bankName: "",
       branchCode: "",
@@ -266,6 +292,7 @@ export default function RegisterPage() {
                   <SelectItem value="male">Male</SelectItem>
                   <SelectItem value="female">Female</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -640,6 +667,25 @@ export default function RegisterPage() {
   };
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (currentStep === 1) {
+      const isValid = await form.trigger([
+        "email",
+        "password",
+        "firstName",
+        "lastName",
+        "idNumber",
+        "dateOfBirth",
+        "gender",
+        "language",
+        "mobileNumber"
+      ]);
+
+      if (!isValid) {
+        console.log("Step 1 validation failed:", form.formState.errors);
+        return;
+      }
+    }
+
     if (currentStep !== 3) {
       setCurrentStep(currentStep + 1);
       return;
