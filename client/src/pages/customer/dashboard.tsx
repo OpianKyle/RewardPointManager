@@ -205,7 +205,7 @@ export default function CustomerDashboard() {
                     key={transaction.id}
                     className="flex items-center justify-between p-4 border rounded-lg transaction-item"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1 border-l-[3px] pl-3" style={{ borderColor: '#43eb3e' }}>
                       <p className="font-medium">
                         {transaction.type ? formatTransactionType(transaction.type) : ''} - {transaction.description}
                       </p>
@@ -236,6 +236,17 @@ export default function CustomerDashboard() {
 
 <style jsx>{`
   .transaction-item {
-    border-color: #43eb3e; /*Applies green border to each transaction item*/
+    border-color: #43eb3e;
+    position: relative;
+  }
+  .transaction-item::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: #43eb3e;
+    opacity: 0.5;
   }
 `}</style>
