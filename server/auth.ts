@@ -229,11 +229,11 @@ export function setupAuth(app: Express) {
       });
 
       // Login the new user
-      req.login(newUser[0], (err) => { //Corrected this line
+      req.login(newUser[0], (err) => {
         if (err) {
           return res.status(500).json({ error: "Login failed after registration" });
         }
-        const { password: _, ...safeUser } = newUser[0]; //Corrected this line
+        const { password: _, ...safeUser } = newUser[0];
         return res.status(201).json({
           message: "Registration successful",
           user: safeUser,
@@ -279,11 +279,21 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     req.logout((err) => {
       if (err) {
         return res.status(500).json({ error: "Logout failed" });
       }
-      res.json({ message: "Logout successful" });
+      req.session.destroy((err) => {
+        if (err) {
+          return res.status(500).json({ error: "Session destruction failed" });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ message: "Logout successful" });
+      });
     });
   });
 

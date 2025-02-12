@@ -101,14 +101,22 @@ export function useUser() {
     mutationFn: async () => {
       const response = await fetch('/api/logout', {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
         throw new Error(await response.text());
       }
 
+      // Clear all queries from the cache
+      queryClient.clear();
+      // Set user to null
       queryClient.setQueryData(['/api/user'], null);
+      // Force a refetch of the user query
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+
+      return response.json();
     }
   });
 
