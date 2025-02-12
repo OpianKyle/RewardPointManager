@@ -229,7 +229,7 @@ export default function AuthPage() {
                   />
                   <Button
                     type="submit"
-                    className="w-full h-10 font-semibold bg-gradient-to-r from-[#43EB3E] to-[#01152b]"
+                    className="w-full h-10 font-semibold btn-gradient"
                     disabled={currentForm.formState.isSubmitting}
                   >
                     {currentForm.formState.isSubmitting ? (

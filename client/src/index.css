@@ -33,6 +33,9 @@
     --border: 214 96% 15%;
     --input: 214 96% 15%;
     --ring: 142 84% 58%;
+
+    --e-global-color-be70a18: #43EB3E;
+    --e-global-color-8608cda: #01152b;
   }
   * {
     @apply border-border;
@@ -50,7 +53,7 @@
 
 @layer components {
   .btn-gradient {
-    @apply bg-gradient-to-r from-[#43EB3E] to-[#01152b] text-white hover:opacity-90 transition-opacity;
+    @apply bg-gradient-to-r from-[var(--e-global-color-be70a18)] to-[var(--e-global-color-8608cda)] text-white hover:opacity-90 transition-opacity;
   }
   .card {
     @apply bg-[#011d3d] border-[#022b5c] shadow-lg;
