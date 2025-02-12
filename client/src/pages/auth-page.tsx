@@ -8,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -46,6 +46,17 @@ export default function AuthPage() {
     }
   }, [referralCode]);
 
+  // Handle user redirect
+  useEffect(() => {
+    if (user) {
+      if (user.isAdmin) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [user, navigate]);
+
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -69,7 +80,10 @@ export default function AuthPage() {
     try {
       const result = await (mode === "login"
         ? login(data as LoginFormData)
-        : registerUser({ ...data as RegisterFormData, referralCode }));
+        : registerUser({ 
+            ...(data as RegisterFormData), 
+            referral_code: referralCode || undefined 
+          }));
 
       if (!result.ok) {
         toast({
@@ -82,11 +96,6 @@ export default function AuthPage() {
           title: "Success",
           description: mode === "login" ? "Logged in successfully" : "Registration successful",
         });
-        if (user?.isAdmin) {
-          navigate("/admin");
-        } else {
-          navigate("/dashboard");
-        }
       }
     } catch (error) {
       toast({
@@ -96,17 +105,6 @@ export default function AuthPage() {
       });
     }
   };
-
-  if (user) {
-    if (user.isAdmin) {
-      navigate("/admin");
-    } else {
-      navigate("/dashboard");
-    }
-    return null;
-  }
-
-  const currentForm = mode === "login" ? loginForm : registerForm;
 
   return (
     <div className="min-h-screen flex">
@@ -144,10 +142,10 @@ export default function AuthPage() {
               </Tabs>
             </CardHeader>
             <CardContent className="px-8 py-6">
-              <Form {...currentForm}>
-                <form onSubmit={currentForm.handleSubmit(onSubmit)} className="space-y-4">
+              <Form {...(mode === "login" ? loginForm : registerForm)}>
+                <form onSubmit={mode === "login" ? loginForm.handleSubmit(onSubmit) : registerForm.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
-                    control={currentForm.control}
+                    control={mode === "login" ? loginForm.control : registerForm.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -168,7 +166,7 @@ export default function AuthPage() {
                     <>
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
-                          control={currentForm.control}
+                          control={registerForm.control}
                           name="firstName"
                           render={({ field }) => (
                             <FormItem>
@@ -181,7 +179,7 @@ export default function AuthPage() {
                           )}
                         />
                         <FormField
-                          control={currentForm.control}
+                          control={registerForm.control}
                           name="lastName"
                           render={({ field }) => (
                             <FormItem>
@@ -195,7 +193,7 @@ export default function AuthPage() {
                         />
                       </div>
                       <FormField
-                        control={currentForm.control}
+                        control={registerForm.control}
                         name="phoneNumber"
                         render={({ field }) => (
                           <FormItem>
@@ -210,7 +208,7 @@ export default function AuthPage() {
                     </>
                   )}
                   <FormField
-                    control={currentForm.control}
+                    control={mode === "login" ? loginForm.control : registerForm.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
@@ -230,9 +228,9 @@ export default function AuthPage() {
                   <Button
                     type="submit"
                     className="w-full h-10 font-semibold bg-[#43eb3e] text-white hover:opacity-90 transition-opacity"
-                    disabled={currentForm.formState.isSubmitting}
+                    disabled={mode === "login" ? loginForm.formState.isSubmitting : registerForm.formState.isSubmitting}
                   >
-                    {currentForm.formState.isSubmitting ? (
+                    {(mode === "login" ? loginForm.formState.isSubmitting : registerForm.formState.isSubmitting) ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         {mode === "login" ? "Signing in..." : "Creating account..."}
