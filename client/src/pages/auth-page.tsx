@@ -124,10 +124,10 @@ export default function AuthPage() {
                 img.src = '/logo-fallback.png';
               }}
             />
-            <h2 className="mt-2 text-center text-2xl font-bold tracking-tight text-gray-900">
+            <h2 className="mt-2 text-center text-2xl font-bold tracking-tight text-white">
               Welcome to OPIAN Rewards
             </h2>
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-[#43EB3E]">
               {mode === "login"
                 ? "Sign in to your account to manage your rewards"
                 : "Create an account to start earning rewards"}
@@ -151,16 +151,16 @@ export default function AuthPage() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel className="text-white">Email</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
                             type="email"
                             autoComplete="email"
-                            className="h-10"
+                            className="h-10 text-white bg-[#011d3d] border-[#022b5c]"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-[#43EB3E]" />
                       </FormItem>
                     )}
                   />
@@ -172,11 +172,11 @@ export default function AuthPage() {
                           name="firstName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>First Name</FormLabel>
+                              <FormLabel className="text-white">First Name</FormLabel>
                               <FormControl>
-                                <Input {...field} className="h-10" />
+                                <Input {...field} className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
                               </FormControl>
-                              <FormMessage />
+                              <FormMessage className="text-[#43EB3E]" />
                             </FormItem>
                           )}
                         />
@@ -185,11 +185,11 @@ export default function AuthPage() {
                           name="lastName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Last Name</FormLabel>
+                              <FormLabel className="text-white">Last Name</FormLabel>
                               <FormControl>
-                                <Input {...field} className="h-10" />
+                                <Input {...field} className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
                               </FormControl>
-                              <FormMessage />
+                              <FormMessage className="text-[#43EB3E]" />
                             </FormItem>
                           )}
                         />
@@ -199,11 +199,11 @@ export default function AuthPage() {
                         name="phoneNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Phone Number</FormLabel>
+                            <FormLabel className="text-white">Phone Number</FormLabel>
                             <FormControl>
-                              <Input {...field} type="tel" className="h-10" />
+                              <Input {...field} type="tel" className="h-10 text-white bg-[#011d3d] border-[#022b5c]" />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage className="text-[#43EB3E]" />
                           </FormItem>
                         )}
                       />
@@ -214,22 +214,22 @@ export default function AuthPage() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Password</FormLabel>
+                        <FormLabel className="text-white">Password</FormLabel>
                         <FormControl>
                           <Input
                             type="password"
                             {...field}
-                            className="h-10"
+                            className="h-10 text-white bg-[#011d3d] border-[#022b5c]"
                             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-[#43EB3E]" />
                       </FormItem>
                     )}
                   />
                   <Button
                     type="submit"
-                    className="w-full h-10 font-semibold"
+                    className="w-full h-10 font-semibold bg-gradient-to-r from-[#43EB3E] to-[#01152b]"
                     disabled={currentForm.formState.isSubmitting}
                   >
                     {currentForm.formState.isSubmitting ? (

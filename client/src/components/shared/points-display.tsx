@@ -18,8 +18,8 @@ export default function PointsDisplay({ points, size = "medium", showSign = fals
   };
 
   const getColorClass = () => {
-    if (!showSign) return "text-primary";
-    return points >= 0 ? "text-green-600" : "text-red-600";
+    if (!showSign) return "text-white";
+    return points >= 0 ? "text-[#43EB3E]" : "text-red-600";
   };
 
   return (
