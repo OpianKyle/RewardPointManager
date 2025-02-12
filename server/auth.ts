@@ -13,6 +13,7 @@ import { z } from "zod";
 const scryptAsync = promisify(scrypt);
 const MemoryStore = createMemoryStore(session);
 
+// Define user interface to match schema
 declare global {
   namespace Express {
     interface User {
@@ -21,17 +22,18 @@ declare global {
       firstName: string;
       lastName: string;
       password: string;
-      isAdmin: boolean;
-      isSuperAdmin: boolean;
-      isEnabled: boolean;
-      points: number;
+      isAdmin: boolean | null;
+      isSuperAdmin: boolean | null;
+      isEnabled: boolean | null;
+      points: number | null;
       referral_code: string | null;
       referred_by: string | null;
+      phoneNumber?: string;
     }
   }
 }
 
-// Define registration schema
+// Update registration schema to match frontend expectations
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -41,7 +43,6 @@ const registerSchema = z.object({
   referralCode: z.string().optional(),
 });
 
-// Define login schema
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
@@ -71,22 +72,20 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store: new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
+      checkPeriod: 86400000
     }),
     cookie: {
       secure: app.get("env") === "production",
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000,
       sameSite: "lax"
     }
   };
 
-  // Trust first proxy in production
   if (app.get("env") === "production") {
     app.set("trust proxy", 1);
   }
 
-  // CORS configuration before session middleware
   app.use((req, res, next) => {
     const origin = req.headers.origin;
     if (origin) {
@@ -112,7 +111,6 @@ export function setupAuth(app: Express) {
       },
       async (email, password, done) => {
         try {
-          console.log("Attempting login for user:", email);
           const [user] = await db
             .select()
             .from(users)
@@ -120,23 +118,19 @@ export function setupAuth(app: Express) {
             .limit(1);
 
           if (!user) {
-            console.log("User not found:", email);
             return done(null, false, { message: "Incorrect email." });
           }
 
           if (!user.isEnabled) {
-            console.log("User is disabled:", email);
             return done(null, false, { message: "Account is disabled." });
           }
 
           const isMatch = await crypto.compare(password, user.password);
-          console.log("Password match result:", isMatch);
           if (!isMatch) {
             return done(null, false, { message: "Incorrect password." });
           }
           return done(null, user);
         } catch (err) {
-          console.error("Login error:", err);
           return done(err);
         }
       }
@@ -160,15 +154,13 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
+  app.post("/api/register", async (req, res) => {
     try {
-      console.log("Registration attempt:", req.body);
       const result = registerSchema.safeParse(req.body);
       if (!result.success) {
-        console.log("Invalid registration input:", result.error);
         return res
           .status(400)
-          .send("Invalid input: " + result.error.issues.map((i) => i.message).join(", "));
+          .json({ error: result.error.issues.map((i) => i.message).join(", ") });
       }
 
       const { email, password, firstName, lastName, phoneNumber, referralCode } = result.data;
@@ -180,19 +172,15 @@ export function setupAuth(app: Express) {
         .limit(1);
 
       if (existingUser) {
-        console.log("Email already exists:", email);
-        return res.status(400).send("Email already exists");
+        return res.status(400).json({ error: "Email already exists" });
       }
 
       const hashedPassword = await crypto.hash(password);
 
-      // Start a transaction to handle both user creation and referral reward
-      const newUser = await db.transaction(async (tx) => {
-        // Generate a new referral code for the user
+      const [newUser] = await db.transaction(async (tx) => {
         const newReferralCode = randomBytes(8).toString("hex");
-
-        // Check if the provided referral code exists
         let referrer = null;
+
         if (referralCode) {
           [referrer] = await tx
             .select()
@@ -205,7 +193,6 @@ export function setupAuth(app: Express) {
           }
         }
 
-        // Create the new user
         const [user] = await tx
           .insert(users)
           .values({
@@ -223,15 +210,12 @@ export function setupAuth(app: Express) {
           })
           .returning();
 
-        // If there's a valid referrer, reward them
         if (referrer) {
-          // Update referrer's points
           await tx
             .update(users)
-            .set({ points: referrer.points + 2500 })
+            .set({ points: (referrer.points || 0) + 2500 })
             .where(eq(users.id, referrer.id));
 
-          // Add a transaction record for the referral bonus
           await tx.insert(transactions).values({
             userId: referrer.id,
             points: 2500,
@@ -241,97 +225,74 @@ export function setupAuth(app: Express) {
           });
         }
 
-        return user;
+        return [user];
       });
 
-      console.log("User registered successfully:", email);
-
-      req.login(newUser, (err) => {
+      // Login the new user
+      req.login(newUser[0], (err) => { //Corrected this line
         if (err) {
-          return next(err);
+          return res.status(500).json({ error: "Login failed after registration" });
         }
-        return res.json({
+        const { password: _, ...safeUser } = newUser[0]; //Corrected this line
+        return res.status(201).json({
           message: "Registration successful",
-          user: {
-            id: newUser.id,
-            email: newUser.email,
-            firstName: newUser.firstName,
-            lastName: newUser.lastName,
-            referral_code: newUser.referral_code,
-          },
+          user: safeUser,
         });
       });
     } catch (error: any) {
-      console.error("Registration error:", error);
       if (error.message === "Invalid referral code") {
-        return res.status(400).send("Invalid referral code");
+        return res.status(400).json({ error: "Invalid referral code" });
       }
-      next(error);
+      return res.status(500).json({ error: "Registration failed" });
     }
   });
 
   app.post("/api/login", (req, res, next) => {
-    console.log("Login attempt:", req.body);
     const result = loginSchema.safeParse(req.body);
     if (!result.success) {
-      console.log("Invalid login input:", result.error);
-      return res
-        .status(400)
-        .send("Invalid input: " + result.error.issues.map((i) => i.message).join(", "));
+      return res.status(400).json({
+        error: result.error.issues.map((i) => i.message).join(", "),
+      });
     }
 
     passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
       if (err) {
-        console.error("Login error:", err);
-        return next(err);
+        return res.status(500).json({ error: "Authentication error" });
       }
 
       if (!user) {
-        console.log("Login failed:", info.message);
-        return res.status(400).send(info.message ?? "Login failed");
+        return res.status(401).json({ error: info.message ?? "Login failed" });
       }
 
       req.logIn(user, (err) => {
         if (err) {
-          return next(err);
+          return res.status(500).json({ error: "Login failed" });
         }
 
-        console.log("Login successful:", user.email);
+        const { password: _, ...safeUser } = user;
         return res.json({
           message: "Login successful",
-          user: {
-            id: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            isAdmin: user.isAdmin,
-            referral_code: user.referral_code,
-          },
+          user: safeUser,
         });
       });
     })(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
-    const email = req.user?.email;
     req.logout((err) => {
       if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).send("Logout failed");
+        return res.status(500).json({ error: "Logout failed" });
       }
-
-      console.log("Logout successful:", email);
       res.json({ message: "Logout successful" });
     });
   });
 
   app.get("/api/user", (req, res) => {
-    if (req.isAuthenticated()) {
-      const { password, ...user } = req.user;
-      return res.json(user);
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
     }
-
-    res.status(401).send("Not logged in");
+    const { password: _, ...safeUser } = req.user;
+    res.json(safeUser);
   });
 
   app.put("/api/user/profile", async (req, res) => {

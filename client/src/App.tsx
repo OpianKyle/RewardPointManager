@@ -111,8 +111,10 @@ function Router() {
   const { user, isLoading } = useUser();
   useNotifications();
 
-  if (isLoading) return <Loading />;
+  // Only show loading on initial auth check
+  if (isLoading && !user) return <Loading />;
 
+  // Handle root path redirect
   if (window.location.pathname === "/") {
     return <Redirect to={user ? (user.isAdmin ? "/admin" : "/dashboard") : "/auth"} />;
   }

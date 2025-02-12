@@ -6,11 +6,13 @@ export const userSchema = z.object({
   email: z.string().email("Invalid email address"),
   firstName: z.string(),
   lastName: z.string(),
-  isAdmin: z.boolean(),
-  isSuperAdmin: z.boolean(),
-  isEnabled: z.boolean(),
-  points: z.number(),
+  phoneNumber: z.string().optional(),
+  isAdmin: z.boolean().optional().nullable(),
+  isSuperAdmin: z.boolean().optional().nullable(),
+  isEnabled: z.boolean().optional().nullable(),
+  points: z.number().optional().nullable(),
   referral_code: z.string().nullable(),
+  referred_by: z.string().nullable(),
 });
 
 export type User = z.infer<typeof userSchema>;
@@ -65,7 +67,9 @@ export function useUser() {
       }
 
       const responseData = await response.json();
-      return userSchema.parse(responseData.user);
+      // Handle nested user object in response
+      const userData = responseData.user || responseData;
+      return userSchema.parse(userData);
     },
     onSuccess: (userData) => {
       queryClient.setQueryData(['/api/user'], userData);
@@ -94,7 +98,9 @@ export function useUser() {
       }
 
       const responseData = await response.json();
-      return userSchema.parse(responseData.user);
+      // Handle nested user object in response
+      const userData = responseData.user || responseData;
+      return userSchema.parse(userData);
     },
     onSuccess: (userData) => {
       queryClient.setQueryData(['/api/user'], userData);
