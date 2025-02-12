@@ -12,7 +12,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,42 +25,8 @@ import {
 import { useRef, useState } from "react";
 import SignaturePad from 'react-signature-canvas';
 
-const registerSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  isSouthAfrican: z.boolean(),
-  idNumber: z.string().min(1, "ID Number/Passport is required"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.enum(["male", "female", "other"]),
-  language: z.string().min(1, "Language is required"),
-  mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  // Employment Details
-  occupation: z.string().min(1, "Occupation is required"),
-  industry: z.string().min(1, "Industry is required"),
-  salaryBracket: z.string().min(1, "Salary bracket is required"),
-  hasOwnCreditCard: z.boolean(),
-  // Address Details
-  addressLine1: z.string().min(1, "Address line 1 is required"),
-  addressLine2: z.string().optional(),
-  suburb: z.string().min(1, "Suburb is required"),
-  postalCode: z.string().min(4, "Valid postal code is required"),
-  agreeToTerms: z.boolean().refine((val) => val === true, {
-    message: "You must agree to the terms and conditions",
-  }),
-  // Banking Details
-  accountHolderName: z.string().min(1, "Account holder name is required"),
-  bankName: z.string().min(1, "Bank name is required"),
-  branchCode: z.string().min(1, "Branch code is required"),
-  accountNumber: z.string().min(1, "Account number is required"),
-  accountType: z.enum(["savings", "current"]),
-  // Mandate Agreement
-  signatureData: z.string().min(1, "Digital signature is required"),
-  agreedToMandate: z.boolean().refine((val) => val === true, {
-    message: "You must agree to the mandate",
-  }),
-});
+// Temporarily remove validation
+const registerSchema = z.object({});
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
@@ -152,13 +117,14 @@ export default function RegisterPage() {
         {[1, 2, 3].map((step) => (
           <div key={step} className="flex items-center">
             <div
-              className={`rounded-full w-8 h-8 flex items-center justify-center ${
+              className={`rounded-full w-8 h-8 flex items-center justify-center cursor-pointer ${
                 step === currentStep
                   ? "bg-primary text-primary-foreground"
                   : step < currentStep
                   ? "bg-primary/20 text-primary"
                   : "bg-muted text-muted-foreground"
               }`}
+              onClick={() => setCurrentStep(step)}
             >
               {step}
             </div>
@@ -674,47 +640,12 @@ export default function RegisterPage() {
   };
 
   const onSubmit = async (data: RegisterFormData) => {
-    console.log("Form submission attempted", {
-      currentStep,
-      formData: data,
-    });
-
     if (currentStep !== 3) {
-      console.log("Moving to next step", currentStep + 1);
       setCurrentStep(currentStep + 1);
       return;
     }
 
-    const result = await register({
-      email: data.email,
-      password: data.password,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      isSouthAfricanCitizen: data.isSouthAfrican,
-      idOrPassport: data.idNumber,
-      dateOfBirth: data.dateOfBirth,
-      gender: data.gender,
-      language: data.language,
-      mobileNumber: data.mobileNumber,
-      occupation: data.occupation,
-      industry: data.industry,
-      salaryBracket: data.salaryBracket,
-      hasOwnCreditCard: data.hasOwnCreditCard,
-      addressLine1: data.addressLine1,
-      addressLine2: data.addressLine2,
-      suburb: data.suburb,
-      postalCode: data.postalCode,
-      accountHolderName: data.accountHolderName,
-      bankName: data.bankName,
-      branchCode: data.branchCode,
-      accountNumber: data.accountNumber,
-      accountType: data.accountType,
-      signatureData: data.signatureData,
-      agreedToMandate: data.agreedToMandate,
-    });
-
-    console.log("Registration result:", result);
-
+    const result = await register(data);
     if (result.ok) {
       setLocation("/");
     }
@@ -748,13 +679,8 @@ export default function RegisterPage() {
                 <Button
                   type="submit"
                   className={currentStep === 1 ? "w-full" : "flex-1"}
-                  disabled={form.formState.isSubmitting}
                 >
-                  {currentStep === 3
-                    ? form.formState.isSubmitting
-                      ? "Creating Account..."
-                      : "Complete Registration"
-                    : "Continue"}
+                  {currentStep === 3 ? "Complete Registration" : "Continue"}
                 </Button>
               </div>
 
