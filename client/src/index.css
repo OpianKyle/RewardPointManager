@@ -34,9 +34,6 @@
     --input: 214 96% 15%;
     --ring: 142 84% 58%;
   }
-}
-
-@layer base {
   * {
     @apply border-border;
   }
@@ -54,5 +51,8 @@
 @layer components {
   .btn-gradient {
     @apply bg-gradient-to-r from-[#43EB3E] to-[#01152b] text-white hover:opacity-90 transition-opacity;
+  }
+  .card {
+    @apply bg-[#011d3d] border-[#022b5c] shadow-lg;
   }
 }
