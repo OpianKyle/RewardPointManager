@@ -23,6 +23,7 @@ const registerSchema = z.object({
 type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
+  const [activeTab, setActiveTab] = useState("register");
   const [, navigate] = useLocation();
   const { registerMutation, user, isLoading } = useUser();
   const { toast } = useToast();
@@ -51,8 +52,9 @@ export default function AuthPage() {
         description: "Account created successfully! Please login to continue.",
       });
 
-      // Navigate to login page after successful registration
-      navigate("/login");
+      // Switch to login tab instead of navigating away
+      setActiveTab("login");
+      form.reset();
     } catch (error) {
       console.error('Registration error:', error);
       toast({
@@ -88,7 +90,7 @@ export default function AuthPage() {
 
         <Card>
           <CardHeader>
-            <Tabs defaultValue="register" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="register">Register</TabsTrigger>
                 <TabsTrigger value="login" onClick={() => navigate("/login")}>Sign In</TabsTrigger>
