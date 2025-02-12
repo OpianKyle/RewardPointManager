@@ -13,12 +13,12 @@ import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
 const loginSchema = z.object({
-  email: z.string().trim().min(1, "Email is required").email("Please enter a valid email address"),
+  email: z.string().email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
 const registerSchema = z.object({
-  email: z.string().trim().min(1, "Email is required").email("Please enter a valid email address"),
+  email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -34,7 +34,6 @@ export default function AuthPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
-  // Handle referral code from URL
   useEffect(() => {
     const referralCode = new URLSearchParams(window.location.search).get('ref');
     if (referralCode) {
@@ -42,7 +41,6 @@ export default function AuthPage() {
     }
   }, []);
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && user) {
       navigate(user.isAdmin ? "/admin" : "/dashboard");
@@ -55,6 +53,7 @@ export default function AuthPage() {
       email: "",
       password: "",
     },
+    mode: "onChange"
   });
 
   const registerForm = useForm<RegisterFormData>({
@@ -66,6 +65,7 @@ export default function AuthPage() {
       lastName: "",
       phoneNumber: "",
     },
+    mode: "onChange"
   });
 
   const handleLogin = async (data: LoginFormData) => {
@@ -151,14 +151,16 @@ export default function AuthPage() {
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input 
-                            {...field} 
+                            {...field}
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value.trim())}
                             type="email"
                             placeholder="Enter your email"
                             aria-invalid={fieldState.invalid}
                             className={fieldState.invalid ? "border-destructive" : ""}
                           />
                         </FormControl>
-                        <FormMessage className="text-destructive text-sm" />
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -202,14 +204,16 @@ export default function AuthPage() {
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input 
-                            {...field} 
+                            {...field}
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value.trim())}
                             type="email"
                             placeholder="Enter your email"
                             aria-invalid={fieldState.invalid}
                             className={fieldState.invalid ? "border-destructive" : ""}
                           />
                         </FormControl>
-                        <FormMessage className="text-destructive text-sm" />
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
