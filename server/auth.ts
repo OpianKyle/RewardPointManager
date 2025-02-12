@@ -13,26 +13,6 @@ import { z } from "zod";
 const scryptAsync = promisify(scrypt);
 const MemoryStore = createMemoryStore(session);
 
-// Define user interface to match schema
-declare global {
-  namespace Express {
-    interface User {
-      id: number;
-      email: string;
-      firstName: string;
-      lastName: string;
-      password: string;
-      isAdmin: boolean | null;
-      isSuperAdmin: boolean | null;
-      isEnabled: boolean | null;
-      points: number | null;
-      referral_code: string | null;
-      referred_by: string | null;
-      phoneNumber?: string;
-    }
-  }
-}
-
 // Update registration schema to match frontend expectations
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -156,6 +136,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res) => {
     try {
+      console.log("Registration request body:", req.body);
       const result = registerSchema.safeParse(req.body);
       if (!result.success) {
         return res
@@ -175,8 +156,6 @@ export function setupAuth(app: Express) {
       if (existingUser) {
         return res.status(400).json({ error: "Email already exists" });
       }
-
-      const hashedPassword = await crypto.hash(password);
 
       const [newUser] = await db.transaction(async (tx) => {
         const newReferralCode = randomBytes(8).toString("hex");
@@ -198,7 +177,7 @@ export function setupAuth(app: Express) {
           .insert(users)
           .values({
             email,
-            password: hashedPassword,
+            password: await crypto.hash(password),
             firstName,
             lastName,
             phoneNumber,
