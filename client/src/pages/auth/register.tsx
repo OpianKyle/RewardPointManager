@@ -674,21 +674,30 @@ export default function RegisterPage() {
   };
 
   const onSubmit = async (data: RegisterFormData) => {
-    console.log("Form data submitted:", data);
-    console.log("Current step:", currentStep);
-    console.log("Form validation state:", form.formState);
+    console.log("Form submission attempted", {
+      currentStep,
+      formData: data,
+      errors: form.formState.errors
+    });
 
     if (currentStep !== 3) {
-      const isValid = await form.trigger(
-        currentStep === 1
-          ? ["email", "password", "firstName", "lastName", "isSouthAfrican", "idNumber", "dateOfBirth", "gender", "language", "mobileNumber"]
-          : ["occupation", "industry", "salaryBracket", "addressLine1", "suburb", "postalCode"]
-      );
+      let fieldsToValidate = [];
+      if (currentStep === 1) {
+        fieldsToValidate = ["email", "password", "firstName", "lastName", "idNumber", "dateOfBirth", "gender", "language", "mobileNumber"];
+      } else if (currentStep === 2) {
+        fieldsToValidate = ["occupation", "industry", "salaryBracket", "addressLine1", "suburb", "postalCode"];
+      }
 
-      console.log("Step validation result:", isValid);
+      console.log("Validating fields:", fieldsToValidate);
+
+      const isValid = await form.trigger(fieldsToValidate);
+      console.log("Validation result:", isValid);
 
       if (isValid) {
+        console.log("Moving to next step", currentStep + 1);
         setCurrentStep(currentStep + 1);
+      } else {
+        console.log("Form validation failed", form.formState.errors);
       }
       return;
     }
