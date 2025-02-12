@@ -27,7 +27,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       {/* Mobile menu button */}
       <Button
         variant="ghost"
-        className="fixed top-4 left-4 z-50 md:hidden"
+        className="fixed top-4 left-4 z-50 lg:hidden"
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -36,7 +36,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -44,8 +44,10 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       {/* Sidebar */}
       <Sidebar 
         className={cn(
-          "border-r fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out md:translate-x-0 md:relative",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "border-r fixed inset-y-0 left-0 z-50 w-64 lg:w-72 bg-background",
+          "transform transition-transform duration-300 ease-in-out lg:transform-none",
+          "lg:relative lg:translate-x-0",
+          !sidebarOpen && "-translate-x-full lg:translate-x-0"
         )}
       >
         <div className="flex flex-col h-full">
@@ -91,7 +93,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       </Sidebar>
 
       {/* Main content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full">
+      <main className="flex-1 p-4 lg:p-8 overflow-y-auto w-full">
         <div className="max-w-7xl mx-auto">
           {children}
         </div>
