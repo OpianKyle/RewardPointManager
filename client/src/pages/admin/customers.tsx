@@ -88,10 +88,28 @@ const getTierInfo = (points: number): { name: string; color: string; nextTier?: 
 export default function AdminCustomers() {
   const { data: customers } = useQuery({
     queryKey: ["/api/admin/customers"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/customers", {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch customers");
+      }
+      return response.json();
+    }
   });
 
   const { data: products } = useQuery({
     queryKey: ["/api/products"],
+    queryFn: async () => {
+      const response = await fetch("/api/products", {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch products");
+      }
+      return response.json();
+    },
     select: (data) => {
       return data?.map((product: any) => ({
         ...product,
