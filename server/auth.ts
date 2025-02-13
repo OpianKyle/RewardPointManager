@@ -14,9 +14,33 @@ const scryptAsync = promisify(scrypt);
 const MemoryStore = createMemoryStore(session);
 
 const loginSchema = z.object({
-  email: z.string().min(1, "Email is required"),
+  email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
 });
+
+// Crypto helper functions
+const crypto = {
+  async hashPassword(password: string) {
+    const salt = randomBytes(16).toString('hex');
+    const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
+    return `${salt}.${derivedKey.toString('hex')}`;
+  },
+
+  async verifyPassword(password: string, stored: string) {
+    try {
+      const [salt, hashedPassword] = stored.split('.');
+      if (!salt || !hashedPassword) {
+        return false;
+      }
+      const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
+      const storedKey = Buffer.from(hashedPassword, 'hex');
+      return timingSafeEqual(derivedKey, storedKey);
+    } catch (error) {
+      console.error('Password verification error:', error);
+      return false;
+    }
+  }
+};
 
 export async function setupAuth(app: Express) {
   app.use(session({
@@ -40,6 +64,8 @@ export async function setupAuth(app: Express) {
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
+        console.log('Login attempt for:', email);
+
         const [user] = await db
           .select()
           .from(users)
@@ -47,22 +73,24 @@ export async function setupAuth(app: Express) {
           .limit(1);
 
         if (!user || !user.password) {
+          console.log('User not found or no password set:', email);
           return done(null, false, { message: 'Invalid email or password' });
         }
 
         if (!user.isEnabled) {
+          console.log('Account is disabled:', email);
           return done(null, false, { message: 'Account is disabled' });
         }
 
-        const [salt, key] = user.password.split('.');
-        const keyBuffer = Buffer.from(key, 'hex');
-        const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
-        const isValid = timingSafeEqual(keyBuffer, derivedKey);
+        const isValid = await crypto.verifyPassword(password, user.password);
+        console.log('Password verification result:', { email, isValid });
 
         if (!isValid) {
+          console.log('Invalid password for user:', email);
           return done(null, false, { message: 'Invalid email or password' });
         }
 
+        console.log('Login successful for user:', email);
         return done(null, user);
       } catch (error) {
         console.error('Authentication error:', error);
@@ -88,8 +116,9 @@ export async function setupAuth(app: Express) {
       }
 
       done(null, user);
-    } catch (err) {
-      done(err);
+    } catch (error) {
+      console.error('Deserialization error:', error);
+      done(error);
     }
   });
 
@@ -119,11 +148,8 @@ export async function setupAuth(app: Express) {
           }
 
           // Return user data without sensitive information
-          const { password: _, ...safeUser } = user;
-          return res.json({
-            message: "Login successful",
-            user: safeUser
-          });
+          const { password: _, ...safeUser } = user as any;
+          return res.json(safeUser);
         });
       })(req, res, next);
     } catch (error) {

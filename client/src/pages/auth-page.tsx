@@ -12,7 +12,7 @@ import { useLocation } from "wouter";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(1, "Password is required"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -32,7 +32,7 @@ export default function AuthPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const result = await loginMutation.mutateAsync(data);
+      const user = await loginMutation.mutateAsync(data);
 
       toast({
         title: "Success",
@@ -40,7 +40,7 @@ export default function AuthPage() {
       });
 
       // Redirect based on user role
-      if (result.user.isAdmin || result.user.isSuperAdmin) {
+      if (user.isAdmin) {
         navigate('/admin');
       } else {
         navigate('/dashboard');
@@ -50,7 +50,7 @@ export default function AuthPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to login. Please check your credentials.",
+        description: error instanceof Error ? error.message : "Invalid email or password",
       });
     }
   };
@@ -64,8 +64,8 @@ export default function AuthPage() {
     );
   }
 
-  if (!isLoading && user) {
-    navigate(user.isAdmin ? "/admin" : "/dashboard");
+  if (user) {
+    navigate(user.isAdmin ? '/admin' : '/dashboard');
     return null;
   }
 
@@ -91,9 +91,9 @@ export default function AuthPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Login</CardTitle>
+            <CardTitle>Sign In</CardTitle>
             <CardDescription>
-              Enter your email and password to access your account
+              Enter your email and password to continue
             </CardDescription>
           </CardHeader>
           <CardContent>

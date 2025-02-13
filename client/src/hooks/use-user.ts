@@ -7,10 +7,10 @@ export const userSchema = z.object({
   firstName: z.string(),
   lastName: z.string(),
   phoneNumber: z.string().optional(),
-  isAdmin: z.boolean().optional().nullable(),
-  isSuperAdmin: z.boolean().optional().nullable(),
-  isEnabled: z.boolean().optional().nullable(),
-  points: z.number().optional().nullable(),
+  isAdmin: z.boolean().default(false),
+  isSuperAdmin: z.boolean().default(false),
+  isEnabled: z.boolean().default(true),
+  points: z.number().default(0),
   referral_code: z.string().nullable(),
   referred_by: z.string().nullable(),
 });
@@ -58,12 +58,12 @@ export function useUser() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Login failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
       }
 
       const data = await response.json();
-      return userSchema.parse(data.user);
+      return userSchema.parse(data);
     },
     onSuccess: (user) => {
       queryClient.setQueryData(['/api/user'], user);
@@ -75,18 +75,13 @@ export function useUser() {
       const response = await fetch('/api/logout', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
         throw new Error(await response.text());
       }
 
-      // Clear all queries from the cache
-      queryClient.clear();
-      // Set user to null
       queryClient.setQueryData(['/api/user'], null);
-      // Force a refetch of the user query
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
 
       return response.json();
