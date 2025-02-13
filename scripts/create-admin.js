@@ -5,12 +5,12 @@ const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
-  const buf = await scryptAsync(password, salt, 64);
-  return `${buf.toString("hex")}.${salt}`;
+  const hash = await scryptAsync(password, salt, 64);
+  return `${salt}.${hash.toString("hex")}`;
 }
 
 async function main() {
-  const hash = await hashPassword("Kyle-2409");
+  const hash = await hashPassword("test123");
   console.log("SQL Query:");
   console.log(`
 INSERT INTO users (
@@ -26,11 +26,11 @@ INSERT INTO users (
   created_at
 )
 VALUES (
-  'kylem@opianfsgroup.com',
+  'admin@example.com',
   '${hash}',
-  'Kyle',
-  'McBryne',
-  '0769815243',
+  'Admin',
+  'User',
+  '1234567890',
   true,
   true,
   true,
