@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Power, PowerOff, TrendingUp, Plus, Package, MoreHorizontal } from "lucide-react";
+import { Pencil, Power, PowerOff, TrendingUp, Plus, Package, MoreHorizontal, Download, Upload } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -273,9 +273,96 @@ export default function AdminCustomers() {
     },
   });
 
+  const exportCustomersMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/customers/export", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error("Failed to export customers");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'customers.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Customers exported successfully" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const importCustomersMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch("/api/admin/customers/import", {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Failed to import customers");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      toast({ 
+        title: "Import Complete", 
+        description: `Successfully imported ${data.success} customers. ${data.failed} failed.` 
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Customer Management</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Customer Management</h1>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportCustomersMutation.mutate()}
+            disabled={exportCustomersMutation.isPending}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <label className="cursor-pointer">
+            <Input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  importCustomersMutation.mutate(file);
+                }
+              }}
+            />
+            <Button variant="outline" asChild>
+              <span>
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </span>
+            </Button>
+          </label>
+        </div>
+      </div>
 
       <Card>
         <CardHeader>
@@ -737,7 +824,7 @@ export default function AdminCustomers() {
                                     <label>Phone Number</label>
                                     <Input {...form.register("phoneNumber")} defaultValue={customer.phoneNumber} />
                                   </div>
-                                  <div className="space-y-2">
+                                  <div className="spacey-2">
                                     <label>New Password (leave empty to keep current)</label>
                                     <Input type="password" {...form.register("password")} />
                                   </div>

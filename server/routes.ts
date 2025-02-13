@@ -8,6 +8,9 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { logAdminAction, getAdminLogs } from "./admin-logger";
 import { sendEmail, formatPointsAssignmentEmail, formatAdminNotificationEmail } from "./utils/emailService";
+import { parse } from 'csv-parse';
+import { stringify } from 'csv-stringify';
+import { Readable } from 'stream';
 
 // Global notifications queue with timestamp-based cleanup
 const notificationsQueue = new Map<number, Array<{
@@ -525,6 +528,119 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error('Error deleting customer:', error);
       res.status(500).send('Failed to delete customer');
+    }
+  });
+
+
+  // Export customers to CSV
+  app.get("/api/admin/customers/export", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+
+    try {
+      const customers = await db.query.users.findMany({
+        where: eq(users.isAdmin, false),
+        orderBy: desc(users.createdAt),
+      });
+
+      const csvData = customers.map(customer => ({
+        email: customer.email,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        phoneNumber: customer.phoneNumber,
+        points: customer.points,
+        isEnabled: customer.isEnabled,
+        createdAt: customer.createdAt,
+      }));
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=customers.csv');
+
+      stringify(csvData, {
+        header: true,
+        columns: ['email', 'firstName', 'lastName', 'phoneNumber', 'points', 'isEnabled', 'createdAt']
+      }, (err, output) => {
+        if (err) throw err;
+        res.send(output);
+      });
+    } catch (error) {
+      console.error('Error exporting customers:', error);
+      res.status(500).send('Failed to export customers');
+    }
+  });
+
+  // Import customers from CSV
+  app.post("/api/admin/customers/import", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+
+    if (!req.files || !req.files.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    try {
+      const file = req.files.file;
+      const csvData = file.data.toString();
+
+      const records = await new Promise((resolve, reject) => {
+        parse(csvData, {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+        }, (err, records) => {
+          if (err) reject(err);
+          else resolve(records);
+        });
+      });
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: []
+      };
+
+      for (const record of records) {
+        try {
+          const hashedPassword = await crypto.hashPassword('ChangeMe123!'); // Default password
+
+          // Check if user already exists
+          const [existingUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, record.email))
+            .limit(1);
+
+          if (existingUser) {
+            results.failed++;
+            results.errors.push(`User with email ${record.email} already exists`);
+            continue;
+          }
+
+          // Create new user
+          await db.insert(users).values({
+            email: record.email,
+            password: hashedPassword,
+            firstName: record.firstName,
+            lastName: record.lastName,
+            phoneNumber: record.phoneNumber || '',
+            isAdmin: false,
+            isSuperAdmin: false,
+            isEnabled: true,
+            points: parseInt(record.points) || 0,
+          });
+
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Failed to import user ${record.email}: ${error.message}`);
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error('Error importing customers:', error);
+      res.status(500).json({ 
+        error: 'Failed to import customers',
+        details: error.message 
+      });
     }
   });
 
