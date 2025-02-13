@@ -271,6 +271,33 @@ export default function AdminCustomers() {
     },
   });
 
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await fetch(`/api/admin/customers/${userId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to delete customer');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
+      toast({ title: "Success", description: "Customer deleted successfully" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete customer",
+      });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Customer Management</h1>
@@ -441,12 +468,6 @@ export default function AdminCustomers() {
                                   description: "",
                                   selectedActivities: [],
                                   posPoints: 0
-                                });
-                                customer.productAssignments?.forEach((assignment: any) => {
-                                  assignment.product.activities?.forEach((activity: any) => {
-                                    activity.currentValue = 0;
-                                    activity.baseValue = 0;
-                                  });
                                 });
                               }}
                             >
@@ -773,6 +794,17 @@ export default function AdminCustomers() {
                               </form>
                             </DialogContent>
                           </Dialog>
+                          <DropdownMenuItem
+                            className="text-red-500"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
+                                deleteCustomerMutation.mutate(customer.id);
+                              }
+                            }}
+                          >
+                            <UserX className="mr-2 h-4 w-4" />
+                            Delete Customer
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

@@ -445,7 +445,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const allUsers = await db.query.users.findMany({
@@ -453,6 +452,91 @@ export function registerRoutes(app: Express): Server {
       orderBy: desc(users.createdAt),
     });
     res.json(allUsers);
+  });
+
+  // Add the new delete endpoint for customers
+  app.delete("/api/admin/customers/:id", async (req, res) => {
+    console.log("Delete customer request received for id:", req.params.id);
+
+    if (!req.user?.isAdmin) {
+      console.log("Unauthorized - User is not admin");
+      return res.status(403).send("Only admins can delete customers");
+    }
+
+    const { id } = req.params;
+
+    try {
+      // First, get the customer to be deleted
+      const [targetUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, parseInt(id)))
+        .limit(1);
+
+      if (!targetUser) {
+        console.log("Customer not found:", id);
+        return res.status(404).send("Customer not found");
+      }
+
+      if (targetUser.isAdmin) {
+        console.log("Cannot delete admin user through customer endpoint");
+        return res.status(400).send("Cannot delete admin users through this endpoint");
+      }
+
+      // Delete all related records in a transaction
+      await db.transaction(async (tx) => {
+        console.log(`Starting removal of customer ${id}`);
+
+        try {
+          // Delete product assignments
+          await tx
+            .delete(productAssignments)
+            .where(eq(productAssignments.userId, parseInt(id)));
+          console.log('Deleted product assignments');
+
+          // Delete transactions
+          await tx
+            .delete(transactions)
+            .where(eq(transactions.userId, parseInt(id)));
+          console.log('Deleted transactions');
+
+          // Delete admin logs where this user is the target
+          await tx
+            .delete(adminLogs)
+            .where(eq(adminLogs.targetUserId, parseInt(id)));
+          console.log('Deleted admin logs');
+
+          // Finally delete the user
+          const [deletedUser] = await tx
+            .delete(users)
+            .where(eq(users.id, parseInt(id)))
+            .returning();
+
+          if (!deletedUser) {
+            throw new Error(`Failed to delete customer ${id}`);
+          }
+          console.log('Deleted customer');
+
+          // Log customer deletion
+          await logAdminAction({
+            adminId: req.user.id,
+            actionType: "CUSTOMER_REMOVED",
+            targetUserId: parseInt(id),
+            details: `Removed customer: ${targetUser.email}`,
+          });
+          console.log('Logged admin action');
+        } catch (error) {
+          console.error('Transaction error:', error);
+          throw error; // Re-throw to trigger rollback
+        }
+      });
+
+      console.log("Customer deleted successfully");
+      res.json({ message: "Customer removed successfully" });
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      res.status(500).send(error.message || 'Failed to delete customer');
+    }
   });
 
   // Add the customers endpoint right after the admin users endpoint
