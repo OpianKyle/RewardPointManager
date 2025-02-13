@@ -13,6 +13,19 @@ const userSchema = z.object({
   points: z.number().default(0),
   referralCode: z.string().nullable().optional(),
   referredBy: z.string().nullable().optional(),
+  // New fields
+  isSouthAfricanCitizen: z.boolean().default(false),
+  idNumber: z.string().nullable(),
+  dateOfBirth: z.string().nullable(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]).nullable(),
+  language: z.string().nullable(),
+  accountHolderName: z.string().nullable(),
+  bankName: z.string().nullable(),
+  branchCode: z.string().nullable(),
+  accountNumber: z.string().nullable(),
+  accountType: z.enum(["SAVINGS", "CURRENT"]).nullable(),
+  digitalSignature: z.string().nullable(),
+  mandateAccepted: z.boolean().default(false),
   createdAt: z.string(),
 });
 
@@ -79,6 +92,19 @@ export function useUser() {
       phoneNumber: string;
       isAdmin?: boolean;
       isSuperAdmin?: boolean;
+      // Add new fields to registration mutation
+      isSouthAfricanCitizen?: boolean;
+      idNumber?: string;
+      dateOfBirth?: Date;
+      gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY";
+      language?: string;
+      accountHolderName?: string;
+      bankName?: string;
+      branchCode?: string;
+      accountNumber?: string;
+      accountType?: "SAVINGS" | "CURRENT";
+      digitalSignature?: string;
+      mandateAccepted?: boolean;
     }) => {
       const response = await fetch('/api/register', {
         method: 'POST',

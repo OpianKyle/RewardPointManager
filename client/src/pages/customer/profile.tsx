@@ -53,14 +53,14 @@ export default function ProfilePage() {
       phoneNumber: user?.phoneNumber || "",
       isSouthAfricanCitizen: user?.isSouthAfricanCitizen || false,
       idNumber: user?.idNumber || "",
-      dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth) : undefined,
-      gender: user?.gender || undefined,
+      dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth) : new Date(),
+      gender: user?.gender || "PREFER_NOT_TO_SAY",
       language: user?.language || "",
       accountHolderName: user?.accountHolderName || "",
       bankName: user?.bankName || "",
       branchCode: user?.branchCode || "",
       accountNumber: user?.accountNumber || "",
-      accountType: user?.accountType || undefined,
+      accountType: user?.accountType || "SAVINGS",
       password: "",
     },
   });
@@ -96,6 +96,7 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       form.reset({
         ...data,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : new Date(),
         password: "",
       });
       toast({
@@ -254,7 +255,7 @@ export default function ProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gender</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select gender" />
@@ -352,7 +353,7 @@ export default function ProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Account Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select account type" />
