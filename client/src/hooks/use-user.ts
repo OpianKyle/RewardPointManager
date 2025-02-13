@@ -11,8 +11,8 @@ const userSchema = z.object({
   isSuperAdmin: z.boolean().default(false),
   isEnabled: z.boolean().default(true),
   points: z.number().default(0),
-  referralCode: z.string().nullable(),
-  referredBy: z.string().nullable(),
+  referralCode: z.string().nullable().optional(),
+  referredBy: z.string().nullable().optional(),
   createdAt: z.string(),
 });
 
@@ -77,6 +77,8 @@ export function useUser() {
       firstName: string; 
       lastName: string; 
       phoneNumber: string;
+      isAdmin?: boolean;
+      isSuperAdmin?: boolean;
     }) => {
       const response = await fetch('/api/register', {
         method: 'POST',

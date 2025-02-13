@@ -43,7 +43,6 @@ const crypto = {
 };
 
 export async function setupAuth(app: Express) {
-  // Session configuration
   app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
@@ -52,9 +51,9 @@ export async function setupAuth(app: Express) {
       checkPeriod: 86400000 // 24h
     }),
     cookie: {
-      secure: false, // Set to false for development
+      secure: false,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24h
+      maxAge: 24 * 60 * 60 * 1000,
       sameSite: 'lax'
     }
   }));
@@ -62,7 +61,6 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Passport serialization
   passport.serializeUser((user: any, done) => {
     console.log('Serializing user:', user.id);
     done(null, user.id);
@@ -90,14 +88,12 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // Passport local strategy
   passport.use(new LocalStrategy(
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
         console.log('Login attempt for:', email);
 
-        // Find user
         const [user] = await db
           .select()
           .from(users)
@@ -114,7 +110,6 @@ export async function setupAuth(app: Express) {
           return done(null, false);
         }
 
-        // Verify password
         const isValid = await crypto.verifyPassword(password, user.password);
         console.log('Password verification result:', isValid);
 
@@ -130,10 +125,9 @@ export async function setupAuth(app: Express) {
     }
   ));
 
-  // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { email, password, firstName, lastName, phoneNumber } = req.body;
+      const { email, password, firstName, lastName, phoneNumber, isAdmin = false, isSuperAdmin = false } = req.body;
 
       // Check if user already exists
       const [existingUser] = await db
@@ -158,10 +152,12 @@ export async function setupAuth(app: Express) {
           firstName,
           lastName,
           phoneNumber,
-          isAdmin: false,
-          isSuperAdmin: false,
+          isAdmin,
+          isSuperAdmin,
           isEnabled: true,
           points: 0,
+          referral_code: null,
+          referred_by: null,
         })
         .returning();
 
