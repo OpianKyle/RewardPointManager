@@ -130,7 +130,7 @@ export async function setupAuth(app: Express) {
     try {
       const { email, password, firstName, lastName, phoneNumber, isAdmin = false, isSuperAdmin = false } = req.body;
 
-      // Check if user already exists
+      // Check if user already exists with better error messaging
       const [existingUser] = await db
         .select()
         .from(users)
@@ -138,49 +138,56 @@ export async function setupAuth(app: Express) {
         .limit(1);
 
       if (existingUser) {
-        return res.status(400).json({ error: "Email already registered" });
+        return res.status(400).json({ 
+          error: "This email address is already registered. Please try logging in or use a different email address." 
+        });
       }
 
       // Hash password
       const hashedPassword = await crypto.hashPassword(password);
 
-      // Create new user
-      const [user] = await db
-        .insert(users)
-        .values({
-          email,
-          password: hashedPassword,
-          firstName,
-          lastName,
-          phoneNumber,
-          isAdmin,
-          isSuperAdmin,
-          isEnabled: true,
-          points: 2000, // Changed from 0 to 2000
-          referral_code: null,
-          referred_by: null,
-        })
-        .returning();
+      // Create new user - transaction to ensure both user creation and points are atomic
+      const result = await db.transaction(async (tx) => {
+        // Create new user
+        const [user] = await tx
+          .insert(users)
+          .values({
+            email,
+            password: hashedPassword,
+            firstName,
+            lastName,
+            phoneNumber,
+            isAdmin,
+            isSuperAdmin,
+            isEnabled: true,
+            points: 2000,
+            referral_code: null,
+            referred_by: null,
+          })
+          .returning();
 
-      // Create welcome bonus transaction
-      await db.insert(transactions).values({
-        userId: user.id,
-        points: 2000,
-        type: "WELCOME_BONUS",
-        description: "Welcome bonus for new registration",
+        // Create welcome bonus transaction
+        await tx.insert(transactions).values({
+          userId: user.id,
+          points: 2000,
+          type: "WELCOME_BONUS",
+          description: "Welcome bonus for new registration",
+        });
+
+        return user;
       });
 
       // Log the user in
-      req.login(user, (err) => {
+      req.login(result, (err) => {
         if (err) {
           console.error('Login error after registration:', err);
           return res.status(500).json({ error: "Registration successful but login failed" });
         }
-        res.status(201).json(user);
+        res.status(201).json(result);
       });
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(500).json({ error: "Registration failed" });
+      res.status(500).json({ error: "Registration failed. Please try again." });
     }
   });
 
