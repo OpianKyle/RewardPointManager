@@ -11,8 +11,8 @@ import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
 const loginSchema = z.object({
-  email: z.string().min(1, "Email is required"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -32,22 +32,30 @@ export default function AuthPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await loginMutation.mutateAsync(data);
+      const result = await loginMutation.mutateAsync(data);
+
       toast({
         title: "Success",
         description: "Logged in successfully!",
       });
-      navigate(user?.isAdmin ? '/admin' : '/dashboard');
+
+      // Redirect based on user role
+      if (result.user.isAdmin || result.user.isSuperAdmin) {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error) {
       console.error('Login error:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to login",
+        description: error instanceof Error ? error.message : "Failed to login. Please check your credentials.",
       });
     }
   };
 
+  // Redirect if already logged in
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -65,9 +73,19 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center space-y-2">
+          <img
+            src="/Assets/opian-rewards-logo (R).png"
+            alt="OPIAN Rewards"
+            className="h-12 w-auto mb-4"
+            onError={(e) => {
+              const img = e.target as HTMLImageElement;
+              img.onerror = null;
+              img.src = '/logo-fallback.png';
+            }}
+          />
           <h1 className="text-2xl font-bold tracking-tight">Welcome Back</h1>
           <p className="text-sm text-muted-foreground">
-            Sign in to your account
+            Sign in to access your rewards
           </p>
         </div>
 
@@ -88,7 +106,12 @@ export default function AuthPage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input {...field} type="email" placeholder="Enter your email" />
+                        <Input 
+                          {...field} 
+                          type="email" 
+                          placeholder="Enter your email"
+                          autoComplete="email"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -102,7 +125,12 @@ export default function AuthPage() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" placeholder="Enter your password" />
+                        <Input 
+                          {...field} 
+                          type="password" 
+                          placeholder="Enter your password"
+                          autoComplete="current-password"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -117,10 +145,10 @@ export default function AuthPage() {
                   {loginMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Logging in...
+                      Signing in...
                     </>
                   ) : (
-                    "Login"
+                    "Sign in"
                   )}
                 </Button>
               </form>

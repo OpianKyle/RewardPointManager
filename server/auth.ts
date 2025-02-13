@@ -1,5 +1,5 @@
 import passport from "passport";
-import { IVerifyOptions, Strategy as LocalStrategy } from "passport-local";
+import { Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -18,29 +18,8 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// Simple and reliable crypto functions
-const crypto = {
-  async hash(password: string): Promise<string> {
-    const salt = randomBytes(16).toString('hex');
-    const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
-    return salt + '.' + derivedKey.toString('hex');
-  },
-
-  async verify(password: string, hash: string): Promise<boolean> {
-    try {
-      const [salt, key] = hash.split('.');
-      const keyBuffer = Buffer.from(key, 'hex');
-      const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
-      return timingSafeEqual(keyBuffer, derivedKey);
-    } catch (error) {
-      console.error('Password verification error:', error);
-      return false;
-    }
-  }
-};
-
 export async function setupAuth(app: Express) {
-  const sessionSettings: session.SessionOptions = {
+  app.use(session({
     secret: process.env.REPL_ID || "your-secret-key",
     resave: false,
     saveUninitialized: false,
@@ -52,13 +31,8 @@ export async function setupAuth(app: Express) {
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000 // 24h
     }
-  };
+  }));
 
-  if (app.get("env") === "production") {
-    app.set("trust proxy", 1);
-  }
-
-  app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -66,26 +40,24 @@ export async function setupAuth(app: Express) {
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
-        console.log('Login attempt for:', email);
-
         const [user] = await db
           .select()
           .from(users)
           .where(eq(users.email, email))
           .limit(1);
 
-        if (!user) {
-          console.log('User not found:', email);
+        if (!user || !user.password) {
           return done(null, false, { message: 'Invalid email or password' });
         }
 
         if (!user.isEnabled) {
-          console.log('Account disabled:', email);
           return done(null, false, { message: 'Account is disabled' });
         }
 
-        const isValid = await crypto.verify(password, user.password);
-        console.log('Password verification result:', { email, isValid });
+        const [salt, key] = user.password.split('.');
+        const keyBuffer = Buffer.from(key, 'hex');
+        const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
+        const isValid = timingSafeEqual(keyBuffer, derivedKey);
 
         if (!isValid) {
           return done(null, false, { message: 'Invalid email or password' });
@@ -99,7 +71,7 @@ export async function setupAuth(app: Express) {
     }
   ));
 
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: any, done) => {
     done(null, user.id);
   });
 
@@ -114,43 +86,50 @@ export async function setupAuth(app: Express) {
       if (!user) {
         return done(null, false);
       }
+
       done(null, user);
     } catch (err) {
-      done(err, null);
+      done(err);
     }
   });
 
-  app.post("/api/login", (req, res, next) => {
-    const result = loginSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({
-        error: result.error.issues.map((i) => i.message).join(", "),
-      });
-    }
-
-    passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
-      if (err) {
-        console.error("Authentication error:", err);
-        return res.status(500).json({ error: "Authentication error" });
+  app.post("/api/login", async (req, res, next) => {
+    try {
+      const result = loginSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          error: result.error.issues.map(i => i.message).join(", ")
+        });
       }
 
-      if (!user) {
-        return res.status(401).json({ error: info.message ?? "Invalid credentials" });
-      }
-
-      req.logIn(user, (err) => {
+      passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
         if (err) {
-          console.error("Login error:", err);
-          return res.status(500).json({ error: "Login failed" });
+          console.error("Authentication error:", err);
+          return res.status(500).json({ error: "Authentication error" });
         }
 
-        const { password: _, ...safeUser } = user;
-        return res.json({
-          message: "Login successful",
-          user: safeUser,
+        if (!user) {
+          return res.status(401).json({ error: info?.message || "Invalid credentials" });
+        }
+
+        req.logIn(user, (err) => {
+          if (err) {
+            console.error("Login error:", err);
+            return res.status(500).json({ error: "Login failed" });
+          }
+
+          // Return user data without sensitive information
+          const { password: _, ...safeUser } = user;
+          return res.json({
+            message: "Login successful",
+            user: safeUser
+          });
         });
-      });
-    })(req, res, next);
+      })(req, res, next);
+    } catch (error) {
+      console.error("Login route error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   });
 
   app.post("/api/logout", (req, res) => {
@@ -167,7 +146,7 @@ export async function setupAuth(app: Express) {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-    const { password: _, ...safeUser } = req.user;
+    const { password: _, ...safeUser } = req.user as any;
     res.json(safeUser);
   });
 }
