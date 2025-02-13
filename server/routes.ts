@@ -387,50 +387,61 @@ export function registerRoutes(app: Express): Server {
       await db.transaction(async (tx) => {
         console.log(`Starting removal of admin user ${id}`);
 
-        // Delete product assignments
-        await tx
-          .delete(productAssignments)
-          .where(eq(productAssignments.userId, parseInt(id)));
-        console.log('Deleted product assignments');
+        try {
+          // Delete product assignments
+          await tx
+            .delete(productAssignments)
+            .where(eq(productAssignments.userId, parseInt(id)));
+          console.log('Deleted product assignments');
 
-        // Delete transactions
-        await tx
-          .delete(transactions)
-          .where(eq(transactions.userId, parseInt(id)));
-        console.log('Deleted transactions');
+          // Delete transactions
+          await tx
+            .delete(transactions)
+            .where(eq(transactions.userId, parseInt(id)));
+          console.log('Deleted transactions');
 
-        // Delete admin logs where this user is the target
-        await tx
-          .delete(adminLogs)
-          .where(eq(adminLogs.targetUserId, parseInt(id)));
-        console.log('Deleted admin logs');
+          // Delete admin logs where this user is the target
+          await tx
+            .delete(adminLogs)
+            .where(eq(adminLogs.targetUserId, parseInt(id)));
+          console.log('Deleted admin logs');
 
-        // Finally delete the user
-        const [deletedUser] = await tx
-          .delete(users)
-          .where(eq(users.id, parseInt(id)))
-          .returning();
+          // Delete admin logs where this user is the admin
+          await tx
+            .delete(adminLogs)
+            .where(eq(adminLogs.adminId, parseInt(id)));
+          console.log('Deleted admin logs where user was admin');
 
-        if (!deletedUser) {
-          throw new Error(`Failed to delete user ${id}`);
+          // Finally delete the user
+          const [deletedUser] = await tx
+            .delete(users)
+            .where(eq(users.id, parseInt(id)))
+            .returning();
+
+          if (!deletedUser) {
+            throw new Error(`Failed to delete user ${id}`);
+          }
+          console.log('Deleted user');
+
+          // Log admin removal
+          await logAdminAction({
+            adminId: req.user.id,
+            actionType: "ADMIN_REMOVED",
+            targetUserId: parseInt(id),
+            details: `Removed admin user: ${targetUser.email}`,
+          });
+          console.log('Logged admin action');
+        } catch (error) {
+          console.error('Transaction error:', error);
+          throw error; // Re-throw to trigger rollback
         }
-        console.log('Deleted user');
-
-        // Log admin removal
-        await logAdminAction({
-          adminId: req.user.id,
-          actionType: "ADMIN_REMOVED",
-          targetUserId: parseInt(id),
-          details: `Removed admin user: ${targetUser.email}`,
-        });
-        console.log('Logged admin action');
       });
 
       console.log("Admin user deleted successfully");
       res.json({ message: "Admin user removed successfully" });
     } catch (error) {
       console.error('Error deleting admin user:', error);
-      res.status(500).send('Failed to delete admin user');
+      res.status(500).send(error.message || 'Failed to delete admin user');
     }
   });
 
@@ -988,7 +999,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json(reward);
     } catch (error) {
-      consoleerror('Error creating reward:', error);
+      console.error('Error creating reward:', error);
       res.status(500).send('Failed to create reward');
     }
   });
