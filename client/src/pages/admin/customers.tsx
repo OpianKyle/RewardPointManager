@@ -146,6 +146,7 @@ export default function AdminCustomers() {
       const res = await fetch(`/api/admin/customers/${userId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include'
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -815,7 +816,8 @@ export default function AdminCustomers() {
                                     <label>First Name</label>
                                     <Input {...form.register("firstName")} defaultValue={customer.firstName} />
                                   </div>
-                                  <div className="space-y-2">
+                                  <div<replit_final_file>
+className="space-y-2">
                                     <label>Last Name</label>
                                     <Input {...form.register("lastName")} defaultValue={customer.lastName} />
                                   </div>
