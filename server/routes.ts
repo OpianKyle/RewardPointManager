@@ -449,6 +449,80 @@ export function registerRoutes(app: Express): Server {
     res.json(customers);
   });
 
+  // Add customer deletion endpoint
+  app.delete("/api/admin/customers/:id", async (req, res) => {
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
+    const { id } = req.params;
+    const userId = parseInt(id);
+
+    try {
+      // Get customer details before deletion for logging
+      const [customer] = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          isAdmin: users.isAdmin,
+          referral_code: users.referral_code
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!customer) {
+        return res.status(404).send("Customer not found");
+      }
+
+      // Prevent deletion of admin users through this endpoint
+      if (customer.isAdmin) {
+        return res.status(403).send("Cannot delete admin users through this endpoint");
+      }
+
+      // Begin transaction to handle the deletion and related records
+      await db.transaction(async (tx) => {
+        // Delete product assignments first
+        await tx
+          .delete(productAssignments)
+          .where(eq(productAssignments.userId, userId));
+
+        // Delete transactions
+        await tx
+          .delete(transactions)
+          .where(eq(transactions.userId, userId));
+
+        // Delete referral stats
+        await tx
+          .delete(referralStats)
+          .where(eq(referralStats.userId, userId));
+
+        // Update referred_by to null for any users this customer referred
+        await tx
+          .update(users)
+          .set({ referred_by: null })
+          .where(eq(users.referred_by, customer.referral_code));
+
+        // Finally delete the user
+        await tx
+          .delete(users)
+          .where(eq(users.id, userId));
+
+        // Log the customer deletion
+        await logAdminAction({
+          adminId: req.user.id,
+          actionType: "USER_DELETED", // Using USER_DELETED as the closest match
+          targetUserId: userId,
+          details: `Deleted customer: ${customer.email} (${customer.firstName} ${customer.lastName})`,
+        });
+      });
+
+      res.json({ message: "Customer deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      res.status(500).send('Failed to delete customer');
+    }
+  });
+
   // Product Management Routes
   app.get("/api/products", async (req, res) => {
     try {
@@ -926,8 +1000,7 @@ export function registerRoutes(app: Express): Server {
         level3Count: Number(level3Count[0]?.count || 0),
       });
 
-      res.json({
-        referralCode: currentUser.referral_code,
+      res.json({        referralCode: currentUser.referral_code,
         level1Count: level1Referrals.length,
         level2Count: Number(level2Count[0]?.count || 0),
         level3Count: Number(level3Count[0]?.count || 0),
