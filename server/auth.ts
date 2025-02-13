@@ -21,16 +21,20 @@ const loginSchema = z.object({
 const crypto = {
   async hashPassword(password: string) {
     const salt = randomBytes(16).toString('hex');
-    const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
-    return salt + '.' + derivedKey.toString('hex');
+    const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+    return salt + '.' + hash.toString('hex');
   },
 
-  async verifyPassword(password: string, hash: string) {
+  async verifyPassword(password: string, stored: string) {
     try {
-      const [salt, key] = hash.split('.');
-      const keyBuffer = Buffer.from(key, 'hex');
-      const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
-      return timingSafeEqual(keyBuffer, derivedKey);
+      const [salt, hash] = stored.split('.');
+      if (!salt || !hash) return false;
+
+      const hashBuffer = Buffer.from(hash, 'hex');
+      const suppliedHashBuffer = await scryptAsync(password, salt, 64) as Buffer;
+
+      return hashBuffer.length === suppliedHashBuffer.length && 
+             timingSafeEqual(hashBuffer, suppliedHashBuffer);
     } catch (error) {
       console.error('Password verification error:', error);
       return false;
@@ -60,6 +64,8 @@ export async function setupAuth(app: Express) {
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
+        console.log('Attempting login for email:', email);
+
         const [user] = await db
           .select()
           .from(users)
@@ -67,20 +73,25 @@ export async function setupAuth(app: Express) {
           .limit(1);
 
         if (!user || !user.password) {
+          console.log('User not found or password not set');
           return done(null, false, { message: 'Invalid email or password' });
         }
 
         if (!user.isEnabled) {
+          console.log('User account is disabled');
           return done(null, false, { message: 'Account is disabled' });
         }
 
         const isValid = await crypto.verifyPassword(password, user.password);
+        console.log('Password verification result:', isValid);
+
         if (!isValid) {
           return done(null, false, { message: 'Invalid email or password' });
         }
 
         return done(null, user);
       } catch (error) {
+        console.error('Authentication error:', error);
         return done(error);
       }
     }
@@ -119,6 +130,7 @@ export async function setupAuth(app: Express) {
 
       passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
         if (err) {
+          console.error('Authentication error:', err);
           return res.status(500).json({ error: "Authentication error" });
         }
 
@@ -128,6 +140,7 @@ export async function setupAuth(app: Express) {
 
         req.logIn(user, (err) => {
           if (err) {
+            console.error('Login error:', err);
             return res.status(500).json({ error: "Login failed" });
           }
 
@@ -136,6 +149,7 @@ export async function setupAuth(app: Express) {
         });
       })(req, res, next);
     } catch (error) {
+      console.error('Login route error:', error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
