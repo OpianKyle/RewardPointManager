@@ -517,10 +517,10 @@ export function registerRoutes(app: Express): Server {
           }
           console.log('Deleted customer');
 
-          // Log customer deletion
+          // Log customer deletion with the correct action type
           await logAdminAction({
             adminId: req.user.id,
-            actionType: "CUSTOMER_REMOVED",
+            actionType: "USER_REMOVED", // Changed from CUSTOMER_REMOVED to USER_REMOVED
             targetUserId: parseInt(id),
             details: `Removed customer: ${targetUser.email}`,
           });
@@ -539,7 +539,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add the customers endpoint right after the admin users endpoint
   app.get("/api/admin/customers", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const customers = await db.query.users.findMany({
