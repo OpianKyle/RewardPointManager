@@ -481,7 +481,12 @@ export function registerRoutes(app: Express): Server {
 
       // Begin transaction to handle the deletion and related records
       await db.transaction(async (tx) => {
-        // Delete product assignments first
+        // Delete admin logs first
+        await tx
+          .delete(adminLogs)
+          .where(eq(adminLogs.targetUserId, userId));
+
+        // Delete product assignments
         await tx
           .delete(productAssignments)
           .where(eq(productAssignments.userId, userId));
@@ -510,7 +515,7 @@ export function registerRoutes(app: Express): Server {
         // Log the customer deletion
         await logAdminAction({
           adminId: req.user.id,
-          actionType: "USER_DELETED", // Using USER_DELETED as the closest match
+          actionType: "USER_DELETED",
           targetUserId: userId,
           details: `Deleted customer: ${customer.email} (${customer.firstName} ${customer.lastName})`,
         });
