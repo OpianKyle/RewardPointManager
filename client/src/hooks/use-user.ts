@@ -70,6 +70,36 @@ export function useUser() {
     },
   });
 
+  const registerMutation = useMutation({
+    mutationFn: async (userData: { 
+      email: string; 
+      password: string; 
+      firstName: string; 
+      lastName: string; 
+      phoneNumber: string;
+    }) => {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Registration failed');
+      }
+
+      const data = await response.json();
+      return userSchema.parse(data);
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(['/api/user'], user);
+    },
+  });
+
   const logoutMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch('/api/logout', {
@@ -90,5 +120,6 @@ export function useUser() {
     isLoading,
     loginMutation,
     logoutMutation,
+    registerMutation,
   };
 }
