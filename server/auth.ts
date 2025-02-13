@@ -18,19 +18,30 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// Simplify crypto functions
+// Improved crypto functions with better error handling
 const crypto = {
   hash: async (password: string) => {
     const salt = randomBytes(16).toString("hex");
-    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-    return `${buf.toString("hex")}.${salt}`;
+    const derivedKey = await scryptAsync(password, salt, 64) as Buffer;
+    return `${derivedKey.toString("hex")}.${salt}`;
   },
-  compare: async (supplied: string, stored: string) => {
-    const [hashed, salt] = stored.split(".");
-    const hashedBuf = Buffer.from(hashed, "hex");
-    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    return timingSafeEqual(hashedBuf, suppliedBuf);
-  },
+  verify: async (supplied: string, stored: string) => {
+    try {
+      const [hashedPassword, salt] = stored.split(".");
+      if (!hashedPassword || !salt) {
+        console.error("Invalid stored password format");
+        return false;
+      }
+
+      const hashBuffer = Buffer.from(hashedPassword, "hex");
+      const suppliedBuffer = await scryptAsync(supplied, salt, 64) as Buffer;
+
+      return timingSafeEqual(hashBuffer, suppliedBuffer);
+    } catch (error) {
+      console.error("Password verification error:", error);
+      return false;
+    }
+  }
 };
 
 export async function setupAuth(app: Express) {
@@ -63,6 +74,8 @@ export async function setupAuth(app: Express) {
       },
       async (email, password, done) => {
         try {
+          console.log("Attempting login for email:", email);
+
           const [user] = await db
             .select()
             .from(users)
@@ -70,24 +83,27 @@ export async function setupAuth(app: Express) {
             .limit(1);
 
           if (!user) {
+            console.log("User not found:", email);
             return done(null, false, { message: "Invalid email or password" });
           }
 
           if (!user.isEnabled) {
+            console.log("Account disabled:", email);
             return done(null, false, { message: "Account is disabled" });
           }
 
-          // For debugging purposes, log the password attempt
-          console.log('Login attempt:', { email, passwordAttempt: password });
+          console.log("Verifying password for user:", email);
+          const isValid = await crypto.verify(password, user.password);
 
-          const isMatch = await crypto.compare(password, user.password);
-          if (!isMatch) {
+          if (!isValid) {
+            console.log("Invalid password for user:", email);
             return done(null, false, { message: "Invalid email or password" });
           }
 
+          console.log("Login successful for user:", email);
           return done(null, user);
         } catch (err) {
-          console.error('Authentication error:', err);
+          console.error("Authentication error:", err);
           return done(err);
         }
       }
@@ -125,7 +141,7 @@ export async function setupAuth(app: Express) {
 
     passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
       if (err) {
-        console.error('Authentication error:', err);
+        console.error("Authentication error:", err);
         return res.status(500).json({ error: "Authentication error" });
       }
 
@@ -135,7 +151,7 @@ export async function setupAuth(app: Express) {
 
       req.logIn(user, (err) => {
         if (err) {
-          console.error('Login error:', err);
+          console.error("Login error:", err);
           return res.status(500).json({ error: "Login failed" });
         }
 
