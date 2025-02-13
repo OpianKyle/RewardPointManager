@@ -148,7 +148,10 @@ export default function AdminCustomers() {
         headers: { "Content-Type": "application/json" },
         credentials: 'include'
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText);
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -157,10 +160,11 @@ export default function AdminCustomers() {
       toast({ title: "Success", description: "Customer deleted successfully" });
     },
     onError: (error: Error) => {
+      console.error('Delete error:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete customer"
       });
     },
   });
@@ -391,13 +395,26 @@ export default function AdminCustomers() {
                                 and remove all associated data including points, transactions, and product assignments.
                               </p>
                               <div className="flex justify-end space-x-2">
-                                <DialogTrigger asChild>
-                                  <Button variant="outline">Cancel</Button>
-                                </DialogTrigger>
+                                <Button variant="outline" onClick={() => {
+                                  const dialogTrigger = document.querySelector('[role="dialog"]');
+                                  if (dialogTrigger) {
+                                    (dialogTrigger as HTMLElement).setAttribute('data-state', 'closed');
+                                  }
+                                }}>
+                                  Cancel
+                                </Button>
                                 <Button
                                   variant="destructive"
-                                  onClick={() => {
-                                    deleteCustomerMutation.mutate({ userId: customer.id });
+                                  onClick={async () => {
+                                    try {
+                                      await deleteCustomerMutation.mutateAsync({ userId: customer.id });
+                                      const dialogTrigger = document.querySelector('[role="dialog"]');
+                                      if (dialogTrigger) {
+                                        (dialogTrigger as HTMLElement).setAttribute('data-state', 'closed');
+                                      }
+                                    } catch (error) {
+                                      console.error('Failed to delete customer:', error);
+                                    }
                                   }}
                                 >
                                   Delete Customer
@@ -816,8 +833,7 @@ export default function AdminCustomers() {
                                     <label>First Name</label>
                                     <Input {...form.register("firstName")} defaultValue={customer.firstName} />
                                   </div>
-                                  <div<replit_final_file>
-className="space-y-2">
+                                  <div className="space-y-2">
                                     <label>Last Name</label>
                                     <Input {...form.register("lastName")} defaultValue={customer.lastName} />
                                   </div>
