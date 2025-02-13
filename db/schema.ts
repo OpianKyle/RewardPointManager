@@ -75,7 +75,8 @@ export const transactionTypes = pgEnum("transaction_type", [
   "EARNED",
   "REDEEMED",
   "ADMIN_ADJUSTMENT",
-  "CASH_REDEMPTION"
+  "CASH_REDEMPTION",
+  "WELCOME_BONUS"
 ]);
 
 export const transactionStatus = pgEnum("transaction_status", ["PENDING", "PROCESSED"]);

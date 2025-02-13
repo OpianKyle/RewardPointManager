@@ -128,9 +128,9 @@ export async function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res) => {
     try {
-      const { email, password, firstName, lastName, phoneNumber, isAdmin = false, isSuperAdmin = false } = req.body;
+      const { email, password, firstName, lastName, phoneNumber } = req.body;
 
-      // Check if user already exists with better error messaging
+      // Check if user already exists
       const [existingUser] = await db
         .select()
         .from(users)
@@ -146,7 +146,7 @@ export async function setupAuth(app: Express) {
       // Hash password
       const hashedPassword = await crypto.hashPassword(password);
 
-      // Create new user - transaction to ensure both user creation and points are atomic
+      // Create new user and add welcome bonus in a transaction
       const result = await db.transaction(async (tx) => {
         // Create new user
         const [user] = await tx
@@ -157,8 +157,8 @@ export async function setupAuth(app: Express) {
             firstName,
             lastName,
             phoneNumber,
-            isAdmin,
-            isSuperAdmin,
+            isAdmin: false,
+            isSuperAdmin: false,
             isEnabled: true,
             points: 2000,
             referral_code: null,
@@ -166,13 +166,15 @@ export async function setupAuth(app: Express) {
           })
           .returning();
 
-        // Create welcome bonus transaction
-        await tx.insert(transactions).values({
-          userId: user.id,
-          points: 2000,
-          type: "WELCOME_BONUS",
-          description: "Welcome bonus for new registration",
-        });
+        // Add welcome bonus transaction
+        await tx
+          .insert(transactions)
+          .values({
+            userId: user.id,
+            points: 2000,
+            type: "WELCOME_BONUS",
+            description: "Welcome bonus for new registration",
+          });
 
         return user;
       });
