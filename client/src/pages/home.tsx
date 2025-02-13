@@ -6,14 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import SignatureCanvas from "react-signature-canvas";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 
 export default function HomePage() {
   // Login state
@@ -21,24 +13,12 @@ export default function HomePage() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
-  // Extended registration state
+  // Registration state
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regFirstName, setRegFirstName] = useState("");
   const [regLastName, setRegLastName] = useState("");
   const [regPhone, setRegPhone] = useState("");
-  const [isSACitizen, setIsSACitizen] = useState(false);
-  const [idNumber, setIdNumber] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState<Date>();
-  const [gender, setGender] = useState("");
-  const [language, setLanguage] = useState("");
-  const [accountHolder, setAccountHolder] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [branchCode, setBranchCode] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [accountType, setAccountType] = useState("");
-  const [signatureRef, setSignatureRef] = useState<SignatureCanvas | null>(null);
-  const [mandateAccepted, setMandateAccepted] = useState(false);
   const [regError, setRegError] = useState("");
 
   const { loginMutation, registerMutation, user, isLoading } = useUser();
@@ -95,16 +75,8 @@ export default function HomePage() {
     e.preventDefault();
     setRegError("");
 
-    // Basic validation
-    if (!regEmail || !regPassword || !regFirstName || !regLastName || !regPhone ||
-        !idNumber || !dateOfBirth || !gender || !language || !accountHolder ||
-        !bankName || !branchCode || !accountNumber || !accountType || !mandateAccepted) {
-      setRegError("Please fill in all required fields");
-      return;
-    }
-
-    if (!signatureRef?.toDataURL()) {
-      setRegError("Please provide your digital signature");
+    if (!regEmail || !regPassword || !regFirstName || !regLastName || !regPhone) {
+      setRegError("Please fill in all fields");
       return;
     }
 
@@ -114,19 +86,7 @@ export default function HomePage() {
         password: regPassword,
         firstName: regFirstName,
         lastName: regLastName,
-        phoneNumber: regPhone,
-        isSouthAfricanCitizen: isSACitizen,
-        idNumber,
-        dateOfBirth: dateOfBirth.toISOString(),
-        gender,
-        language,
-        accountHolderName: accountHolder,
-        bankName,
-        branchCode,
-        accountNumber,
-        accountType,
-        digitalSignature: signatureRef.toDataURL(),
-        mandateAccepted,
+        phoneNumber: regPhone
       });
 
       toast({
@@ -218,7 +178,6 @@ export default function HomePage() {
           <TabsContent value="register">
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-4">
-                {/* Personal Information */}
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     placeholder="First Name"
@@ -244,138 +203,10 @@ export default function HomePage() {
                   onChange={(e) => setRegPassword(e.target.value)}
                 />
                 <Input
-                  placeholder="Mobile Number"
+                  placeholder="Phone Number"
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
                 />
-
-                {/* Citizenship and ID */}
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="citizen"
-                    checked={isSACitizen}
-                    onCheckedChange={(checked) => setIsSACitizen(checked as boolean)}
-                  />
-                  <label htmlFor="citizen">
-                    Are you a South African citizen?
-                  </label>
-                </div>
-                <Input
-                  placeholder="ID Number/Passport"
-                  value={idNumber}
-                  onChange={(e) => setIdNumber(e.target.value)}
-                />
-
-                {/* Date of Birth */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !dateOfBirth && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateOfBirth ? format(dateOfBirth, "PPP") : <span>Date of Birth</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={dateOfBirth}
-                      onSelect={setDateOfBirth}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                {/* Gender and Language */}
-                <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MALE">Male</SelectItem>
-                    <SelectItem value="FEMALE">Female</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
-                    <SelectItem value="PREFER_NOT_TO_SAY">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Input
-                  placeholder="Language"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                />
-
-                {/* Banking Details */}
-                <div className="space-y-4 border p-4 rounded-md">
-                  <h3 className="font-semibold">Banking Details</h3>
-                  <Input
-                    placeholder="Account Holder Name"
-                    value={accountHolder}
-                    onChange={(e) => setAccountHolder(e.target.value)}
-                  />
-                  <Input
-                    placeholder="Bank Name"
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                  />
-                  <Input
-                    placeholder="Branch & Code"
-                    value={branchCode}
-                    onChange={(e) => setBranchCode(e.target.value)}
-                  />
-                  <Input
-                    placeholder="Account Number"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                  />
-                  <Select value={accountType} onValueChange={setAccountType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type of Account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SAVINGS">Savings</SelectItem>
-                      <SelectItem value="CURRENT">Current</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Digital Signature */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Digital Signature</label>
-                  <div className="border rounded-md p-2 bg-white">
-                    <SignatureCanvas
-                      ref={(ref) => setSignatureRef(ref)}
-                      canvasProps={{
-                        className: "signature-canvas w-full h-40",
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => signatureRef?.clear()}
-                    >
-                      Clear Signature
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Mandate Acceptance */}
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="mandate"
-                    checked={mandateAccepted}
-                    onCheckedChange={(checked) => setMandateAccepted(checked as boolean)}
-                  />
-                  <label htmlFor="mandate" className="text-sm">
-                    I accept the mandate for payment authorization
-                  </label>
-                </div>
               </div>
 
               {regError && (

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
@@ -29,13 +29,6 @@ export const product_activities = pgTable("product_activities", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Add account type enum
-export const accountTypes = pgEnum("account_type", ["SAVINGS", "CURRENT"]);
-
-// Add gender enum
-export const genderTypes = pgEnum("gender_type", ["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]);
-
-// Update users table with new fields
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").unique().notNull(),
@@ -49,20 +42,6 @@ export const users = pgTable("users", {
   points: integer("points").default(0).notNull(),
   referral_code: text("referral_code"),
   referred_by: text("referred_by"),
-  // New fields for registration
-  isSouthAfricanCitizen: boolean("is_south_african_citizen").default(false),
-  idNumber: text("id_number"),
-  dateOfBirth: date("date_of_birth"),
-  gender: genderTypes("gender"),
-  language: text("language"),
-  // Banking details
-  accountHolderName: text("account_holder_name"),
-  bankName: text("bank_name"),
-  branchCode: text("branch_code"),
-  accountNumber: text("account_number"),
-  accountType: accountTypes("account_type"),
-  digitalSignature: text("digital_signature"),
-  mandateAccepted: boolean("mandate_accepted").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

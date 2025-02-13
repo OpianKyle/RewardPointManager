@@ -16,12 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import cn from 'classnames';
-import {Checkbox} from "@/components/ui/checkbox";
-import {Popover, PopoverTrigger, PopoverContent} from "@/components/ui/popover";
-import {Calendar} from "@/components/ui/calendar";
-import {Select, SelectTrigger, SelectValue, SelectContent, SelectItem} from "@/components/ui/select";
-import {CalendarIcon} from "lucide-react";
-import {format} from 'date-fns'
 
 const getPointsMultiplier = (points: number, type: 'premium' | 'card' | 'pos'): number => {
   if (points >= 150000) { // Platinum
@@ -44,16 +38,6 @@ const userSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
-  isSouthAfricanCitizen: z.boolean(),
-  idNumber: z.string().min(1, "ID Number/Passport is required"),
-  dateOfBirth: z.date(),
-  gender: z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]),
-  language: z.string().min(1, "Language is required"),
-  accountHolderName: z.string().min(1, "Account holder name is required"),
-  bankName: z.string().min(1, "Bank name is required"),
-  branchCode: z.string().min(1, "Branch code is required"),
-  accountNumber: z.string().min(1, "Account number is required"),
-  accountType: z.enum(["SAVINGS", "CURRENT"]),
   password: z.string().optional(),
 });
 
@@ -144,16 +128,6 @@ export default function AdminCustomers() {
       firstName: "",
       lastName: "",
       phoneNumber: "",
-      isSouthAfricanCitizen: false,
-      idNumber: "",
-      dateOfBirth: new Date(),
-      gender: "MALE",
-      language: "",
-      accountHolderName: "",
-      bankName: "",
-      branchCode: "",
-      accountNumber: "",
-      accountType: "SAVINGS",
       password: "",
     },
   });
@@ -734,129 +708,40 @@ export default function AdminCustomers() {
                               <DialogTrigger asChild>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                   <Pencil className="mr-2 h-4 w-4" />
-                                  Edit User
+                                  Edit
                                 </DropdownMenuItem>
                               </DialogTrigger>
-                              <DialogContent className="max-w-4xl">
+                              <DialogContent className="bg-[#011d3d] border-[#022b5c] text-white">
                                 <DialogHeader>
-                                  <DialogTitle>Edit User Details</DialogTitle>
+                                  <DialogTitle className="text-[#43EB3E]">Edit Customer</DialogTitle>
                                 </DialogHeader>
-                                <form onSubmit={form.handleSubmit((data) => updateUserMutation.mutate({ userId: customer.id, data }))} className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-4">
-                                      <Input
-                                        placeholder="First Name"
-                                        {...form.register("firstName")}
-                                      />
-                                      <Input
-                                        placeholder="Last Name"
-                                        {...form.register("lastName")}
-                                      />
-                                      <Input
-                                        placeholder="Email"
-                                        type="email"
-                                        {...form.register("email")}
-                                      />
-                                      <Input
-                                        placeholder="Phone Number"
-                                        {...form.register("phoneNumber")}
-                                      />
-                                      <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                          id="citizen"
-                                          {...form.register("isSouthAfricanCitizen")}
-                                        />
-                                        <label htmlFor="citizen">
-                                          South African citizen
-                                        </label>
-                                      </div>
-                                      <Input
-                                        placeholder="ID Number/Passport"
-                                        {...form.register("idNumber")}
-                                      />
-                                      <Popover>
-                                        <PopoverTrigger asChild>
-                                          <Button
-                                            variant="outline"
-                                            className={cn(
-                                              "w-full justify-start text-left font-normal",
-                                              !form.watch("dateOfBirth") && "text-muted-foreground"
-                                            )}
-                                          >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {form.watch("dateOfBirth") ? format(form.watch("dateOfBirth"), "PPP") : <span>Date of Birth</span>}
-                                          </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                          <Calendar
-                                            mode="single"
-                                            selected={form.watch("dateOfBirth")}
-                                            onSelect={(date) => form.setValue("dateOfBirth", date)}
-                                            initialFocus
-                                          />
-                                        </PopoverContent>
-                                      </Popover>
-                                    </div>
-                                    <div className="space-y-4">
-                                      <Select
-                                        value={form.watch("gender")}
-                                        onValueChange={(value) => form.setValue("gender", value)}
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select Gender" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="MALE">Male</SelectItem>
-                                          <SelectItem value="FEMALE">Female</SelectItem>
-                                          <SelectItem value="OTHER">Other</SelectItem>
-                                          <SelectItem value="PREFER_NOT_TO_SAY">Prefer not to say</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                      <Input
-                                        placeholder="Language"
-                                        {...form.register("language")}
-                                      />
-                                      <div className="space-y-4 border p-4 rounded-md">
-                                        <h3 className="font-semibold">Banking Details</h3>
-                                        <Input
-                                          placeholder="Account Holder Name"
-                                          {...form.register("accountHolderName")}
-                                        />
-                                        <Input
-                                          placeholder="Bank Name"
-                                          {...form.register("bankName")}
-                                        />
-                                        <Input
-                                          placeholder="Branch & Code"
-                                          {...form.register("branchCode")}
-                                        />
-                                        <Input
-                                          placeholder="Account Number"
-                                          {...form.register("accountNumber")}
-                                        />
-                                        <Select
-                                          value={form.watch("accountType")}
-                                          onValueChange={(value) => form.setValue("accountType", value)}
-                                        >
-                                          <SelectTrigger>
-                                            <SelectValue placeholder="Type of Account" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="SAVINGS">Savings</SelectItem>
-                                            <SelectItem value="CURRENT">Current</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                      <Input
-                                        type="password"
-                                        placeholder="New Password (leave empty to keep current)"
-                                        {...form.register("password")}
-                                      />
-                                    </div>
+                                <form
+                                  onSubmit={form.handleSubmit((data) =>
+                                    updateUserMutation.mutate({ userId: customer.id, data })
+                                  )}
+                                  className="space-y-4"
+                                >
+                                  <div className="space-y-2">
+                                    <label>Email</label>
+                                    <Input {...form.register("email")} defaultValue={customer.email} />
                                   </div>
-                                  <Button type="submit" className="w-full">
-                                    Update User
-                                  </Button>
+                                  <div className="space-y-2">
+                                    <label>First Name</label>
+                                    <Input {...form.register("firstName")} defaultValue={customer.firstName} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label>Last Name</label>
+                                    <Input {...form.register("lastName")} defaultValue={customer.lastName} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label>Phone Number</label>
+                                    <Input {...form.register("phoneNumber")} defaultValue={customer.phoneNumber} />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label>New Password (leave empty to keep current)</label>
+                                    <Input type="password" {...form.register("password")} />
+                                  </div>
+                                  <Button type="submit">Update Customer</Button>
                                 </form>
                               </DialogContent>
                             </Dialog>
