@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -19,7 +19,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function AuthPage() {
   const [, navigate] = useLocation();
-  const { loginMutation, user, isLoading } = useUser();
+  const { loginMutation, user, isLoading } = useUser(); //Re-added user and isLoading from original
   const { toast } = useToast();
 
   const form = useForm<LoginFormData>({
@@ -32,15 +32,12 @@ export default function AuthPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const user = await loginMutation.mutateAsync(data);
-
-      toast({
-        title: "Success",
-        description: "Logged in successfully!",
+      const user = await loginMutation.mutateAsync({
+        email: data.email,
+        password: data.password,
       });
 
-      // Redirect based on user role
-      if (user.isAdmin) {
+      if (user.isAdmin || user.isSuperAdmin) {
         navigate('/admin');
       } else {
         navigate('/dashboard');
@@ -50,7 +47,7 @@ export default function AuthPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "Invalid email or password",
+        description: "Invalid email or password",
       });
     }
   };
@@ -65,7 +62,7 @@ export default function AuthPage() {
   }
 
   if (user) {
-    navigate(user.isAdmin ? '/admin' : '/dashboard');
+    navigate(user.isAdmin || user.isSuperAdmin ? '/admin' : '/dashboard'); // Added isSuperAdmin check
     return null;
   }
 

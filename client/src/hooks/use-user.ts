@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from "zod";
 
-export const userSchema = z.object({
+const userSchema = z.object({
   id: z.number(),
-  email: z.string().email("Invalid email address"),
-  firstName: z.string(),
-  lastName: z.string(),
+  email: z.string().email(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   phoneNumber: z.string().optional(),
   isAdmin: z.boolean().default(false),
   isSuperAdmin: z.boolean().default(false),
@@ -33,7 +33,7 @@ export function useUser() {
         }
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch user: ${await response.text()}`);
+          throw new Error('Failed to fetch user');
         }
 
         const data = await response.json();
@@ -43,8 +43,6 @@ export function useUser() {
         return null;
       }
     },
-    staleTime: 300000, // 5 minutes
-    gcTime: 3600000, // 1 hour
     retry: false,
   });
 
@@ -52,22 +50,23 @@ export function useUser() {
     mutationFn: async (credentials: { email: string; password: string }) => {
       const response = await fetch('/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(credentials),
-        credentials: 'include'
+        credentials: 'include',
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
+        throw new Error('Invalid email or password');
       }
 
       const data = await response.json();
       return userSchema.parse(data);
     },
-    onSuccess: (user) => {
-      queryClient.setQueryData(['/api/user'], user);
-    }
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/user'], data);
+    },
   });
 
   const logoutMutation = useMutation({
@@ -78,20 +77,18 @@ export function useUser() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        throw new Error('Failed to logout');
       }
 
       queryClient.setQueryData(['/api/user'], null);
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-
       return response.json();
-    }
+    },
   });
 
   return {
     user,
     isLoading,
     loginMutation,
-    logoutMutation
+    logoutMutation,
   };
 }
