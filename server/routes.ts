@@ -515,7 +515,7 @@ export function registerRoutes(app: Express): Server {
         // Log the customer deletion
         await logAdminAction({
           adminId: req.user.id,
-          actionType: "USER_DELETED",
+          actionType: "ADMIN_REMOVED", // Changed to use a valid enum value
           targetUserId: userId,
           details: `Deleted customer: ${customer.email} (${customer.firstName} ${customer.lastName})`,
         });
