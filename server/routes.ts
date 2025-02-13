@@ -520,7 +520,7 @@ export function registerRoutes(app: Express): Server {
           // Log customer deletion with the correct action type
           await logAdminAction({
             adminId: req.user.id,
-            actionType: "USER_REMOVED", // Changed from CUSTOMER_REMOVED to USER_REMOVED
+            actionType: "ADMIN_REMOVED", // Using ADMIN_REMOVED as it's a valid enum value
             targetUserId: parseInt(id),
             details: `Removed customer: ${targetUser.email}`,
           });
