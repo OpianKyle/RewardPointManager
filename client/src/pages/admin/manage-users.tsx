@@ -72,6 +72,31 @@ export default function AdminManagement() {
     },
   });
 
+  const toggleAdminMutation = useMutation({
+    mutationFn: async ({ userId, isAdmin }: { userId: number; isAdmin: boolean }) => {
+      const res = await fetch("/api/admin/users/toggle-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, isAdmin }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ 
+        title: "Success", 
+        description: data.message || "Admin status updated successfully" 
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
 
   const createAdminMutation = useMutation({
     mutationFn: async (data: AdminFormData) => {
@@ -138,36 +163,6 @@ export default function AdminManagement() {
       toast({ title: "Success", description: "Admin status updated successfully" });
     },
     onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    },
-  });
-
-  const deleteAdminMutation = useMutation({
-    mutationFn: async (userId: number) => {
-      console.log('Starting deletion of admin:', userId); // Debug log
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Failed to delete admin user');
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({ 
-        title: "Success", 
-        description: "Admin user deleted successfully" 
-      });
-    },
-    onError: (error: Error) => {
-      console.error('Error in deleteAdminMutation:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -346,17 +341,11 @@ export default function AdminManagement() {
                             size="sm"
                             onClick={() => {
                               if (confirm(
-                                "Are you sure? This will permanently delete this admin user."
+                                "Are you sure? This will permanently remove this admin user."
                               )) {
-                                console.log('Deleting admin:', admin.id); // Debug log
-                                deleteAdminMutation.mutate(admin.id, {
-                                  onSuccess: () => {
-                                    console.log('Successfully deleted admin');
-                                    refetch();
-                                  },
-                                  onError: (error) => {
-                                    console.error('Failed to delete admin:', error);
-                                  }
+                                toggleAdminMutation.mutate({
+                                  userId: admin.id,
+                                  isAdmin: false,
                                 });
                               }
                             }}
