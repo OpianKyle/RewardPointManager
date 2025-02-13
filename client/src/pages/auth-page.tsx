@@ -1,60 +1,20 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { useUser } from "@/hooks/use-user";
-import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-// Form validation schema
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
-  const [, navigate] = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const { loginMutation, user, isLoading } = useUser();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  // Initialize form with react-hook-form and zod validation
-  const form = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
-
-  // Handle form submission
-  const onSubmit = async (data: LoginFormData) => {
-    try {
-      const user = await loginMutation.mutateAsync(data);
-      // Redirect based on user type
-      navigate(user.isAdmin ? '/admin' : '/dashboard');
-    } catch (error) {
-      console.error('Login error:', error);
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid email or password. Please try again.",
-      });
-    }
-  };
-
-  // Show loading spinner while checking auth status
+  // Check loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -69,86 +29,110 @@ export default function AuthPage() {
     return null;
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    try {
+      const user = await loginMutation.mutateAsync({
+        email,
+        password
+      });
+
+      toast({
+        title: "Success",
+        description: "Login successful",
+      });
+
+      navigate(user.isAdmin ? '/admin' : '/dashboard');
+    } catch (err) {
+      setError("Invalid email or password");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Invalid email or password",
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
-      <div className="w-full max-w-md space-y-8">
-        {/* Logo and Header */}
-        <div className="flex flex-col items-center space-y-2">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-sm space-y-8">
+        {/* Logo */}
+        <div className="flex flex-col items-center">
           <img
             src="/Assets/opian-rewards-logo (R).png"
-            alt="OPIAN Rewards"
-            className="h-12 w-auto mb-4"
+            alt="Logo"
+            className="h-12 w-auto"
             onError={(e) => {
               const img = e.target as HTMLImageElement;
               img.onerror = null;
               img.src = '/logo-fallback.png';
             }}
           />
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome to OPIAN Rewards</h1>
-          <p className="text-sm text-muted-foreground">Sign in to access your account</p>
+          <h2 className="mt-6 text-2xl font-semibold">Welcome Back</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Sign in to your account
+          </p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-card p-6 rounded-lg shadow-sm border">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          <div className="space-y-4">
+            <div>
+              <Input
+                id="email"
                 name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        type="email"
-                        placeholder="Enter your email"
-                        autoComplete="email"
-                        disabled={loginMutation.isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        type="password"
-                        placeholder="Enter your password"
-                        autoComplete="current-password"
-                        disabled={loginMutation.isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                type="submit"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full"
-                disabled={loginMutation.isPending}
-              >
-                {loginMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  "Sign in"
-                )}
-              </Button>
-            </form>
-          </Form>
-        </div>
+              />
+            </div>
+            <div>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="text-sm text-red-500 text-center">
+              {error}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loginMutation.isPending}
+          >
+            {loginMutation.isPending ? (
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Signing in...
+              </div>
+            ) : (
+              "Sign in"
+            )}
+          </Button>
+        </form>
       </div>
     </div>
   );
