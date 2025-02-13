@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, pgEnum, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
@@ -10,9 +10,6 @@ export const activityTypes = pgEnum("activity_type", [
   "UPGRADE",
   "RENEWAL"
 ]);
-
-export const genderTypes = pgEnum("gender_type", ["MALE", "FEMALE", "OTHER"]);
-export const accountTypes = pgEnum("account_type", ["SAVINGS", "CURRENT"]);
 
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
@@ -39,31 +36,13 @@ export const users = pgTable("users", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   phoneNumber: text("phone_number").notNull(),
-  isSouthAfrican: boolean("is_south_african").default(false).notNull(),
-  idNumber: text("id_number").notNull(),
-  dateOfBirth: date("date_of_birth").notNull(),
-  gender: genderTypes("gender").notNull(),
-  language: text("language").notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
   isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
   isEnabled: boolean("is_enabled").default(true).notNull(),
   points: integer("points").default(0).notNull(),
   referral_code: text("referral_code"),
   referred_by: text("referred_by"),
-  signature: text("signature"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const bankingDetails = pgTable("banking_details", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  accountHolderName: text("account_holder_name").notNull(),
-  bankName: text("bank_name").notNull(),
-  branchCode: text("branch_code").notNull(),
-  accountNumber: text("account_number").notNull(),
-  accountType: accountTypes("account_type").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const referralStats = pgTable("referral_stats", {
@@ -160,10 +139,6 @@ export const userRelations = relations(users, ({ many, one }) => ({
   adminLogsCreated: many(adminLogs, { relationName: "adminLogsCreated" }),
   adminLogsTarget: many(adminLogs, { relationName: "adminLogsTarget" }),
   productAssignments: many(productAssignments),
-  bankingDetails: one(bankingDetails, {
-    fields: [users.id],
-    references: [bankingDetails.userId],
-  }),
   referralStats: one(referralStats, {
     fields: [users.id],
     references: [referralStats.userId],
@@ -222,13 +197,6 @@ export const referralStatsRelations = relations(referralStats, ({ one }) => ({
   }),
 }));
 
-export const bankingDetailsRelations = relations(bankingDetails, ({ one }) => ({
-  user: one(users, {
-    fields: [bankingDetails.userId],
-    references: [users.id],
-  }),
-}));
-
 export const insertProductSchema = createInsertSchema(products);
 export const selectProductSchema = createSelectSchema(products);
 export const insertProductActivitySchema = createInsertSchema(product_activities);
@@ -245,8 +213,6 @@ export const insertProductAssignmentSchema = createInsertSchema(productAssignmen
 export const selectProductAssignmentSchema = createSelectSchema(productAssignments);
 export const insertReferralStatsSchema = createInsertSchema(referralStats);
 export const selectReferralStatsSchema = createSelectSchema(referralStats);
-export const insertBankingDetailsSchema = createInsertSchema(bankingDetails);
-export const selectBankingDetailsSchema = createSelectSchema(bankingDetails);
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
@@ -264,5 +230,3 @@ export type ProductAssignment = typeof productAssignments.$inferSelect;
 export type InsertProductAssignment = typeof productAssignments.$inferInsert;
 export type ReferralStats = typeof referralStats.$inferSelect;
 export type InsertReferralStats = typeof referralStats.$inferInsert;
-export type BankingDetails = typeof bankingDetails.$inferSelect;
-export type InsertBankingDetails = typeof bankingDetails.$inferInsert;

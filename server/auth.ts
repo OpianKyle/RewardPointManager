@@ -5,7 +5,7 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, bankingDetails } from "@db/schema"; // Assumed bankingDetails schema exists
+import { users } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -16,27 +16,6 @@ const MemoryStore = createMemoryStore(session);
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const registrationSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phoneNumber: z.string().min(1, "Phone number is required"),
-  isSouthAfrican: z.boolean(),
-  idNumber: z.string().min(1, "ID/Passport number is required"),
-  dateOfBirth: z.string().transform((str) => new Date(str)),
-  gender: z.enum(["MALE", "FEMALE", "OTHER"]),
-  language: z.string().min(1, "Language is required"),
-  signature: z.string().optional(),
-  bankingDetails: z.object({
-    accountHolderName: z.string().min(1, "Account holder name is required"),
-    bankName: z.string().min(1, "Bank name is required"),
-    branchCode: z.string().min(1, "Branch code is required"),
-    accountNumber: z.string().min(1, "Account number is required"),
-    accountType: z.enum(["SAVINGS", "CURRENT"]),
-  }),
 });
 
 export const crypto = {
@@ -149,14 +128,13 @@ export async function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res) => {
     try {
-      const validatedData = registrationSchema.parse(req.body);
-      const { bankingDetails: bankingDetailsData, ...userData } = validatedData;
+      const { email, password, firstName, lastName, phoneNumber, isAdmin = false, isSuperAdmin = false } = req.body;
 
       // Check if user already exists
       const [existingUser] = await db
         .select()
         .from(users)
-        .where(eq(users.email, userData.email))
+        .where(eq(users.email, email))
         .limit(1);
 
       if (existingUser) {
@@ -164,16 +142,19 @@ export async function setupAuth(app: Express) {
       }
 
       // Hash password
-      const hashedPassword = await crypto.hashPassword(userData.password);
+      const hashedPassword = await crypto.hashPassword(password);
 
       // Create new user
       const [user] = await db
         .insert(users)
         .values({
-          ...userData,
+          email,
           password: hashedPassword,
-          isAdmin: false,
-          isSuperAdmin: false,
+          firstName,
+          lastName,
+          phoneNumber,
+          isAdmin,
+          isSuperAdmin,
           isEnabled: true,
           points: 0,
           referral_code: null,
@@ -181,26 +162,16 @@ export async function setupAuth(app: Express) {
         })
         .returning();
 
-      // Create banking details
-      await db.insert(bankingDetails).values({
-        ...bankingDetailsData,
-        userId: user.id,
-      });
-
       // Log the user in
       req.login(user, (err) => {
         if (err) {
           console.error('Login error after registration:', err);
           return res.status(500).json({ error: "Registration successful but login failed" });
         }
-        const { password: _, ...safeUser } = user;
-        res.status(201).json(safeUser);
+        res.status(201).json(user);
       });
     } catch (error) {
       console.error('Registration error:', error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
-      }
       res.status(500).json({ error: "Registration failed" });
     }
   });
