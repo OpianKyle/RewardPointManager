@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, UserX, Power, PowerOff, TrendingUp, Plus, Package, MoreHorizontal } from "lucide-react";
+import { Pencil, Power, PowerOff, TrendingUp, Plus, Package, MoreHorizontal } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -141,33 +141,6 @@ export default function AdminCustomers() {
     },
   });
 
-  const deleteCustomerMutation = useMutation({
-    mutationFn: async ({ userId }: { userId: number }) => {
-      const res = await fetch(`/api/admin/customers/${userId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include'
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText);
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/logs"] });
-      toast({ title: "Success", description: "Customer deleted successfully" });
-    },
-    onError: (error: Error) => {
-      console.error('Delete error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to delete customer"
-      });
-    },
-  });
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, data }: { userId: number, data: UserFormData }) => {
@@ -377,53 +350,6 @@ export default function AdminCustomers() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                              <UserX className="h-4 w-4 mr-2" />
-                              Delete
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Delete Customer</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <p>Are you sure you want to delete {customer.firstName} {customer.lastName}?</p>
-                              <p className="text-sm text-muted-foreground">
-                                This action cannot be undone. This will permanently delete the customer's account
-                                and remove all associated data including points, transactions, and product assignments.
-                              </p>
-                              <div className="flex justify-end space-x-2">
-                                <Button variant="outline" onClick={() => {
-                                  const dialogTrigger = document.querySelector('[role="dialog"]');
-                                  if (dialogTrigger) {
-                                    (dialogTrigger as HTMLElement).setAttribute('data-state', 'closed');
-                                  }
-                                }}>
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={async () => {
-                                    try {
-                                      await deleteCustomerMutation.mutateAsync({ userId: customer.id });
-                                      const dialogTrigger = document.querySelector('[role="dialog"]');
-                                      if (dialogTrigger) {
-                                        (dialogTrigger as HTMLElement).setAttribute('data-state', 'closed');
-                                      }
-                                    } catch (error) {
-                                      console.error('Failed to delete customer:', error);
-                                    }
-                                  }}
-                                >
-                                  Delete Customer
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
@@ -509,45 +435,9 @@ export default function AdminCustomers() {
                                   Assign Points
                                 </DropdownMenuItem>
                               </DialogTrigger>
-                              <DialogContent
-                                className="max-w-5xl bg-[#011d3d] border-[#022b5c] text-white"
-                                onCloseAutoFocus={() => {
-                                  pointsForm.reset({
-                                    points: 0,
-                                    description: "",
-                                    selectedActivities: [],
-                                    posPoints: 0
-                                  });
-                                  customer.productAssignments?.forEach((assignment: any) => {
-                                    assignment.product.activities?.forEach((activity: any) => {
-                                      activity.currentValue = 0;
-                                      activity.baseValue = 0;
-                                    });
-                                  });
-                                }}
-                              >
+                              <DialogContent className="max-w-5xl bg-[#011d3d] border-[#022b5c] text-white">
                                 <DialogHeader>
                                   <DialogTitle className="text-[#43EB3E]">Assign Points to {customer.firstName}</DialogTitle>
-                                  {(() => {
-                                    const tierInfo = getTierInfo(customer.points);
-                                    return (
-                                      <div className="mt-2 space-y-2">
-                                        <div className="flex items-center space-x-2">
-                                          <Badge className={`${tierInfo.color}`}>
-                                            {tierInfo.name} Tier
-                                          </Badge>
-                                          <span className="text-sm">
-                                            Current Points: {customer.points.toLocaleString()}
-                                          </span>
-                                        </div>
-                                        {tierInfo.nextTier && (
-                                          <p className="text-sm text-muted-foreground">
-                                            {tierInfo.nextTier.pointsNeeded.toLocaleString()} points needed to reach {tierInfo.nextTier.name} Tier
-                                          </p>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
                                 </DialogHeader>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                   <div className="space-y-6">
