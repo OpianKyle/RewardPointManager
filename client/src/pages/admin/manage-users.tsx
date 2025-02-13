@@ -79,7 +79,10 @@ export default function AdminManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, isAdmin }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to modify admin status');
+      }
       return res.json();
     },
     onSuccess: (data) => {
@@ -90,6 +93,7 @@ export default function AdminManagement() {
       });
     },
     onError: (error: Error) => {
+      console.error('Error in toggleAdminMutation:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -343,9 +347,18 @@ export default function AdminManagement() {
                               if (confirm(
                                 "Are you sure? This will permanently remove this admin user."
                               )) {
+                                console.log('Removing admin:', admin.id); // Debug log
                                 toggleAdminMutation.mutate({
                                   userId: admin.id,
                                   isAdmin: false,
+                                }, {
+                                  onSuccess: () => {
+                                    console.log('Successfully removed admin');
+                                    refetch();
+                                  },
+                                  onError: (error) => {
+                                    console.error('Failed to remove admin:', error);
+                                  }
                                 });
                               }
                             }}
