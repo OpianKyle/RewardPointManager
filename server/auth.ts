@@ -156,11 +156,19 @@ export async function setupAuth(app: Express) {
           isAdmin,
           isSuperAdmin,
           isEnabled: true,
-          points: 0,
+          points: 2000, // Changed from 0 to 2000
           referral_code: null,
           referred_by: null,
         })
         .returning();
+
+      // Create welcome bonus transaction
+      await db.insert(transactions).values({
+        userId: user.id,
+        points: 2000,
+        type: "WELCOME_BONUS",
+        description: "Welcome bonus for new registration",
+      });
 
       // Log the user in
       req.login(user, (err) => {
