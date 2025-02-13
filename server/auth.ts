@@ -46,20 +46,49 @@ export async function setupAuth(app: Express) {
   // Session configuration
   app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Changed to true to ensure session is saved
+    saveUninitialized: true, // Changed to true to create session for all requests
     store: new MemoryStore({
       checkPeriod: 86400000 // 24h
     }),
     cookie: {
-      secure: app.get("env") === "production",
+      secure: false, // Set to false for development
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000 // 24h
+      maxAge: 24 * 60 * 60 * 1000, // 24h
+      sameSite: 'lax'
     }
   }));
 
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Passport serialization
+  passport.serializeUser((user: any, done) => {
+    console.log('Serializing user:', user.id);
+    done(null, user.id);
+  });
+
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      console.log('Deserializing user:', id);
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+
+      if (!user) {
+        console.log('User not found during deserialization');
+        return done(null, false);
+      }
+
+      console.log('User deserialized successfully');
+      done(null, user);
+    } catch (error) {
+      console.error('Deserialization error:', error);
+      done(error);
+    }
+  });
 
   // Passport local strategy
   passport.use(new LocalStrategy(
@@ -101,32 +130,10 @@ export async function setupAuth(app: Express) {
     }
   ));
 
-  // Passport serialization
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
-  });
-
-  passport.deserializeUser(async (id: number, done) => {
-    try {
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, id))
-        .limit(1);
-
-      if (!user) {
-        return done(null, false);
-      }
-
-      done(null, user);
-    } catch (error) {
-      done(error);
-    }
-  });
-
   // Auth routes
   app.post("/api/login", async (req, res, next) => {
     try {
+      console.log('Login request received:', req.body);
       const result = loginSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({
@@ -150,6 +157,7 @@ export async function setupAuth(app: Express) {
             return res.status(500).json({ error: "Login failed" });
           }
 
+          console.log('User logged in successfully');
           const { password: _, ...safeUser } = user as any;
           return res.json(safeUser);
         });
@@ -161,16 +169,20 @@ export async function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res) => {
+    console.log('Logout request received');
     req.logout((err) => {
       if (err) {
+        console.error('Logout error:', err);
         return res.status(500).json({ error: "Logout failed" });
       }
       res.clearCookie("connect.sid");
+      console.log('User logged out successfully');
       res.json({ message: "Logged out successfully" });
     });
   });
 
   app.get("/api/user", (req, res) => {
+    console.log('User session check:', req.isAuthenticated());
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
