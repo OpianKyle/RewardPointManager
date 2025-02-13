@@ -113,8 +113,8 @@ export function useUser() {
         throw new Error('Logout failed');
       }
 
-      // Clear user data from cache
-      queryClient.clear();
+      // Instead of clearing everything, just clear user-related queries
+      queryClient.removeQueries({ queryKey: ['/api/user'] });
       queryClient.setQueryData(['/api/user'], null);
     },
   });

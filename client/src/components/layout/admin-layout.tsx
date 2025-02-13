@@ -24,7 +24,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      navigate('/'); // Changed from '/auth' to '/' to match the routing structure
+      // After successful logout, navigate to home
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout failed:', error);
     }
