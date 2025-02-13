@@ -18,17 +18,18 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// Simplify crypto functions
 const crypto = {
   hash: async (password: string) => {
     const salt = randomBytes(16).toString("hex");
     const buf = (await scryptAsync(password, salt, 64)) as Buffer;
     return `${buf.toString("hex")}.${salt}`;
   },
-  compare: async (suppliedPassword: string, storedPassword: string) => {
-    const [hashedPassword, salt] = storedPassword.split(".");
-    const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
-    const suppliedPasswordBuf = (await scryptAsync(suppliedPassword, salt, 64)) as Buffer;
-    return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
+  compare: async (supplied: string, stored: string) => {
+    const [hashed, salt] = stored.split(".");
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
   },
 };
 
@@ -38,14 +39,13 @@ export async function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store: new MemoryStore({
-      checkPeriod: 86400000
+      checkPeriod: 86400000, // 1 day
     }),
     cookie: {
       secure: app.get("env") === "production",
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-      sameSite: "lax"
-    }
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    },
   };
 
   if (app.get("env") === "production") {
@@ -70,20 +70,24 @@ export async function setupAuth(app: Express) {
             .limit(1);
 
           if (!user) {
-            return done(null, false, { message: "Invalid email or password." });
+            return done(null, false, { message: "Invalid email or password" });
           }
 
           if (!user.isEnabled) {
-            return done(null, false, { message: "Account is disabled." });
+            return done(null, false, { message: "Account is disabled" });
           }
+
+          // For debugging purposes, log the password attempt
+          console.log('Login attempt:', { email, passwordAttempt: password });
 
           const isMatch = await crypto.compare(password, user.password);
           if (!isMatch) {
-            return done(null, false, { message: "Invalid email or password." });
+            return done(null, false, { message: "Invalid email or password" });
           }
 
           return done(null, user);
         } catch (err) {
+          console.error('Authentication error:', err);
           return done(err);
         }
       }
@@ -121,6 +125,7 @@ export async function setupAuth(app: Express) {
 
     passport.authenticate("local", (err: any, user: Express.User | false, info: IVerifyOptions) => {
       if (err) {
+        console.error('Authentication error:', err);
         return res.status(500).json({ error: "Authentication error" });
       }
 
@@ -130,6 +135,7 @@ export async function setupAuth(app: Express) {
 
       req.logIn(user, (err) => {
         if (err) {
+          console.error('Login error:', err);
           return res.status(500).json({ error: "Login failed" });
         }
 
@@ -143,21 +149,12 @@ export async function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
     req.logout((err) => {
       if (err) {
         return res.status(500).json({ error: "Logout failed" });
       }
-      req.session.destroy((err) => {
-        if (err) {
-          return res.status(500).json({ error: "Session destruction failed" });
-        }
-        res.clearCookie('connect.sid');
-        res.json({ message: "Logout successful" });
-      });
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logout successful" });
     });
   });
 
