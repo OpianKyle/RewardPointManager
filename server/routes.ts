@@ -369,22 +369,36 @@ export function registerRoutes(app: Express): Server {
 
     try {
       if (!isAdmin) {
-        // Instead of deleting, we'll update the user to remove admin status and disable the account
-        const [updatedUser] = await db
-          .update(users)
-          .set({
-            isAdmin: false,
-            isEnabled: false
-          })
-          .where(eq(users.id, userId))
-          .returning();
+        // First, delete all related records
+        await db.transaction(async (tx) => {
+          // Delete product assignments
+          await tx
+            .delete(productAssignments)
+            .where(eq(productAssignments.userId, userId));
 
-        // Log admin removal
-        await logAdminAction({
-          adminId: req.user.id,
-          actionType: "ADMIN_REMOVED",
-          targetUserId: userId,
-          details: `Removed admin user: ${targetUser.email}`,
+          // Delete transactions
+          await tx
+            .delete(transactions)
+            .where(eq(transactions.userId, userId));
+
+          // Delete admin logs where this user is the target
+          await tx
+            .delete(adminLogs)
+            .where(eq(adminLogs.targetUserId, userId));
+
+          // Finally delete the user
+          const [deletedUser] = await tx
+            .delete(users)
+            .where(eq(users.id, userId))
+            .returning();
+
+          // Log admin removal
+          await logAdminAction({
+            adminId: req.user.id,
+            actionType: "ADMIN_REMOVED",
+            targetUserId: userId,
+            details: `Removed admin user: ${targetUser.email}`,
+          });
         });
 
         res.json({ message: "Admin user removed successfully" });
