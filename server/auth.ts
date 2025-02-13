@@ -18,27 +18,22 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// Improved crypto functions with better error handling
+// Simple and reliable crypto functions
 const crypto = {
-  hash: async (password: string) => {
-    const salt = randomBytes(16).toString("hex");
-    const derivedKey = await scryptAsync(password, salt, 64) as Buffer;
-    return `${derivedKey.toString("hex")}.${salt}`;
+  async hash(password: string): Promise<string> {
+    const salt = randomBytes(16).toString('hex');
+    const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
+    return salt + '.' + derivedKey.toString('hex');
   },
-  verify: async (supplied: string, stored: string) => {
+
+  async verify(password: string, hash: string): Promise<boolean> {
     try {
-      const [hashedPassword, salt] = stored.split(".");
-      if (!hashedPassword || !salt) {
-        console.error("Invalid stored password format");
-        return false;
-      }
-
-      const hashBuffer = Buffer.from(hashedPassword, "hex");
-      const suppliedBuffer = await scryptAsync(supplied, salt, 64) as Buffer;
-
-      return timingSafeEqual(hashBuffer, suppliedBuffer);
+      const [salt, key] = hash.split('.');
+      const keyBuffer = Buffer.from(key, 'hex');
+      const derivedKey = await scryptAsync(password, salt, 32) as Buffer;
+      return timingSafeEqual(keyBuffer, derivedKey);
     } catch (error) {
-      console.error("Password verification error:", error);
+      console.error('Password verification error:', error);
       return false;
     }
   }
@@ -50,13 +45,13 @@ export async function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store: new MemoryStore({
-      checkPeriod: 86400000, // 1 day
+      checkPeriod: 86400000 // 24h
     }),
     cookie: {
       secure: app.get("env") === "production",
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    },
+      maxAge: 24 * 60 * 60 * 1000 // 24h
+    }
   };
 
   if (app.get("env") === "production") {
@@ -67,48 +62,42 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  passport.use(
-    new LocalStrategy(
-      {
-        usernameField: "email",
-      },
-      async (email, password, done) => {
-        try {
-          console.log("Attempting login for email:", email);
+  passport.use(new LocalStrategy(
+    { usernameField: 'email' },
+    async (email, password, done) => {
+      try {
+        console.log('Login attempt for:', email);
 
-          const [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, email))
-            .limit(1);
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
 
-          if (!user) {
-            console.log("User not found:", email);
-            return done(null, false, { message: "Invalid email or password" });
-          }
-
-          if (!user.isEnabled) {
-            console.log("Account disabled:", email);
-            return done(null, false, { message: "Account is disabled" });
-          }
-
-          console.log("Verifying password for user:", email);
-          const isValid = await crypto.verify(password, user.password);
-
-          if (!isValid) {
-            console.log("Invalid password for user:", email);
-            return done(null, false, { message: "Invalid email or password" });
-          }
-
-          console.log("Login successful for user:", email);
-          return done(null, user);
-        } catch (err) {
-          console.error("Authentication error:", err);
-          return done(err);
+        if (!user) {
+          console.log('User not found:', email);
+          return done(null, false, { message: 'Invalid email or password' });
         }
+
+        if (!user.isEnabled) {
+          console.log('Account disabled:', email);
+          return done(null, false, { message: 'Account is disabled' });
+        }
+
+        const isValid = await crypto.verify(password, user.password);
+        console.log('Password verification result:', { email, isValid });
+
+        if (!isValid) {
+          return done(null, false, { message: 'Invalid email or password' });
+        }
+
+        return done(null, user);
+      } catch (error) {
+        console.error('Authentication error:', error);
+        return done(error);
       }
-    )
-  );
+    }
+  ));
 
   passport.serializeUser((user, done) => {
     done(null, user.id);
