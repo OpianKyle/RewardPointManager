@@ -46,8 +46,8 @@ export async function setupAuth(app: Express) {
   // Session configuration
   app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: true, // Changed to true to ensure session is saved
-    saveUninitialized: true, // Changed to true to create session for all requests
+    resave: false,
+    saveUninitialized: false,
     store: new MemoryStore({
       checkPeriod: 86400000 // 24h
     }),
@@ -104,8 +104,8 @@ export async function setupAuth(app: Express) {
           .where(eq(users.email, email))
           .limit(1);
 
-        if (!user || !user.password) {
-          console.log('User not found or no password set');
+        if (!user) {
+          console.log('User not found');
           return done(null, false);
         }
 
@@ -131,15 +131,57 @@ export async function setupAuth(app: Express) {
   ));
 
   // Auth routes
-  app.post("/api/login", async (req, res, next) => {
+  app.post("/api/register", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, phoneNumber } = req.body;
+
+      // Check if user already exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (existingUser) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+
+      // Hash password
+      const hashedPassword = await crypto.hashPassword(password);
+
+      // Create new user
+      const [user] = await db
+        .insert(users)
+        .values({
+          email,
+          password: hashedPassword,
+          firstName,
+          lastName,
+          phoneNumber,
+          isAdmin: false,
+          isSuperAdmin: false,
+          isEnabled: true,
+          points: 0,
+        })
+        .returning();
+
+      // Log the user in
+      req.login(user, (err) => {
+        if (err) {
+          console.error('Login error after registration:', err);
+          return res.status(500).json({ error: "Registration successful but login failed" });
+        }
+        res.status(201).json(user);
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
+  app.post("/api/login", (req, res, next) => {
     try {
       console.log('Login request received:', req.body);
-      const result = loginSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({
-          error: "Invalid email or password format"
-        });
-      }
 
       passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
         if (err) {
