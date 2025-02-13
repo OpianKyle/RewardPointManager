@@ -18,6 +18,14 @@ const loginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+const registerSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+});
+
 export const crypto = {
   async hashPassword(password: string) {
     const salt = randomBytes(16).toString('hex');
@@ -128,7 +136,19 @@ export async function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res) => {
     try {
-      const { email, password, firstName, lastName, phoneNumber } = req.body;
+      console.log('Registration attempt:', req.body);
+
+      // Validate input data
+      const result = registerSchema.safeParse(req.body);
+      if (!result.success) {
+        console.error('Registration validation failed:', result.error);
+        return res.status(400).json({ 
+          error: "Invalid input data", 
+          details: result.error.errors 
+        });
+      }
+
+      const { email, password, firstName, lastName, phoneNumber } = result.data;
 
       // Check if user already exists
       const [existingUser] = await db
@@ -147,7 +167,7 @@ export async function setupAuth(app: Express) {
       const hashedPassword = await crypto.hashPassword(password);
 
       // Create new user and add welcome bonus in a transaction
-      const result = await db.transaction(async (tx) => {
+      const newUser = await db.transaction(async (tx) => {
         // Create new user
         const [user] = await tx
           .insert(users)
@@ -180,12 +200,12 @@ export async function setupAuth(app: Express) {
       });
 
       // Log the user in
-      req.login(result, (err) => {
+      req.login(newUser, (err) => {
         if (err) {
           console.error('Login error after registration:', err);
           return res.status(500).json({ error: "Registration successful but login failed" });
         }
-        res.status(201).json(result);
+        res.status(201).json(newUser);
       });
     } catch (error) {
       console.error('Registration error:', error);
