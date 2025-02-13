@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
+import { setupAuth, authCrypto } from "./auth";
 import { db } from "@db";
 import { rewards, transactions, users, products, productAssignments, product_activities, adminLogs, referralStats } from "@db/schema";
 import { eq, desc, sql, inArray } from "drizzle-orm";
@@ -244,7 +244,7 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const hashedPassword = await crypto.hash(password);
+      const hashedPassword = await authCrypto.hashPassword(password);
       const [newUser] = await db
         .insert(users)
         .values({
@@ -289,7 +289,7 @@ export function registerRoutes(app: Express): Server {
       };
 
       if (password) {
-        updates.password = await crypto.hash(password);
+        updates.password = await authCrypto.hashPassword(password);
       }
 
       const [user] = await db
@@ -991,7 +991,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Reward not found");
       }
 
-      // Log// Log the reward update
+      // Log the reward update
       await logAdminAction({
         adminId: req.user.id,
         actionType: "REWARD_UPDATED",

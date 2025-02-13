@@ -146,7 +146,11 @@ export default function AdminCustomers() {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          // Only send password if it was provided
+          password: data.password || undefined
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();

@@ -18,8 +18,7 @@ const loginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-// Crypto utility functions
-const crypto = {
+export const crypto = {
   async hashPassword(password: string) {
     const salt = randomBytes(16).toString('hex');
     const hash = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -41,6 +40,8 @@ const crypto = {
     }
   }
 };
+
+export { crypto as authCrypto };
 
 export async function setupAuth(app: Express) {
   app.use(session({
