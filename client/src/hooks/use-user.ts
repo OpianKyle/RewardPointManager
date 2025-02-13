@@ -4,15 +4,16 @@ import { z } from "zod";
 const userSchema = z.object({
   id: z.number(),
   email: z.string().email(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  phoneNumber: z.string().optional(),
+  firstName: z.string(),
+  lastName: z.string(),
+  phoneNumber: z.string(),
   isAdmin: z.boolean().default(false),
   isSuperAdmin: z.boolean().default(false),
   isEnabled: z.boolean().default(true),
   points: z.number().default(0),
-  referral_code: z.string().nullable(),
-  referred_by: z.string().nullable(),
+  referralCode: z.string().nullable(),
+  referredBy: z.string().nullable(),
+  createdAt: z.string(),
 });
 
 export type User = z.infer<typeof userSchema>;
@@ -43,7 +44,6 @@ export function useUser() {
         return null;
       }
     },
-    retry: false,
   });
 
   const loginMutation = useMutation({
@@ -58,14 +58,15 @@ export function useUser() {
       });
 
       if (!response.ok) {
-        throw new Error('Invalid email or password');
+        const error = await response.json();
+        throw new Error(error.error || 'Login failed');
       }
 
       const data = await response.json();
       return userSchema.parse(data);
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['/api/user'], data);
+    onSuccess: (user) => {
+      queryClient.setQueryData(['/api/user'], user);
     },
   });
 
@@ -77,11 +78,10 @@ export function useUser() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to logout');
+        throw new Error('Logout failed');
       }
 
       queryClient.setQueryData(['/api/user'], null);
-      return response.json();
     },
   });
 

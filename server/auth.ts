@@ -15,26 +15,26 @@ const MemoryStore = createMemoryStore(session);
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+// Crypto utility functions
 const crypto = {
   async hashPassword(password: string) {
     const salt = randomBytes(16).toString('hex');
     const hash = (await scryptAsync(password, salt, 64)) as Buffer;
-    return salt + '.' + hash.toString('hex');
+    return `${salt}.${hash.toString('hex')}`;
   },
 
-  async verifyPassword(password: string, stored: string) {
+  async verifyPassword(password: string, storedHash: string) {
     try {
-      const [salt, hash] = stored.split('.');
+      const [salt, hash] = storedHash.split('.');
       if (!salt || !hash) return false;
 
       const hashBuffer = Buffer.from(hash, 'hex');
-      const suppliedHashBuffer = await scryptAsync(password, salt, 64) as Buffer;
+      const suppliedBuffer = (await scryptAsync(password, salt, 64)) as Buffer;
 
-      return hashBuffer.length === suppliedHashBuffer.length && 
-             timingSafeEqual(hashBuffer, suppliedHashBuffer);
+      return timingSafeEqual(hashBuffer, suppliedBuffer);
     } catch (error) {
       console.error('Password verification error:', error);
       return false;
@@ -43,29 +43,32 @@ const crypto = {
 };
 
 export async function setupAuth(app: Express) {
+  // Session configuration
   app.use(session({
-    secret: process.env.REPL_ID || "your-secret-key",
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     store: new MemoryStore({
-      checkPeriod: 86400000
+      checkPeriod: 86400000 // 24h
     }),
     cookie: {
       secure: app.get("env") === "production",
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000
+      maxAge: 24 * 60 * 60 * 1000 // 24h
     }
   }));
 
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Passport local strategy
   passport.use(new LocalStrategy(
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
-        console.log('Attempting login for email:', email);
+        console.log('Login attempt for:', email);
 
+        // Find user
         const [user] = await db
           .select()
           .from(users)
@@ -73,20 +76,21 @@ export async function setupAuth(app: Express) {
           .limit(1);
 
         if (!user || !user.password) {
-          console.log('User not found or password not set');
-          return done(null, false, { message: 'Invalid email or password' });
+          console.log('User not found or no password set');
+          return done(null, false);
         }
 
         if (!user.isEnabled) {
-          console.log('User account is disabled');
-          return done(null, false, { message: 'Account is disabled' });
+          console.log('Account is disabled');
+          return done(null, false);
         }
 
+        // Verify password
         const isValid = await crypto.verifyPassword(password, user.password);
         console.log('Password verification result:', isValid);
 
         if (!isValid) {
-          return done(null, false, { message: 'Invalid email or password' });
+          return done(null, false);
         }
 
         return done(null, user);
@@ -97,6 +101,7 @@ export async function setupAuth(app: Express) {
     }
   ));
 
+  // Passport serialization
   passport.serializeUser((user: any, done) => {
     done(null, user.id);
   });
@@ -119,12 +124,13 @@ export async function setupAuth(app: Express) {
     }
   });
 
+  // Auth routes
   app.post("/api/login", async (req, res, next) => {
     try {
       const result = loginSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({
-          error: result.error.issues.map(i => i.message).join(", ")
+          error: "Invalid email or password format"
         });
       }
 
@@ -135,10 +141,10 @@ export async function setupAuth(app: Express) {
         }
 
         if (!user) {
-          return res.status(401).json({ error: info?.message || "Invalid credentials" });
+          return res.status(401).json({ error: "Invalid email or password" });
         }
 
-        req.logIn(user, (err) => {
+        req.login(user, (err) => {
           if (err) {
             console.error('Login error:', err);
             return res.status(500).json({ error: "Login failed" });
