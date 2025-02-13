@@ -371,26 +371,36 @@ export function registerRoutes(app: Express): Server {
       if (!isAdmin) {
         // First, delete all related records
         await db.transaction(async (tx) => {
+          console.log(`Starting removal of admin user ${userId}`);
+
           // Delete product assignments
           await tx
             .delete(productAssignments)
             .where(eq(productAssignments.userId, userId));
+          console.log('Deleted product assignments');
 
           // Delete transactions
           await tx
             .delete(transactions)
             .where(eq(transactions.userId, userId));
+          console.log('Deleted transactions');
 
           // Delete admin logs where this user is the target
           await tx
             .delete(adminLogs)
             .where(eq(adminLogs.targetUserId, userId));
+          console.log('Deleted admin logs');
 
           // Finally delete the user
           const [deletedUser] = await tx
             .delete(users)
             .where(eq(users.id, userId))
             .returning();
+
+          if (!deletedUser) {
+            throw new Error(`Failed to delete user ${userId}`);
+          }
+          console.log('Deleted user');
 
           // Log admin removal
           await logAdminAction({
@@ -399,6 +409,7 @@ export function registerRoutes(app: Express): Server {
             targetUserId: userId,
             details: `Removed admin user: ${targetUser.email}`,
           });
+          console.log('Logged admin action');
         });
 
         res.json({ message: "Admin user removed successfully" });
