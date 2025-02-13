@@ -336,7 +336,7 @@ export function registerRoutes(app: Express): Server {
       // Log the status change using a valid action type
       await logAdminAction({
         adminId: req.user.id,
-        actionType: "ADMIN_REMOVED", // Using ADMIN_REMOVED as it's the closest valid action type
+        actionType: "ADMIN_STATUS_CHANGED", //Using a more accurate action type
         targetUserId: user.id,
         details: `${enabled ? 'Enabled' : 'Disabled'} admin user: ${user.email}`,
       });
@@ -349,13 +349,41 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-  // Add the new delete endpoint for admin users
+  // Add new endpoint to delete admin users
   app.delete("/api/admin/users/:id", async (req, res) => {
-    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can delete admin users");
+    console.log("Delete admin user request received for id:", req.params.id);
+
+    if (!req.user?.isSuperAdmin) {
+      console.log("Unauthorized - User is not super admin");
+      return res.status(403).send("Only super admins can delete admin users");
+    }
+
     const { id } = req.params;
 
     try {
-      // First, delete all related records
+      // First, get the user to be deleted
+      const [targetUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, parseInt(id)))
+        .limit(1);
+
+      if (!targetUser) {
+        console.log("User not found:", id);
+        return res.status(404).send("User not found");
+      }
+
+      if (targetUser.isSuperAdmin) {
+        console.log("Cannot delete super admin user");
+        return res.status(400).send("Cannot delete super admin users");
+      }
+
+      if (parseInt(id) === req.user.id) {
+        console.log("Cannot delete self");
+        return res.status(400).send("Cannot delete your own account");
+      }
+
+      // Delete all related records in a transaction
       await db.transaction(async (tx) => {
         console.log(`Starting removal of admin user ${id}`);
 
@@ -393,11 +421,12 @@ export function registerRoutes(app: Express): Server {
           adminId: req.user.id,
           actionType: "ADMIN_REMOVED",
           targetUserId: parseInt(id),
-          details: `Removed admin user: ${deletedUser.email}`,
+          details: `Removed admin user: ${targetUser.email}`,
         });
         console.log('Logged admin action');
       });
 
+      console.log("Admin user deleted successfully");
       res.json({ message: "Admin user removed successfully" });
     } catch (error) {
       console.error('Error deleting admin user:', error);
@@ -405,8 +434,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-
-  //The original toggle-admin endpoint is removed as it's replaced by the delete endpoint and the put endpoint for toggling isAdmin status.
 
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
@@ -607,7 +634,7 @@ export function registerRoutes(app: Express): Server {
       // Log the status change
       await logAdminAction({
         adminId: req.user.id,
-        actionType: enabled ? "PRODUCT_CREATED" : "PRODUCT_DELETED",
+        actionType: enabled ? "PRODUCT_ENABLED" : "PRODUCT_DISABLED", //More specific action types
         details: `${enabled ? 'Enabled' : 'Disabled'} product: ${product.name}`,
       });
 
@@ -961,13 +988,13 @@ export function registerRoutes(app: Express): Server {
 
       res.json(reward);
     } catch (error) {
-      console.error('Error creating reward:', error);
+      consoleerror('Error creating reward:', error);
       res.status(500).send('Failed to create reward');
     }
   });
 
   app.put("/api/rewards/:id", async (req, res) => {
-    if (!req.user?.isAdmin)return res.status(403).send("Unauthorized");
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { id } = req.params;
     const { name, description, pointsCost, imageUrl, available } = req.body;
 
@@ -988,7 +1015,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Reward not found");
       }
 
-      //      // Log the reward update
+      // Log the reward update
       await logAdminAction({
         adminId: req.user.id,
         actionType: "REWARD_UPDATED",
