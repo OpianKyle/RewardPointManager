@@ -348,94 +348,65 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Updated admin removal logic to handle foreign key constraints
-  app.post("/api/admin/users/toggle-admin", async (req, res) => {
-    if (!req.user?.isSuperAdmin) return res.status(403).send("Unauthorized");
-    const { userId, isAdmin } = req.body;
 
-    if (userId === req.user.id) {
-      return res.status(400).send("Cannot change your own admin status");
-    }
-
-    const [targetUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (targetUser?.isSuperAdmin) {
-      return res.status(400).send("Cannot modify super admin status");
-    }
+  // Add the new delete endpoint for admin users
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    if (!req.user?.isSuperAdmin) return res.status(403).send("Only super admins can delete admin users");
+    const { id } = req.params;
 
     try {
-      if (!isAdmin) {
-        // First, delete all related records
-        await db.transaction(async (tx) => {
-          console.log(`Starting removal of admin user ${userId}`);
+      // First, delete all related records
+      await db.transaction(async (tx) => {
+        console.log(`Starting removal of admin user ${id}`);
 
-          // Delete product assignments
-          await tx
-            .delete(productAssignments)
-            .where(eq(productAssignments.userId, userId));
-          console.log('Deleted product assignments');
+        // Delete product assignments
+        await tx
+          .delete(productAssignments)
+          .where(eq(productAssignments.userId, parseInt(id)));
+        console.log('Deleted product assignments');
 
-          // Delete transactions
-          await tx
-            .delete(transactions)
-            .where(eq(transactions.userId, userId));
-          console.log('Deleted transactions');
+        // Delete transactions
+        await tx
+          .delete(transactions)
+          .where(eq(transactions.userId, parseInt(id)));
+        console.log('Deleted transactions');
 
-          // Delete admin logs where this user is the target
-          await tx
-            .delete(adminLogs)
-            .where(eq(adminLogs.targetUserId, userId));
-          console.log('Deleted admin logs');
+        // Delete admin logs where this user is the target
+        await tx
+          .delete(adminLogs)
+          .where(eq(adminLogs.targetUserId, parseInt(id)));
+        console.log('Deleted admin logs');
 
-          // Finally delete the user
-          const [deletedUser] = await tx
-            .delete(users)
-            .where(eq(users.id, userId))
-            .returning();
-
-          if (!deletedUser) {
-            throw new Error(`Failed to delete user ${userId}`);
-          }
-          console.log('Deleted user');
-
-          // Log admin removal
-          await logAdminAction({
-            adminId: req.user.id,
-            actionType: "ADMIN_REMOVED",
-            targetUserId: userId,
-            details: `Removed admin user: ${targetUser.email}`,
-          });
-          console.log('Logged admin action');
-        });
-
-        res.json({ message: "Admin user removed successfully" });
-      } else {
-        // If adding admin status, update the user
-        const [updatedUser] = await db
-          .update(users)
-          .set({ isAdmin })
-          .where(eq(users.id, userId))
+        // Finally delete the user
+        const [deletedUser] = await tx
+          .delete(users)
+          .where(eq(users.id, parseInt(id)))
           .returning();
 
-        // Log admin updated
+        if (!deletedUser) {
+          throw new Error(`Failed to delete user ${id}`);
+        }
+        console.log('Deleted user');
+
+        // Log admin removal
         await logAdminAction({
           adminId: req.user.id,
-          actionType: "ADMIN_ENABLED",
-          targetUserId: userId,
-          details: `${isAdmin ? 'Enabled' : 'Disabled'} admin user: ${targetUser.email}`,
+          actionType: "ADMIN_REMOVED",
+          targetUserId: parseInt(id),
+          details: `Removed admin user: ${deletedUser.email}`,
         });
+        console.log('Logged admin action');
+      });
 
-        res.json(updatedUser);
-      }
+      res.json({ message: "Admin user removed successfully" });
     } catch (error) {
-      console.error('Error modifying admin status:', error);
-      res.status(500).send('Failed to modify admin status');
+      console.error('Error deleting admin user:', error);
+      res.status(500).send('Failed to delete admin user');
     }
   });
+
+
+  //The original toggle-admin endpoint is removed as it's replaced by the delete endpoint and the put endpoint for toggling isAdmin status.
 
   app.get("/api/admin/users", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
@@ -744,6 +715,7 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+
   app.get("/api/products/assignments/:id", async (req, res) => {
     if (!req.user?.isAdmin) return res.status(403).send("Unauthorized")
     const { id } = req.params;
@@ -1016,7 +988,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("Reward not found");
       }
 
-      // Log the reward update
+      //      // Log the reward update
       await logAdminAction({
         adminId: req.user.id,
         actionType: "REWARD_UPDATED",

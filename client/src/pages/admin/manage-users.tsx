@@ -175,6 +175,35 @@ export default function AdminManagement() {
     },
   });
 
+  const deleteAdminMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to delete admin user');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ 
+        title: "Success", 
+        description: "Admin user deleted successfully" 
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Error in deleteAdminMutation:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -345,19 +374,16 @@ export default function AdminManagement() {
                             size="sm"
                             onClick={() => {
                               if (confirm(
-                                "Are you sure? This will permanently remove this admin user."
+                                "Are you sure? This will permanently delete this admin user."
                               )) {
-                                console.log('Removing admin:', admin.id); // Debug log
-                                toggleAdminMutation.mutate({
-                                  userId: admin.id,
-                                  isAdmin: false,
-                                }, {
+                                console.log('Deleting admin:', admin.id); // Debug log
+                                deleteAdminMutation.mutate(admin.id, {
                                   onSuccess: () => {
-                                    console.log('Successfully removed admin');
+                                    console.log('Successfully deleted admin');
                                     refetch();
                                   },
                                   onError: (error) => {
-                                    console.error('Failed to remove admin:', error);
+                                    console.error('Failed to delete admin:', error);
                                   }
                                 });
                               }
