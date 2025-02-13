@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      navigate('/auth');
+      navigate('/'); // Changed from '/auth' to '/' to match the routing structure
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -42,7 +42,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      {/* Mobile menu button */}
       <Button
         variant="outline"
         size="icon"
@@ -52,7 +51,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
 
-      {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -60,7 +58,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         />
       )}
 
-      {/* Sidebar */}
       <aside className={cn(
         "fixed lg:relative inset-y-0 left-0 z-50",
         "w-64 lg:w-72 bg-background border-r",
@@ -121,7 +118,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <div className="h-full p-4 lg:p-8">
           {children}

@@ -113,6 +113,8 @@ export function useUser() {
         throw new Error('Logout failed');
       }
 
+      // Clear user data from cache
+      queryClient.clear();
       queryClient.setQueryData(['/api/user'], null);
     },
   });

@@ -48,11 +48,28 @@ function ProtectedRoute({ component: Component, admin = false, ...rest }: any) {
 }
 
 function Router() {
+  const { user, isLoading } = useUser();
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <Switch>
         {/* Home/Auth Route */}
-        <Route path="/" component={Home} />
+        <Route path="/">
+          {user ? (
+            <Redirect to={user.isAdmin ? "/admin" : "/dashboard"} />
+          ) : (
+            <Home />
+          )}
+        </Route>
 
         {/* Admin Routes */}
         <Route path="/admin">
