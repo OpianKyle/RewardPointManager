@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import cn from 'classnames';
 
 const getPointsMultiplier = (points: number, type: 'premium' | 'card' | 'pos'): number => {
   if (points >= 150000) { // Platinum
@@ -298,7 +299,12 @@ export default function AdminCustomers() {
               {customers?.map((customer: any) => {
                 const tierInfo = getTierInfo(customer.points);
                 return (
-                  <TableRow key={customer.id}>
+                  <TableRow
+                    key={customer.id}
+                    className={cn(
+                      !customer.isEnabled && "opacity-60 bg-muted/50"
+                    )}
+                  >
                     <TableCell>{customer.firstName} {customer.lastName}</TableCell>
                     <TableCell>{customer.email}</TableCell>
                     <TableCell>{customer.phoneNumber}</TableCell>
