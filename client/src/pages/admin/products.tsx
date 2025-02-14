@@ -16,8 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-// Rest of the imports and type definitions remain unchanged...
-
 const activityTypes = [
   "PRODUCT_ACTIVATION",
   "PREMIUM_PAYMENT",
@@ -254,22 +252,22 @@ export default function ProductManagement() {
             >
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">Name</label>
-                <Input 
-                  {...form.register("name")} 
+                <Input
+                  {...form.register("name")}
                   className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">Description</label>
-                <Input 
-                  {...form.register("description")} 
+                <Input
+                  {...form.register("description")}
                   className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
                 />
               </div>
               <Tabs defaultValue="activities" className="w-full">
                 <TabsList className="grid w-full grid-cols-1 bg-[#022b5c]">
-                  <TabsTrigger 
-                    value="activities" 
+                  <TabsTrigger
+                    value="activities"
                     className="text-white data-[state=active]:bg-[#43EB3E] data-[state=active]:text-black"
                   >
                     Activity Points
@@ -305,8 +303,8 @@ export default function ProductManagement() {
                   </div>
                 </TabsContent>
               </Tabs>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-[#43EB3E] hover:bg-[#3AD936] text-black"
               >
                 Create Product
@@ -329,22 +327,22 @@ export default function ProductManagement() {
           >
             <div className="space-y-2">
               <label className="text-sm font-medium text-white">Name</label>
-              <Input 
-                {...editForm.register("name")} 
+              <Input
+                {...editForm.register("name")}
                 className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-white">Description</label>
-              <Input 
-                {...editForm.register("description")} 
+              <Input
+                {...editForm.register("description")}
                 className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
               />
             </div>
             <Tabs defaultValue="activities" className="w-full">
               <TabsList className="grid w-full grid-cols-1 bg-[#022b5c]">
-                <TabsTrigger 
-                  value="activities" 
+                <TabsTrigger
+                  value="activities"
                   className="text-white data-[state=active]:bg-[#43EB3E] data-[state=active]:text-black"
                 >
                   Activity Points
@@ -380,8 +378,8 @@ export default function ProductManagement() {
                 </div>
               </TabsContent>
             </Tabs>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-[#43EB3E] hover:bg-[#3AD936] text-black"
             >
               Update Product
@@ -473,8 +471,8 @@ export default function ProductManagement() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="destructive" 
+                          <Button
+                            variant="destructive"
                             size="sm"
                             className="bg-red-500/20 text-red-500 hover:bg-red-500/30"
                           >
