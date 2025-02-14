@@ -540,6 +540,13 @@ export function registerRoutes(app: Express): Server {
       const customers = await db.query.users.findMany({
         where: eq(users.isAdmin, false),
         orderBy: desc(users.createdAt),
+        with: {
+          productAssignments: {
+            with: {
+              product: true
+            }
+          }
+        }
       });
 
       const csvData = customers.map(customer => ({
@@ -550,6 +557,9 @@ export function registerRoutes(app: Express): Server {
         points: customer.points,
         isEnabled: customer.isEnabled,
         createdAt: customer.createdAt,
+        assignedProducts: customer.productAssignments
+          ?.map(assignment => assignment.product.name)
+          .join(", ") || "None"
       }));
 
       res.setHeader('Content-Type', 'text/csv');
@@ -557,7 +567,16 @@ export function registerRoutes(app: Express): Server {
 
       stringify(csvData, {
         header: true,
-        columns: ['email', 'firstName', 'lastName', 'phoneNumber', 'points', 'isEnabled', 'createdAt']
+        columns: [
+          'email',
+          'firstName',
+          'lastName',
+          'phoneNumber',
+          'points',
+          'isEnabled',
+          'createdAt',
+          'assignedProducts'
+        ]
       }, (err, output) => {
         if (err) throw err;
         res.send(output);
@@ -644,9 +663,9 @@ export function registerRoutes(app: Express): Server {
       res.json(results);
     } catch (error) {
       console.error('Error importing customers:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'Failed to import customers',
-        details: error.message 
+        details: error.message
       });
     }
   });
@@ -1128,7 +1147,8 @@ export function registerRoutes(app: Express): Server {
         level3Count: Number(level3Count[0]?.count || 0),
       });
 
-      res.json({        referralCode: currentUser.referral_code,
+      res.json({
+        referralCode: currentUser.referral_code,
         level1Count: level1Referrals.length,
         level2Count: Number(level2Count[0]?.count || 0),
         level3Count: Number(level3Count[0]?.count || 0),
@@ -1171,7 +1191,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   app.put("/api/rewards/:id", async (req, res) => {
-    if (!req.user?.isAdmin)return res.status(403).send("Unauthorized");
+    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
     const { id } = req.params;
     const { name, description, pointsCost, imageUrl, available } = req.body;
 
