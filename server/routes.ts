@@ -599,7 +599,7 @@ export function registerRoutes(app: Express): Server {
 
       for (const record of records) {
         try {
-          const hashedPassword = await crypto.hashPassword('ChangeMe123!'); // Default password
+          const hashedPassword = await authCrypto.hashPassword('ChangeMe123!'); // Use authCrypto instead of crypto
 
           // Check if user already exists
           const [existingUser] = await db
@@ -633,6 +633,13 @@ export function registerRoutes(app: Express): Server {
           results.errors.push(`Failed to import user ${record.email}: ${error.message}`);
         }
       }
+
+      // Log the import action
+      await logAdminAction({
+        adminId: req.user.id,
+        actionType: "ADMIN_CREATED",
+        details: `Imported ${results.success} customers (${results.failed} failed)`,
+      });
 
       res.json(results);
     } catch (error) {
