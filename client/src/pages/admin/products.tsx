@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
+// Rest of the imports and type definitions remain unchanged...
+
 const activityTypes = [
   "PRODUCT_ACTIVATION",
   "PREMIUM_PAYMENT",
@@ -207,7 +209,7 @@ export default function ProductManagement() {
         const isPointsManaged = type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE";
         return (
           <div key={type} className="grid grid-cols-2 gap-4 items-center">
-            <label className="font-medium">
+            <label className="font-medium text-white">
               {type.split('_').map(word =>
                 word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
               ).join(' ')} points:
@@ -217,9 +219,10 @@ export default function ProductManagement() {
                 type="number"
                 disabled={isPointsManaged}
                 {...formContext.register(`activities.${index}.pointsValue`, { valueAsNumber: true })}
+                className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E] disabled:opacity-50"
               />
               {isPointsManaged && (
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-[#43EB3E]">
                   (Managed in customer assignments)
                 </span>
               )}
@@ -233,48 +236,90 @@ export default function ProductManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Product Management</h1>
+        <h1 className="text-3xl font-bold text-white">Product Management</h1>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-[#43EB3E] hover:bg-[#3AD936] text-black">
               <Plus className="h-4 w-4 mr-2" />
               Create Product
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="bg-[#011d3d] border border-[#022b5c] text-white sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Create New Product</DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-white">Create New Product</DialogTitle>
             </DialogHeader>
             <form
               onSubmit={form.handleSubmit((data) => createProductMutation.mutate(data))}
               className="space-y-4"
             >
               <div className="space-y-2">
-                <label className="capitalize">Name</label>
-                <Input {...form.register("name")} />
+                <label className="text-sm font-medium text-white">Name</label>
+                <Input 
+                  {...form.register("name")} 
+                  className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+                />
               </div>
               <div className="space-y-2">
-                <label className="capitalize">Description</label>
-                <Input {...form.register("description")} />
+                <label className="text-sm font-medium text-white">Description</label>
+                <Input 
+                  {...form.register("description")} 
+                  className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+                />
               </div>
-              <Tabs defaultValue="activities">
-                <TabsList className="grid w-full grid-cols-1">
-                  <TabsTrigger value="activities">Activity Points</TabsTrigger>
+              <Tabs defaultValue="activities" className="w-full">
+                <TabsList className="grid w-full grid-cols-1 bg-[#022b5c]">
+                  <TabsTrigger 
+                    value="activities" 
+                    className="text-white data-[state=active]:bg-[#43EB3E] data-[state=active]:text-black"
+                  >
+                    Activity Points
+                  </TabsTrigger>
                 </TabsList>
-                <TabsContent value="activities">
-                  {renderActivitiesForm(form)}
+                <TabsContent value="activities" className="mt-4">
+                  <div className="space-y-4">
+                    {activityTypes.map((type, index) => {
+                      const isPointsManaged = type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE";
+                      return (
+                        <div key={type} className="grid grid-cols-2 gap-4 items-center">
+                          <label className="font-medium text-white">
+                            {type.split('_').map(word =>
+                              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                            ).join(' ')} points:
+                          </label>
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              disabled={isPointsManaged}
+                              {...form.register(`activities.${index}.pointsValue`, { valueAsNumber: true })}
+                              className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E] disabled:opacity-50"
+                            />
+                            {isPointsManaged && (
+                              <span className="text-sm text-[#43EB3E]">
+                                (Managed in customer assignments)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </TabsContent>
               </Tabs>
-              <Button type="submit">Create Product</Button>
+              <Button 
+                type="submit" 
+                className="w-full bg-[#43EB3E] hover:bg-[#3AD936] text-black"
+              >
+                Create Product
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="bg-[#011d3d] border border-[#022b5c] text-white sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-white">Edit Product</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={editForm.handleSubmit((data) =>
@@ -283,56 +328,98 @@ export default function ProductManagement() {
             className="space-y-4"
           >
             <div className="space-y-2">
-              <label className="capitalize">Name</label>
-              <Input {...editForm.register("name")} />
+              <label className="text-sm font-medium text-white">Name</label>
+              <Input 
+                {...editForm.register("name")} 
+                className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+              />
             </div>
             <div className="space-y-2">
-              <label className="capitalize">Description</label>
-              <Input {...editForm.register("description")} />
+              <label className="text-sm font-medium text-white">Description</label>
+              <Input 
+                {...editForm.register("description")} 
+                className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+              />
             </div>
-            <Tabs defaultValue="activities">
-              <TabsList className="grid w-full grid-cols-1">
-                <TabsTrigger value="activities">Activity Points</TabsTrigger>
+            <Tabs defaultValue="activities" className="w-full">
+              <TabsList className="grid w-full grid-cols-1 bg-[#022b5c]">
+                <TabsTrigger 
+                  value="activities" 
+                  className="text-white data-[state=active]:bg-[#43EB3E] data-[state=active]:text-black"
+                >
+                  Activity Points
+                </TabsTrigger>
               </TabsList>
-              <TabsContent value="activities">
-                {renderActivitiesForm(editForm, true)}
+              <TabsContent value="activities" className="mt-4">
+                <div className="space-y-4">
+                  {activityTypes.map((type, index) => {
+                    const isPointsManaged = type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE";
+                    return (
+                      <div key={type} className="grid grid-cols-2 gap-4 items-center">
+                        <label className="font-medium text-white">
+                          {type.split('_').map(word =>
+                            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                          ).join(' ')} points:
+                        </label>
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            disabled={isPointsManaged}
+                            {...editForm.register(`activities.${index}.pointsValue`, { valueAsNumber: true })}
+                            className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E] disabled:opacity-50"
+                          />
+                          {isPointsManaged && (
+                            <span className="text-sm text-[#43EB3E]">
+                              (Managed in customer assignments)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </TabsContent>
             </Tabs>
-            <Button type="submit">Update Product</Button>
+            <Button 
+              type="submit" 
+              className="w-full bg-[#43EB3E] hover:bg-[#3AD936] text-black"
+            >
+              Update Product
+            </Button>
           </form>
         </DialogContent>
       </Dialog>
 
-      <Card>
+      <Card className="bg-[#011d3d] border-[#022b5c]">
         <CardHeader>
-          <CardTitle>All Products</CardTitle>
+          <CardTitle className="text-white">All Products</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Activities</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="border-[#022b5c]">
+                <TableHead className="text-white">Name</TableHead>
+                <TableHead className="text-white">Description</TableHead>
+                <TableHead className="text-white">Activities</TableHead>
+                <TableHead className="text-white">Status</TableHead>
+                <TableHead className="text-white">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {products.map((product: any) => (
-                <TableRow key={product.id}>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.description}</TableCell>
+                <TableRow key={product.id} className="border-[#022b5c]">
+                  <TableCell className="text-white">{product.name}</TableCell>
+                  <TableCell className="text-white">{product.description}</TableCell>
                   <TableCell>
                     <ScrollArea className="h-20">
                       {product.activities?.map((activity: any) => (
                         <div key={activity.type} className="flex items-center space-x-2 mb-1">
-                          <Badge variant="outline">
+                          <Badge variant="outline" className="border-[#022b5c] text-white">
                             {activity.type.split('_').map(word =>
                               word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
                             ).join(' ')}
                           </Badge>
-                          <span>
+                          <span className="text-white">
                             {activity.type === "PREMIUM_PAYMENT" || activity.type === "CARD_BALANCE"
                               ? "(Managed in customer assignments)"
                               : `${activity.pointsValue} points`
@@ -344,7 +431,7 @@ export default function ProductManagement() {
                   </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-xs ${
-                      product.isEnabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      product.isEnabled ? 'bg-[#43EB3E]/20 text-[#43EB3E]' : 'bg-red-500/20 text-red-500'
                     }`}>
                       {product.isEnabled ? 'Active' : 'Disabled'}
                     </span>
@@ -355,6 +442,7 @@ export default function ProductManagement() {
                         variant="outline"
                         size="sm"
                         onClick={() => onEdit(product)}
+                        className="border-[#022b5c] text-white hover:bg-[#022b5c]"
                       >
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit
@@ -374,6 +462,7 @@ export default function ProductManagement() {
                             });
                           }
                         }}
+                        className="border-[#022b5c] text-white hover:bg-[#022b5c]"
                       >
                         {product.isEnabled ? (
                           <PowerOff className="h-4 w-4 mr-2" />
@@ -384,23 +473,30 @@ export default function ProductManagement() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            className="bg-red-500/20 text-red-500 hover:bg-red-500/30"
+                          >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent>
+                        <AlertDialogContent className="bg-[#011d3d] border border-[#022b5c]">
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
+                            <AlertDialogTitle className="text-white">Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-300">
                               This action cannot be undone. This will permanently delete the product
                               and remove all associated data.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel className="bg-transparent border-[#022b5c] text-white hover:bg-[#022b5c]">
+                              Cancel
+                            </AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => deleteProductMutation.mutate(product.id)}
+                              className="bg-red-500/20 text-red-500 hover:bg-red-500/30"
                             >
                               Delete
                             </AlertDialogAction>
