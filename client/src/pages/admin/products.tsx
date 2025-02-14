@@ -265,15 +265,10 @@ export default function ProductManagement() {
                 />
               </div>
               <Tabs defaultValue="activities" className="w-full">
-                <TabsList className="grid w-full grid-cols-1 bg-[#022b5c]">
-                  <TabsTrigger
-                    value="activities"
-                    className="text-white data-[state=active]:bg-[#43EB3E] data-[state=active]:text-black"
-                  >
-                    Activity Points
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="activities" className="mt-4">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white">Activity Points</h3>
+                </div>
+                <TabsContent value="activities" className="mt-2">
                   <div className="space-y-4">
                     {activityTypes.map((type, index) => {
                       const isPointsManaged = type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE";
@@ -340,22 +335,17 @@ export default function ProductManagement() {
               />
             </div>
             <Tabs defaultValue="activities" className="w-full">
-              <TabsList className="grid w-full grid-cols-1 bg-[#022b5c]">
-                <TabsTrigger
-                  value="activities"
-                  className="text-white data-[state=active]:bg-[#43EB3E] data-[state=active]:text-black"
-                >
-                  Activity Points
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="activities" className="mt-4">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-white">Activity Points</h3>
+              </div>
+              <TabsContent value="activities" className="mt-2">
                 <div className="space-y-4">
                   {activityTypes.map((type, index) => {
                     const isPointsManaged = type === "PREMIUM_PAYMENT" || type === "CARD_BALANCE";
                     return (
                       <div key={type} className="grid grid-cols-2 gap-4 items-center">
                         <label className="font-medium text-white">
-                          {type.split('_').map(word =>
+                          {type.split('_').map((word: string) =>
                             word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
                           ).join(' ')} points:
                         </label>
