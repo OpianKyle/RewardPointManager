@@ -154,57 +154,78 @@ export default function AdminRewards() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Rewards Management</h1>
+        <h1 className="text-3xl font-bold text-white">Rewards Management</h1>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-[#43EB3E] hover:bg-[#3AD936] text-black">
               <Plus className="h-4 w-4 mr-2" />
               Add New Reward
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-[#011d3d] border border-[#022b5c] text-white sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Create New Reward</DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-white">Create New Reward</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit((data) => createRewardMutation.mutate(data))} className="space-y-4">
               <div className="space-y-2">
-                <label>Type</label>
-                <select {...form.register("type")} className="w-full p-2 border rounded-md">
+                <label className="text-sm font-medium text-white">Type</label>
+                <select 
+                  {...form.register("type")} 
+                  className="w-full p-2 rounded-md border border-[#022b5c] bg-[#011d3d] text-white focus:ring-2 focus:ring-[#43EB3E] focus:border-transparent"
+                >
                   <option value="STANDARD">Standard Reward</option>
                   <option value="CASH">Cash Redemption</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label>Name</label>
-                <Input {...form.register("name")} />
+                <label className="text-sm font-medium text-white">Name</label>
+                <Input 
+                  {...form.register("name")} 
+                  className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+                />
               </div>
               <div className="space-y-2">
-                <label>Description</label>
-                <Textarea {...form.register("description")} />
+                <label className="text-sm font-medium text-white">Description</label>
+                <Textarea 
+                  {...form.register("description")} 
+                  className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E] min-h-[100px]"
+                />
               </div>
               <div className="space-y-2">
-                <label>Points Cost</label>
-                <Input type="number" {...form.register("pointsCost")} />
+                <label className="text-sm font-medium text-white">Points Cost</label>
+                <Input 
+                  type="number" 
+                  {...form.register("pointsCost")} 
+                  className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+                />
                 {form.watch("type") === "CASH" && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[#43EB3E]">
                     Rand value: R{(Number(form.watch("pointsCost")) * 0.015).toFixed(2)}
                   </p>
                 )}
               </div>
               <div className="space-y-2">
-                <label>Image URL</label>
-                <Input {...form.register("imageUrl")} />
+                <label className="text-sm font-medium text-white">Image URL</label>
+                <Input 
+                  {...form.register("imageUrl")} 
+                  className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+                />
               </div>
-              <Button type="submit">Create Reward</Button>
+              <Button 
+                type="submit" 
+                className="w-full bg-[#43EB3E] hover:bg-[#3AD936] text-black"
+              >
+                Create Reward
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
+        <DialogContent className="bg-[#011d3d] border border-[#022b5c] text-white sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Edit Reward</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-white">Edit Reward</DialogTitle>
           </DialogHeader>
           <form 
             onSubmit={editForm.handleSubmit((data) => 
@@ -213,47 +234,68 @@ export default function AdminRewards() {
             className="space-y-4"
           >
             <div className="space-y-2">
-              <label>Type</label>
-              <select {...editForm.register("type")} className="w-full p-2 border rounded-md">
+              <label className="text-sm font-medium text-white">Type</label>
+              <select 
+                {...editForm.register("type")} 
+                className="w-full p-2 rounded-md border border-[#022b5c] bg-[#011d3d] text-white focus:ring-2 focus:ring-[#43EB3E] focus:border-transparent"
+              >
                 <option value="STANDARD">Standard Reward</option>
                 <option value="CASH">Cash Redemption</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label>Name</label>
-              <Input {...editForm.register("name")} />
+              <label className="text-sm font-medium text-white">Name</label>
+              <Input 
+                {...editForm.register("name")} 
+                className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+              />
             </div>
             <div className="space-y-2">
-              <label>Description</label>
-              <Textarea {...editForm.register("description")} />
+              <label className="text-sm font-medium text-white">Description</label>
+              <Textarea 
+                {...editForm.register("description")} 
+                className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E] min-h-[100px]"
+              />
             </div>
             <div className="space-y-2">
-              <label>Points Cost</label>
-              <Input type="number" {...editForm.register("pointsCost")} />
+              <label className="text-sm font-medium text-white">Points Cost</label>
+              <Input 
+                type="number" 
+                {...editForm.register("pointsCost")} 
+                className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+              />
               {editForm.watch("type") === "CASH" && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-[#43EB3E]">
                   Rand value: R{(Number(editForm.watch("pointsCost")) * 0.015).toFixed(2)}
                 </p>
               )}
             </div>
             <div className="space-y-2">
-              <label>Image URL</label>
-              <Input {...editForm.register("imageUrl")} />
+              <label className="text-sm font-medium text-white">Image URL</label>
+              <Input 
+                {...editForm.register("imageUrl")} 
+                className="bg-[#011d3d] border-[#022b5c] text-white focus:ring-[#43EB3E]"
+              />
             </div>
-            <Button type="submit">Update Reward</Button>
+            <Button 
+              type="submit" 
+              className="w-full bg-[#43EB3E] hover:bg-[#3AD936] text-black"
+            >
+              Update Reward
+            </Button>
           </form>
         </DialogContent>
       </Dialog>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {rewards.map((reward) => (
-          <Card key={reward.id}>
+          <Card key={reward.id} className="bg-[#011d3d] border-[#022b5c] text-white">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle>{reward.name}</CardTitle>
+                  <CardTitle className="text-white">{reward.name}</CardTitle>
                   {reward.type === "CASH" && (
-                    <p className="text-sm text-muted-foreground">Cash Redemption</p>
+                    <p className="text-sm text-[#43EB3E]">Cash Redemption</p>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -261,25 +303,27 @@ export default function AdminRewards() {
                     variant="outline" 
                     size="icon"
                     onClick={() => onEdit(reward)}
+                    className="border-[#022b5c] hover:bg-[#022b5c]"
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Pencil className="h-4 w-4 text-white" />
                   </Button>
                   <Button 
                     variant="outline" 
                     size="icon"
                     onClick={() => onDelete(reward)}
+                    className="border-[#022b5c] hover:bg-[#022b5c]"
                   >
-                    <Trash className="h-4 w-4" />
+                    <Trash className="h-4 w-4 text-white" />
                   </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-2">{reward.description}</p>
+              <p className="text-sm text-gray-300 mb-2">{reward.description}</p>
               <div className="flex items-center gap-2">
-                <p className="font-semibold">{reward.pointsCost} points</p>
+                <p className="font-semibold text-white">{reward.pointsCost} points</p>
                 {reward.type === "CASH" && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[#43EB3E]">
                     (R{(reward.pointsCost * 0.015).toFixed(2)})
                   </p>
                 )}
