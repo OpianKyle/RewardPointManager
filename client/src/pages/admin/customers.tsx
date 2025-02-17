@@ -19,18 +19,18 @@ import cn from 'classnames';
 
 const getPointsMultiplier = (points: number, type: 'premium' | 'card' | 'pos'): number => {
   if (points >= 150000) { // Platinum
-    return type === 'premium' ? 2.5 : 0.5;
+    return type === 'pos' ? 2.5 : type === 'premium' ? 2.5 : 0.5;
   }
   if (points >= 100000) { // Gold
-    return type === 'premium' ? 2.0 : 0.25;
+    return type === 'pos' ? 2.0 : type === 'premium' ? 2.0 : 0.25;
   }
   if (points >= 50000) { // Purple
-    return type === 'premium' ? 1.5 : 0.10;
+    return type === 'pos' ? 1.5 : type === 'premium' ? 1.5 : 0.10;
   }
   if (points >= 10000) { // Silver
-    return type === 'premium' ? 1.0 : 0.05;
+    return type === 'pos' ? 1.0 : type === 'premium' ? 1.0 : 0.05;
   }
-  return 0; // Bronze
+  return type === 'pos' ? 0 : 0; // Bronze
 };
 
 const userSchema = z.object({
@@ -822,7 +822,7 @@ export default function AdminCustomers() {
                                   <div className="space-y-2">
                                     <label>Email</label>
                                     <Input {...form.register("email")} defaultValue={customer.email} />
-                                                                 </div>
+                                  </div>
                                   <div className="space-y-2">
                                     <label>First Name</label>
                                     <Input {...form.register("firstName")} defaultValue={customer.firstName} />
