@@ -24,6 +24,7 @@ const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
+  referralCode: z.string().optional(),
 });
 
 export const crypto = {
@@ -138,7 +139,6 @@ export async function setupAuth(app: Express) {
     try {
       console.log('Registration attempt:', req.body);
 
-      // Validate input data
       const result = registerSchema.safeParse(req.body);
       if (!result.success) {
         console.error('Registration validation failed:', result.error);
@@ -148,9 +148,8 @@ export async function setupAuth(app: Express) {
         });
       }
 
-      const { email, password, firstName, lastName, phoneNumber } = result.data;
+      const { email, password, firstName, lastName, phoneNumber, referralCode } = result.data;
 
-      // Check if user already exists
       const [existingUser] = await db
         .select()
         .from(users)
@@ -163,12 +162,26 @@ export async function setupAuth(app: Express) {
         });
       }
 
-      // Hash password
+      let referrerUser = null;
+      if (referralCode) {
+        [referrerUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.referral_code, referralCode))
+          .limit(1);
+
+        if (!referrerUser) {
+          return res.status(400).json({
+            error: "Invalid referral code"
+          });
+        }
+      }
+
+      const newReferralCode = randomBytes(8).toString('hex');
+
       const hashedPassword = await crypto.hashPassword(password);
 
-      // Create new user and add welcome bonus in a transaction
       const newUser = await db.transaction(async (tx) => {
-        // Create new user
         const [user] = await tx
           .insert(users)
           .values({
@@ -181,12 +194,11 @@ export async function setupAuth(app: Express) {
             isSuperAdmin: false,
             isEnabled: true,
             points: 2000,
-            referral_code: null,
-            referred_by: null,
+            referral_code: newReferralCode,
+            referred_by: referralCode || null,
           })
           .returning();
 
-        // Add welcome bonus transaction
         await tx
           .insert(transactions)
           .values({
@@ -196,10 +208,25 @@ export async function setupAuth(app: Express) {
             description: "Welcome bonus for new registration",
           });
 
+        if (referrerUser) {
+          await tx
+            .update(users)
+            .set({ points: referrerUser.points + 2500 })
+            .where(eq(users.id, referrerUser.id));
+
+          await tx
+            .insert(transactions)
+            .values({
+              userId: referrerUser.id,
+              points: 2500,
+              type: "REFERRAL_BONUS",
+              description: `Referral bonus for referring ${email}`,
+            });
+        }
+
         return user;
       });
 
-      // Log the user in
       req.login(newUser, (err) => {
         if (err) {
           console.error('Login error after registration:', err);

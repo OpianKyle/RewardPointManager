@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useUser } from "@/hooks/use-user";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
@@ -9,30 +9,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function HomePage() {
-  // Login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-
-  // Registration state
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regFirstName, setRegFirstName] = useState("");
   const [regLastName, setRegLastName] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regError, setRegError] = useState("");
-
-  // Reset password state
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
 
   const { loginMutation, registerMutation, user, isLoading } = useUser();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  // Check loading state
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      setReferralCode(ref);
+      const tabsList = document.querySelector('[role="tablist"]');
+      if (tabsList) {
+        const registerTab = tabsList.querySelector('[value="register"]') as HTMLButtonElement;
+        if (registerTab) {
+          registerTab.click();
+        }
+      }
+    }
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -41,7 +51,6 @@ export default function HomePage() {
     );
   }
 
-  // Redirect if already logged in
   if (user) {
     navigate(user.isAdmin ? '/admin' : '/dashboard');
     return null;
@@ -93,7 +102,8 @@ export default function HomePage() {
         password: regPassword,
         firstName: regFirstName,
         lastName: regLastName,
-        phoneNumber: regPhone
+        phoneNumber: regPhone,
+        referralCode: referralCode
       });
 
       toast({
@@ -102,12 +112,13 @@ export default function HomePage() {
       });
 
       navigate(user.isAdmin ? '/admin' : '/dashboard');
-    } catch (err) {
-      setRegError("Registration failed. Please try again.");
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.error || "Registration failed. Please try again.";
+      setRegError(errorMessage);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Registration failed. Please try again.",
+        description: errorMessage,
       });
     }
   };
@@ -146,7 +157,6 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
-        {/* Logo */}
         <div className="flex flex-col items-center">
           <img
             src="/Assets/opian-rewards-logo (R).png"
@@ -159,6 +169,11 @@ export default function HomePage() {
             }}
           />
           <h2 className="mt-6 text-2xl font-semibold">Welcome to OPIAN Rewards</h2>
+          {referralCode && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              You've been referred by a friend!
+            </p>
+          )}
         </div>
 
         <Tabs defaultValue="login" className="w-full">
@@ -167,7 +182,6 @@ export default function HomePage() {
             <TabsTrigger value="register">Register</TabsTrigger>
           </TabsList>
 
-          {/* Login Form */}
           <TabsContent value="login">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-4">
@@ -223,7 +237,6 @@ export default function HomePage() {
             </form>
           </TabsContent>
 
-          {/* Registration Form */}
           <TabsContent value="register">
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-4">
@@ -282,7 +295,6 @@ export default function HomePage() {
           </TabsContent>
         </Tabs>
 
-        {/* Reset Password Dialog */}
         <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
           <DialogContent className="bg-[#011d3d] border-[#022b5c] text-white">
             <DialogHeader>
