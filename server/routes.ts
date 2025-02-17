@@ -1009,16 +1009,86 @@ export function registerRoutes(app: Express): Server {
       with: {
         reward: true,
       },
-    });
+        });
     res.json(userTransactions);
   });
 
-  // Add the new customer referralendpoint
+  // Update the customer referral endpoint
   app.get("/api/customer/referral", async (req, res) => {
     if (!req.user) return res.status(401).send("Unauthorized");
 
     try {
-      // Get the current user with their referral code
+      // Get user's referral info
+      const [user] = await db
+        .select({
+          id: users.id,
+          referral_code: users.referral_code,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          referred_by: users.referred_by
+        })
+        .from(users)
+        .where(eq(users.id, req.user.id))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).send("User not found");
+      }
+
+      // If user doesn't have a referral code, generate one
+      if (!user.referral_code) {
+        const referral_code = randomBytes(8).toString('hex');
+
+        // Update user with new referral code
+        await db
+          .update(users)
+          .set({ referral_code })
+          .where(eq(users.id, user.id));
+
+        user.referral_code = referral_code;
+      }
+
+      // Get referrer's info if exists
+      let referrer = null;
+      if (user.referred_by) {
+        [referrer] = await db
+          .select({
+            firstName: users.firstName,
+            lastName: users.lastName
+          })
+          .from(users)
+          .where(eq(users.referral_code, user.referred_by))
+          .limit(1);
+      }
+
+      // Get referral stats
+      const stats = await db.query.referralStats.findFirst({
+        where: eq(referralStats.userId, user.id)
+      });
+
+      // Return user's referral info
+      res.json({
+        referralCode: user.referral_code,
+        referredBy: referrer ? `${referrer.firstName} ${referrer.lastName}` : null,
+        level1Count: stats?.level1Count || 0,
+        level2Count: stats?.level2Count || 0,
+        level3Count: stats?.level3Count || 0
+      });
+
+    } catch (error) {
+      console.error('Error fetching referral info:', error);
+      res.status(500).send('Failed to fetch referral information');
+    }
+  });
+
+  // Update the referrals endpoint
+  app.get("/api/customer/referrals", async (req, res) => {
+    if (!req.user) return res.status(401).send("Unauthorized");
+
+    try {
+      console.log('Fetching referral stats for user:', req.user.id);
+
+      // Get user's referral code
       const [user] = await db
         .select()
         .from(users)
@@ -1029,47 +1099,46 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("User not found");
       }
 
-      // If user doesn't have a referral code, generate one
-      let currentReferralCode = user.referral_code;
-      if (!currentReferralCode) {
-        currentReferralCode = randomBytes(8).toString("hex");
-        await db
-          .update(users)
-          .set({ referral_code: currentReferralCode })
-          .where(eq(users.id, req.user.id));
+      // Get referral stats
+      let stats = await db.query.referralStats.findFirst({
+        where: eq(referralStats.userId, user.id)
+      });
+
+      // If stats don't exist, create them
+      if (!stats) {
+        [stats] = await db
+          .insert(referralStats)
+          .values({
+            userId: user.id,
+            level1Count: 0,
+            level2Count: 0,
+            level3Count: 0
+          })
+          .returning();
       }
 
-      // Get all users who used this user's referral code
-      const referrals = await db
-        .select({
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          createdAt: users.createdAt,
-        })
-        .from(users)
-        .where(eq(users.referred_by, currentReferralCode))
-        .orderBy(desc(users.createdAt));
+      const response = {
+        referralCode: user.referral_code,
+        level1Count: stats.level1Count,
+        level2Count: stats.level2Count,
+        level3Count: stats.level3Count
+      };
 
-      res.json({
-        referralCode: currentReferralCode,
-        referralCount: referrals.length,
-        referrals,
-      });
+      console.log('Sending referral stats:', response);
+      res.json(response);
     } catch (error) {
-      console.error('Error fetching referral info:', error);
-      res.status(500).send('Failed to fetch referral information');
+      console.error('Error fetching referrals:', error);
+      res.status(500).send('Failed to fetch referrals');
     }
   });
 
-  // Update the query in the /api/customer/referrals endpoint
-  app.get("/api/customer/referrals", async (req, res) => {
+  // Add endpoint to apply referral code
+  app.post("/api/customer/apply-referral", async (req, res) => {
     if (!req.user) return res.status(401).send("Unauthorized");
+    const { referralCode } = req.body;
 
     try {
-      console.log("Fetching referral stats for user:", req.user.id);
-
-      // Get the user's referral code and direct referrals
+      // Get current user
       const [currentUser] = await db
         .select()
         .from(users)
@@ -1080,83 +1149,126 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).send("User not found");
       }
 
-      // Get level 1 referrals (direct referrals)
-      const level1Referrals = await db
-        .select({
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
-          createdAt: users.createdAt,
-          referral_code: users.referral_code
-        })
+      // Check if user already has a referrer
+      if (currentUser.referred_by) {
+        return res.status(400).send("You already have a referrer");
+      }
+
+      // Get referrer
+      const [referrer] = await db
+        .select()
         .from(users)
-        .where(eq(users.referred_by, currentUser.referral_code));
+        .where(eq(users.referral_code, referralCode))
+        .limit(1);
 
-      // Get level 2 referrals count
-      const level2Count = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(users)
-        .where(
-          inArray(
-            users.referred_by,
-            level1Referrals.map(r => r.referral_code)
-          )
-        );
+      if (!referrer) {
+        return res.status(404).send("Invalid referral code");
+      }
 
-      // Get level 3 referrals count
-      const level2Referrals = await db
-        .select({ referral_code: users.referral_code })
-        .from(users)
-        .where(
-          inArray(
-            users.referred_by,
-            level1Referrals.map(r => r.referral_code)
-          )
-        );
+      if (referrer.id === currentUser.id) {
+        return res.status(400).send("You cannot refer yourself");
+      }
 
-      const level3Count = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(users)
-        .where(
-          inArray(
-            users.referred_by,
-            level2Referrals.map(r => r.referral_code)
-          )
-        );
+      // Update current user with referral code
+      await db
+        .update(users)
+        .set({ referred_by: referralCode })
+        .where(eq(users.id, currentUser.id));
 
-      // Get referral counts for each level 1 referral
-      const referralsWithCounts = await Promise.all(
-        level1Referrals.map(async (referral) => {
-          const referralCount = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(users)
-            .where(eq(users.referred_by, referral.referral_code));
-
-          return {
-            ...referral,
-            referralCount: Number(referralCount[0]?.count || 0),
-          };
-        })
-      );
-
-      console.log("Sending referral stats:", {
-        referralCode: currentUser.referral_code,
-        level1Count: level1Referrals.length,
-        level2Count: Number(level2Count[0]?.count || 0),
-        level3Count: Number(level3Count[0]?.count || 0),
+      // Get referrer's referral stats or create if they don't exist
+      let referrerStats = await db.query.referralStats.findFirst({
+        where: eq(referralStats.userId, referrer.id)
       });
 
-      res.json({
-        referralCode: currentUser.referral_code,
-        level1Count: level1Referrals.length,
-        level2Count: Number(level2Count[0]?.count || 0),
-        level3Count: Number(level3Count[0]?.count || 0),
-        referrals: referralsWithCounts,
-      });
+      if (!referrerStats) {
+        [referrerStats] = await db
+          .insert(referralStats)
+          .values({
+            userId: referrer.id,
+            level1Count: 1,
+            level2Count: 0,
+            level3Count: 0
+          })
+          .returning();
+      } else {
+        await db
+          .update(referralStats)
+          .set({
+            level1Count: referrerStats.level1Count + 1
+          })
+          .where(eq(referralStats.userId, referrer.id));
+      }
+
+      // Update level 2 referrer if exists
+      if (referrer.referred_by) {
+        const [level2Referrer] = await db
+          .select()
+          .from(users)
+          .where(eq(users.referral_code, referrer.referred_by))
+          .limit(1);
+
+        if (level2Referrer) {
+          let level2Stats = await db.query.referralStats.findFirst({
+            where: eq(referralStats.userId, level2Referrer.id)
+          });
+
+          if (!level2Stats) {
+            await db
+              .insert(referralStats)
+              .values({
+                userId: level2Referrer.id,
+                level1Count: 0,
+                level2Count: 1,
+                level3Count: 0
+              });
+          } else {
+            await db
+              .update(referralStats)
+              .set({
+                level2Count: level2Stats.level2Count + 1
+              })
+              .where(eq(referralStats.userId, level2Referrer.id));
+          }
+
+          // Update level 3 referrer if exists
+          if (level2Referrer.referred_by) {
+            const [level3Referrer] = await db
+              .select()
+              .from(users)
+              .where(eq(users.referral_code, level2Referrer.referred_by))
+              .limit(1);
+
+            if (level3Referrer) {
+              let level3Stats = await db.query.referralStats.findFirst({
+                where: eq(referralStats.userId, level3Referrer.id)
+              });
+
+              if (!level3Stats) {
+                await db
+                  .insert(referralStats)
+                  .values({
+                    userId: level3Referrer.id,
+                    level1Count: 0,
+                    level2Count: 0,
+                    level3Count: 1
+                  });
+              } else {
+                await db
+                  .update(referralStats)
+                  .set({
+                    level3Count: level3Stats.level3Count + 1
+                  })
+                  .where(eq(referralStats.userId, level3Referrer.id));
+              }
+            }
+          }
+        }
+      }
+
+      res.json({ message: "Referral code applied successfully" });
     } catch (error) {
-      console.error("Error fetching referral stats:", error);
-      res.status(500).send("Failed to fetch referral stats");
+      console.error('Error applying referral code:', error);
+      res.status(500).send('Failed to apply referral code');
     }
   });
 
