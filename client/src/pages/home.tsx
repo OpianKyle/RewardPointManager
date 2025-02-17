@@ -159,7 +159,7 @@ export default function HomePage() {
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center">
           <img
-            src="/opian-logo-white.png"
+            src="/Assets/opian-rewards-logo (R).png"
             alt="Logo"
             className="h-12 w-auto"
             onError={(e) => {
