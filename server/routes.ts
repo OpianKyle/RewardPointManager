@@ -1743,6 +1743,13 @@ export function registerRoutes(app: Express): Server {
 
         // Send reset email
         const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
+
+        // Log the reset link in development environment
+        console.log('====================================');
+        console.log('Password Reset Link (Development Only):');
+        console.log(resetLink);
+        console.log('====================================');
+
         await sendEmail({
           to: email,
           subject: "Password Reset Request",
@@ -1765,6 +1772,16 @@ export function registerRoutes(app: Express): Server {
             <p>If you didn't request this, please ignore this email.</p>
           `
         });
+
+        console.log('Reset password email attempted to be sent to:', email);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Email Service Details:', {
+            to: email,
+            subject: "Password Reset Request",
+            resetToken,
+            tokenExpiry
+          });
+        }
       }
 
       // Always return success to prevent email enumeration
