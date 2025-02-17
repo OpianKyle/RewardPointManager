@@ -146,16 +146,15 @@ export const userRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [referralStats.userId],
   }),
-  // Self-referential relationship for referrals
   referredUsers: many(users, {
     relationName: "referralRelation",
     fields: [users.referral_code],
-    references: [users.referred_by]
+    references: [users.referred_by],
   }),
   referrer: one(users, {
     relationName: "referralRelation",
     fields: [users.referred_by],
-    references: [users.referral_code]
+    references: [users.referral_code],
   }),
 }));
 

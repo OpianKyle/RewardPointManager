@@ -39,7 +39,7 @@ export default function ReferralSection() {
   });
 
   const referralLink = referralInfo?.referralCode 
-    ? `${window.location.origin}/?ref=${referralInfo.referralCode}`
+    ? `${window.location.origin}/auth?ref=${referralInfo.referralCode}`
     : '';
 
   const copyToClipboard = async () => {
