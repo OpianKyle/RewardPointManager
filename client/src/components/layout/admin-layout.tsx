@@ -68,9 +68,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex flex-col h-full">
           <div className="p-4 md:p-6 border-b">
             <img 
-              src="/Assets/opian-rewards-logo (R).png" 
+              src="/opian-logo-white.png" 
               alt="OPIAN Rewards"
-              className="h-8 md:h-12 w-auto object-contain mx-auto"
+              className="h-8 md:h-12 w-auto object-contain mx-auto dark:invert"
               onError={(e) => {
                 const img = e.target as HTMLImageElement;
                 img.onerror = null;
