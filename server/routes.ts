@@ -1013,7 +1013,7 @@ export function registerRoutes(app: Express): Server {
     res.json(userTransactions);
   });
 
-  // Add the new customer referral endpoint
+  // Add the new customer referralendpoint
   app.get("/api/customer/referral", async (req, res) => {
     if (!req.user) return res.status(401).send("Unauthorized");
 
@@ -1438,283 +1438,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/rewards", async (req, res) => {
-    const allRewards = await db.query.rewards.findMany({
-      where: eq(rewards.available, true),
-    });
-    res.json(allRewards);
-  });
-
-  app.post("/api/rewards", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    try {
-      const [reward] = await db.insert(rewards).values({
-        ...req.body,
-        available: true,
-      }).returning();
-
-      // Log both the reward creation and the points cost setting
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "REWARD_CREATED",
-        details: `Created new ${req.body.type === 'CASH' ? 'cash redemption' : ''} reward: ${reward.name} (Cost: ${reward.pointsCost} points${req.body.type === 'CASH' ? `, R${(reward.pointsCost * 0.015).toFixed(2)}` : ''})`,
-      });
-
-      res.json(reward);
-    } catch (error) {
-      console.error('Error creating reward:', error);
-      res.status(500).send('Failed to create reward');
-    }
-  });
-
-  app.put("/api/rewards/:id", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { id } = req.params;
-    const { name, description, pointsCost, imageUrl, available } = req.body;
-
-    try {
-      const [reward] = await db
-        .update(rewards)
-        .set({
-          name,
-          description,
-          pointsCost,
-          imageUrl,
-          available,
-        })
-        .where(eq(rewards.id, parseInt(id)))
-        .returning();
-
-      if (!reward) {
-        return res.status(404).send("Reward not found");
-      }
-
-      // Log the reward update
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "REWARD_UPDATED",
-        details: `Updated reward: ${reward.name} (New Cost: ${reward.pointsCost} points)`,
-      });
-
-      res.json(reward);
-    } catch (error) {
-      console.error('Error updating reward:', error);
-      res.status(500).send('Failed to update reward');
-    }
-  });
-
-  app.delete("/api/rewards/:id", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { id } = req.params;
-
-    try {
-      const [reward] = await db
-        .select()
-        .from(rewards)
-        .where(eq(rewards.id, parseInt(id)))
-        .limit(1);
-
-      if (!reward) {
-        return res.status(404).send("Reward not found");
-      }
-
-      await db
-        .update(rewards)
-        .set({ available: false })
-        .where(eq(rewards.id, parseInt(id)));
-
-      // Log the reward deletion
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "REWARD_DELETED",
-        details: `Deleted reward: ${reward.name}`,
-      });
-
-      res.json({ message: "Reward deleted successfully" });
-    } catch (error) {
-      console.error('Error deleting reward:', error);
-      res.status(500).send('Failed to delete reward');
-    }
-  });
-
-  app.post("/api/rewards/redeem", async (req, res) => {
-    if (!req.user) return res.status(401).send("Unauthorized");
-    const { rewardId } = req.body;
-
-    const reward = await db.query.rewards.findFirst({
-      where: eq(rewards.id, rewardId),
-    });
-
-    if (!reward) return res.status(404).send("Reward not found");
-
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, req.user.id),
-    });
-
-    if (!user || user.points < reward.pointsCost) {
-      return res.status(400).send("Insufficient points");
-    }
-
-    try {
-      await db.transaction(async (tx) => {
-        // Create the transaction record
-        await tx.insert(transactions).values({
-          userId: user.id,
-          points: -reward.pointsCost,
-          type: reward.type === "CASH" ? "CASH_REDEMPTION" : "REDEEMED",
-          description: reward.type === "CASH"
-            ? `Redeemed points for R${(reward.pointsCost * 0.015).toFixed(2)}`
-            : `Redeemed ${reward.name}`,
-          rewardId,
-        });
-
-        // Update user points
-        await tx
-          .update(users)
-          .set({ points: user.points - reward.pointsCost })
-          .where(eq(users.id, user.id));
-
-        // Log the point adjustment
-        await logAdminAction({
-          adminId: user.id,
-          actionType: "POINT_ADJUSTMENT",
-          targetUserId: user.id,
-          details: reward.type === "CASH"
-            ? `Points deducted (-${reward.pointsCost}) for cash redemption of R${(reward.pointsCost * 0.015).toFixed(2)}`
-            : `Points deducted (-${reward.pointsCost}) for redeeming reward: ${reward.name}`,
-        });
-      });
-
-      // Return success message
-      res.json({
-        success: true,
-        message: reward.type === "CASH"
-          ? `Successfully redeemed R${(reward.pointsCost * 0.015).toFixed(2)}`
-          : `Successfully redeemed ${reward.name}`
-      });
-    } catch (error) {
-      console.error('Error processing reward redemption:', error);
-      res.status(500).send('Failed to process reward redemption');
-    }
-  });
-
-  // Update the cash redemption route
-  app.post("/api/rewards/redeem-cash", async (req, res) => {
-    if (!req.user) return res.status(401).send("Unauthorized");
-    const { points } = req.body;
-
-    if (!points || points <= 0) {
-      return res.status(400).send("Invalid points amount");
-    }
-
-    try {
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, req.user.id),
-      });
-
-      if (!user || user.points < points) {
-        return res.status(400).send("Insufficient points");
-      }
-
-      await db.transaction(async (tx) => {
-        // Create the transaction record
-        const [transaction] = await tx.insert(transactions).values({
-          userId: user.id,
-          points: -points,
-          type: "CASH_REDEMPTION",
-          description: `Redeemed points for R${(points * 0.015).toFixed(2)}`,
-          status: "PENDING",
-          createdAt: new Date(),
-        }).returning();
-
-        // Update user points
-        await tx
-          .update(users)
-          .set({
-            points: sql`${users.points} - ${points}`
-          })
-          .where(eq(users.id, user.id));
-
-        // Add notification for admins
-        addNotification({
-          type: "CASH_REDEMPTION",
-          userId: req.user.id,
-          points: points,
-          description: `${user.firstName} ${user.lastName} redeemed ${points} points for R${(points * 0.015).toFixed(2)}`
-        });
-      });
-
-      res.json({
-        success: true,
-        message: `Successfully redeemed R${(points * 0.015).toFixed(2)}`
-      });
-    } catch (error) {
-      console.error('Error processing cash redemption:', error);
-      res.status(500).send('Failed to process cash redemption');
-    }
-  });
-
-  // Update the cash redemptions endpoint to properly filter and include user details
-  app.get("/api/admin/cash-redemptions", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-
-    try {
-      const cashRedemptions = await db.query.transactions.findMany({
-        where: eq(transactions.type, "CASH_REDEMPTION"),
-        orderBy: [desc(transactions.createdAt)],
-        with: {
-          user: {
-            columns: {
-              firstName: true,
-              lastName: true,
-              email: true
-            }
-          }
-        }
-      });
-
-      res.json(cashRedemptions);
-    } catch (error) {
-      console.error('Error fetching cash redemptions:', error);
-      res.status(500).send('Failed to fetch cash redemptions');
-    }
-  });
-
-  // Add endpoint to mark cash redemption as processed
-  app.post("/api/admin/cash-redemptions/:id/process", async (req, res) => {
-    if (!req.user?.isAdmin) return res.status(403).send("Unauthorized");
-    const { id } = req.params;
-
-    try {
-      const [transaction] = await db
-        .update(transactions)
-        .set({
-          status: 'PROCESSED',
-          processedAt: new Date(),
-          processedBy: req.user.id
-        })
-        .where(eq(transactions.id, parseInt(id)))
-        .returning();
-
-      if (!transaction) {
-        return res.status(404).send("Transaction not found");
-      }
-
-      // Log the cash redemption processing
-      await logAdminAction({
-        adminId: req.user.id,
-        actionType: "POINT_ADJUSTMENT",
-        targetUserId: transaction.userId,
-        details: `Processed cash redemption of R${(Math.abs(transaction.points) * 0.015).toFixed(2)} (${Math.abs(transaction.points)} points)`,
-      });
-
-      res.json(transaction);
-    } catch (error) {
-      console.error('Error processing cash redemption:', error);
-      res.status(500).send('Failed to process cash redemption');
-    }
-  });
-
   // Add after the /api/login endpoint and before /api/logout
   app.post("/api/reset-password", async (req, res) => {
     const { email } = req.body;
@@ -1729,66 +1452,60 @@ export function registerRoutes(app: Express): Server {
 
       if (user) {
         // Generate a reset token that expires in 1 hour
-        const resetToken = randomBytes(32).toString('hex');
-        const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+        const resetToken = randomBytes(32).toString("hex");
+        const tokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
 
         // Update user with reset token
         await db
           .update(users)
           .set({
             resetToken,
-            resetTokenExpiry: tokenExpiry
+            resetTokenExpiry: tokenExpiry,
           })
           .where(eq(users.id, user.id));
 
-        // Send reset email
-        const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
+        // Log reset token info with clear visibility
+        console.log('\n');
+        console.log('🔑 PASSWORD RESET REQUEST 🔑');
+        console.log('=============================');
+        console.log('Email:', email);
+        console.log('Reset Token:', resetToken);
+        console.log('Token Expiry:', tokenExpiry);
+        console.log('=============================');
 
-        // Log the reset link in development environment
-        console.log('====================================');
-        console.log('Password Reset Link (Development Only):');
+        // Create and log reset link
+        const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
+        console.log('📧 RESET PASSWORD LINK:');
+        console.log('=============================');
         console.log(resetLink);
-        console.log('====================================');
+        console.log('=============================\n');
 
         await sendEmail({
           to: email,
           subject: "Password Reset Request",
-          text: `Click the following link to reset your password: ${resetLink}\n\nThis link will expire in 1 hour.`,
+          text: `
+            You requested a password reset. Click the following link to reset your password:
+            ${resetLink}
+
+            This link will expire in 1 hour.
+
+            If you didn't request this, please ignore this email.
+          `,
           html: `
-            <p>Hello ${user.firstName},</p>
-            <p>We received a request to reset your password. Click the button below to create a new password:</p>
-            <p>
-              <a href="${resetLink}" 
-                 style="background-color: #43EB3E; 
-                        color: black; 
-                        padding: 10px 20px; 
-                        text-decoration: none; 
-                        border-radius: 5px; 
-                        display: inline-block;">
-                Reset Password
-              </a>
-            </p>
+            <h1>Password Reset Request</h1>
+            <p>You requested a password reset. Click the following link to reset your password:</p>
+            <p><a href="${resetLink}">${resetLink}</a></p>
             <p>This link will expire in 1 hour.</p>
             <p>If you didn't request this, please ignore this email.</p>
           `
         });
-
-        console.log('Reset password email attempted to be sent to:', email);
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('Email Service Details:', {
-            to: email,
-            subject: "Password Reset Request",
-            resetToken,
-            tokenExpiry
-          });
-        }
       }
 
       // Always return success to prevent email enumeration
-      res.json({ message: "If an account exists with this email, you will receive password reset instructions." });
+      res.json({ message: "If an account exists with that email, you will receive password reset instructions." });
     } catch (error) {
       console.error('Error in password reset:', error);
-      res.status(500).json({ error: "Failed to process password reset request" });
+      res.status(500).json({ message: "Failed to process password reset request" });
     }
   });
 
