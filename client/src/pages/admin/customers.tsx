@@ -531,6 +531,17 @@ export default function AdminCustomers() {
                               <DialogContent className="max-w-5xl bg-[#011d3d] border-[#022b5c] text-white">
                                 <DialogHeader>
                                   <DialogTitle className="text-[#43EB3E]">Assign Points to {customer.firstName}</DialogTitle>
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <span className="text-sm text-muted-foreground">Current Tier:</span>
+                                    <Badge className={`${getTierInfo(customer.points).color}`}>
+                                      {getTierInfo(customer.points).name}
+                                    </Badge>
+                                    {getTierInfo(customer.points).nextTier && (
+                                      <span className="text-xs text-muted-foreground">
+                                        ({getTierInfo(customer.points).nextTier?.pointsNeeded.toLocaleString()} points to {getTierInfo(customer.points).nextTier?.name})
+                                      </span>
+                                    )}
+                                  </div>
                                 </DialogHeader>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                   <div className="space-y-6">
@@ -811,7 +822,7 @@ export default function AdminCustomers() {
                                   <div className="space-y-2">
                                     <label>Email</label>
                                     <Input {...form.register("email")} defaultValue={customer.email} />
-                                  </div>
+                                                                 </div>
                                   <div className="space-y-2">
                                     <label>First Name</label>
                                     <Input {...form.register("firstName")} defaultValue={customer.firstName} />
@@ -824,9 +835,13 @@ export default function AdminCustomers() {
                                     <label>Phone Number</label>
                                     <Input {...form.register("phoneNumber")} defaultValue={customer.phoneNumber} />
                                   </div>
-                                  <div className="spacey-2">
-                                    <label>New Password (leave empty to keep current)</label>
-                                    <Input type="password" {...form.register("password")} />
+                                  <div className="space-y-2">
+                                    <label>Password</label>
+                                    <Input
+                                      type="password"
+                                      {...form.register("password")}
+                                      placeholder="Leave blank to keep current password"
+                                    />
                                   </div>
                                   <Button type="submit">Update Customer</Button>
                                 </form>
