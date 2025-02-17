@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import ResetPassword from "@/pages/reset-password";
 import { useUser } from "@/hooks/use-user";
 import { Loader2 } from "lucide-react";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -51,9 +52,12 @@ function Router() {
   return (
     <SidebarProvider>
       <Switch>
-        {/* Home Route */}
+        {/* Public Routes */}
         <Route path="/">
           <Home />
+        </Route>
+        <Route path="/reset-password">
+          <ResetPassword />
         </Route>
 
         {/* Admin Routes */}
