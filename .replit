@@ -15,7 +15,6 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Start application"
 
 [[workflows.workflow]]
 name = "Project"
@@ -36,11 +35,6 @@ agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
 task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
