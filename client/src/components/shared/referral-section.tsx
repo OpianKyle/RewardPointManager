@@ -7,6 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  FaXTwitter as TwitterIcon,
+  FaFacebook as FacebookIcon,
+  FaLinkedin as LinkedInIcon,
+  FaWhatsapp as WhatsAppIcon,
+  FaTelegram as TelegramIcon,
+  FaEnvelope as EmailIcon
+} from "react-icons/fa6";
 
 interface Referral {
   id: number;
@@ -41,6 +49,17 @@ export default function ReferralSection() {
   const referralLink = referralInfo?.referralCode 
     ? `${window.location.origin}/?ref=${referralInfo.referralCode}`
     : '';
+
+  const shareText = "Join me on OPIAN Rewards and get 2,000 bonus points! Use my referral link:";
+
+  const socialShareUrls = {
+    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(referralLink)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}&quote=${encodeURIComponent(shareText)}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`,
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${referralLink}`)}`,
+    telegram: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`,
+    email: `mailto:?subject=${encodeURIComponent("Join OPIAN Rewards")}&body=${encodeURIComponent(`${shareText}\n\n${referralLink}`)}`
+  };
 
   const copyToClipboard = async () => {
     if (!referralLink) return;
@@ -103,21 +122,73 @@ export default function ReferralSection() {
           Share your referral link with friends. When they register, you'll earn 2,500 points!
         </div>
         {referralLink && (
-          <div className="flex items-center gap-2">
-            <Input
-              value={referralLink}
-              readOnly
-              className="font-mono text-sm"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={copyToClipboard}
-              className={copied ? "text-green-500" : ""}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
+          <>
+            <div className="flex items-center gap-2">
+              <Input
+                value={referralLink}
+                readOnly
+                className="font-mono text-sm"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={copyToClipboard}
+                className={copied ? "text-green-500" : ""}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex gap-2 justify-center">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => window.open(socialShareUrls.twitter, '_blank')}
+                className="text-[#1DA1F2] hover:text-[#1DA1F2]/80"
+              >
+                <TwitterIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => window.open(socialShareUrls.facebook, '_blank')}
+                className="text-[#4267B2] hover:text-[#4267B2]/80"
+              >
+                <FacebookIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => window.open(socialShareUrls.linkedin, '_blank')}
+                className="text-[#0077B5] hover:text-[#0077B5]/80"
+              >
+                <LinkedInIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => window.open(socialShareUrls.whatsapp, '_blank')}
+                className="text-[#25D366] hover:text-[#25D366]/80"
+              >
+                <WhatsAppIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => window.open(socialShareUrls.telegram, '_blank')}
+                className="text-[#0088cc] hover:text-[#0088cc]/80"
+              >
+                <TelegramIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => window.open(socialShareUrls.email, '_blank')}
+                className="text-gray-600 hover:text-gray-800"
+              >
+                <EmailIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </>
         )}
         {referralInfo?.referralCount > 0 && (
           <div className="text-sm">
