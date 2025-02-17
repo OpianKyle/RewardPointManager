@@ -42,7 +42,7 @@ export default function ReferralsPage() {
   });
 
   const referralLink = referralStats?.referralCode 
-    ? `${window.location.origin}/auth?ref=${referralStats.referralCode}`
+    ? `${window.location.origin}/?ref=${referralStats.referralCode}`
     : '';
 
   const copyToClipboard = async () => {
