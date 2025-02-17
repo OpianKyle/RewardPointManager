@@ -1715,5 +1715,103 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add after the /api/login endpoint and before /api/logout
+  app.post("/api/reset-password", async (req, res) => {
+    const { email } = req.body;
+
+    try {
+      // Find user with the provided email
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (user) {
+        // Generate a reset token that expires in 1 hour
+        const resetToken = randomBytes(32).toString('hex');
+        const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+        // Update user with reset token
+        await db
+          .update(users)
+          .set({
+            resetToken,
+            resetTokenExpiry: tokenExpiry
+          })
+          .where(eq(users.id, user.id));
+
+        // Send reset email
+        const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
+        await sendEmail({
+          to: email,
+          subject: "Password Reset Request",
+          text: `Click the following link to reset your password: ${resetLink}\n\nThis link will expire in 1 hour.`,
+          html: `
+            <p>Hello ${user.firstName},</p>
+            <p>We received a request to reset your password. Click the button below to create a new password:</p>
+            <p>
+              <a href="${resetLink}" 
+                 style="background-color: #43EB3E; 
+                        color: black; 
+                        padding: 10px 20px; 
+                        text-decoration: none; 
+                        border-radius: 5px; 
+                        display: inline-block;">
+                Reset Password
+              </a>
+            </p>
+            <p>This link will expire in 1 hour.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+          `
+        });
+      }
+
+      // Always return success to prevent email enumeration
+      res.json({ message: "If an account exists with this email, you will receive password reset instructions." });
+    } catch (error) {
+      console.error('Error in password reset:', error);
+      res.status(500).json({ error: "Failed to process password reset request" });
+    }
+  });
+
+  app.post("/api/reset-password/:token", async (req, res) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    try {
+      // Find user with the valid reset token
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(
+          sql`${users.resetToken} = ${token} AND ${users.resetTokenExpiry} > NOW()`
+        )
+        .limit(1);
+
+      if (!user) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+
+      // Hash the new password
+      const hashedPassword = await authCrypto.hashPassword(newPassword);
+
+      // Update user's password and clear reset token
+      await db
+        .update(users)
+        .set({
+          password: hashedPassword,
+          resetToken: null,
+          resetTokenExpiry: null
+        })
+        .where(eq(users.id, user.id));
+
+      res.json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error('Error in password reset:', error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
   return httpServer;
 }

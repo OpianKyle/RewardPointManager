@@ -42,6 +42,8 @@ export const users = pgTable("users", {
   points: integer("points").default(0).notNull(),
   referral_code: text("referral_code"),
   referred_by: text("referred_by"),
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
