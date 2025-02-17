@@ -14,7 +14,8 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      navigate('/auth');
+      // Change redirect from /auth to /
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout failed:', error);
     }
